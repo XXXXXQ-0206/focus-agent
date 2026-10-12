@@ -1,0 +1,21 @@
+{
+  "name": "artex-desktop",
+  "productName": "ARTEX",
+  "version": "1.0.0",
+  "description": "ARTEX 自主渗透测试平台 · 桌面端（Electron 外壳，参考 dsh-desktop 的组织方式）",
+  "main": "main.js",
+  "private": true,
+  "author": "ARTEX",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-packager . --platform=win32 --arch=x64 --out=build --overwrite --asar --icon=assets/artex.ico --app-version=1.0.0 --executable-name=ARTEX"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "43.1.0"
+  },
+  "allowScripts": {
+    "electron@43.1.0": true
+  }
+}
