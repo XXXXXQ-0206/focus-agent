@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ArtexLauncher</AssemblyName>
+    <RootNamespace>ArtexLauncher</RootNamespace>
+    <ApplicationIcon>assets\artex_app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="assets\artex_running.ico" />
+    <EmbeddedResource Include="assets\artex_stopped.ico" />
+  </ItemGroup>
+
+</Project>
