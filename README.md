@@ -1,190 +1,193 @@
-# focus-agent
+# Focus Agent
 
-**AI 自主渗透测试系统 · ARTEX 二次开发版**（Go 后端 + Next.js 前端 + PostgreSQL）
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-> 本项目基于 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 二次开发：以 v0.3.10 为基线，持续吸收上游更新（已跟进至 v0.3.12，并选择性吸收 0.3.11 / 0.3.12 修复），遵循上游 **AGPL-3.0** 协议（见 `LICENSE`）。
-> 二开方向：把上游的「外网自动化探索平台」扩展为「**外网突破 → 立足点 → 内网纵深**」的全流程自主渗透平台，并补齐实战化安全与稳定性短板。
+Focus Agent 是基于 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 二次开发的自主安全测试平台，采用 Go 后端、Next.js 前端和 PostgreSQL。它保留 ARTEX 的 planner/worker 与双图架构，并扩展了会话管理、内网阶段编排、范围审批和部署工具链。
 
-> ⚠️ 本项目仅供本地学习、代码研究与授权靶场验证使用，不得用于对任何线上系统或网站发起实际测试；完整约定见文末「许可与免责声明」。
+本仓库是独立维护的 `focus-agent` 项目，不依赖 `focus-harness`。代码来源、二次开发范围和许可证见 [`README-FORK.md`](README-FORK.md)。
 
----
+> **使用范围：**本项目仅供源码学习和本地隔离环境验证。不得用它扫描、探测或测试线上服务及其他联网系统，无论目标归谁所有、是否获得授权。详见[许可与使用限制](#许可与使用限制)。
 
-## 与上游的主要区别
+## 目录
 
-| 子系统 | 内容 |
+- [项目概览](#项目概览)
+- [功能](#功能)
+- [架构](#架构)
+- [快速开始](#快速开始)
+- [首次访问](#首次访问)
+- [使用流程](#使用流程)
+- [配置](#配置)
+- [能力边界](#能力边界)
+- [文档](#文档)
+- [开发与构建](#开发与构建)
+- [许可与使用限制](#许可与使用限制)
+
+## 项目概览
+
+Focus Agent 以任务为单位组织安全验证：planner 根据当前态势安排工作，worker 调用已配置的工具，把新发现写回资产图和探索图，再由 planner 决定后续步骤。界面用于管理任务、资产、发现结果、会话、审批和流量记录。
+
+项目以 ARTEX v0.3.10 为开发基线，吸收了部分 v0.3.11 / v0.3.12 更新。它遵循上游的 **AGPL-3.0** 许可证；本项目的新增能力和验证情况见 [`README-FORK.md`](README-FORK.md)。
+
+<details>
+<summary>界面预览</summary>
+
+| 控制台 | 资产图 |
 | --- | --- |
-| **内网作战** | webshell 加密会话管理（PHP / JSP）、反弹 shell（penelope 受管）、立足点被动侦察（`session_recon`）、多层代理隧道（suo5 / chisel 自动选型、任务级 MITM 热切换）、内网拓扑图（按任务过滤）、凭据库 |
-| **阶段编排** | 待授权网段审批（侦察发现 scope 外网段 → 人工批准扩 scope）、外网 → 内网任务移交（handoff 模板建子任务）、内网 worker 提示词变体（有立足点自动切换） |
-| **安全与反测绘** | 伪装门控（未过门控一律返回逐字节固定的 nginx 欢迎页，随机入口路径）、一键放行（2 / 4 / 8h 时限审批豁免，deny 不豁免）、RoE 范围强制三态（off / warn / strict） |
-| **蜜罐识别与反 AI 蜜罐防护** | 静态签名识别层（`honeydetect/`，内嵌签名库覆盖 Cowrie / OpenCanary / Kippo / Glastopf / HFish / Dionaea）、资产蜜罐评分与 UI 徽标、planner 处置纪律；针对「以 AI 攻击代理为猎物」的新型陷阱：worker 红线（永不自证）、出口敏感信息拦截、tarpit 抓取熔断、UA 池。设计见 `HONEYPOT-DETECTION-DESIGN.md` |
-| **chains 场景化** | 九类反问思维链骨架按意图自动注入、按漏洞类别的反证判据（误报写 fact、真漏洞才落图）、类别化转向提示 |
-| **武器库与部署链** | 17 项外部工具钉版清单（`packaging/tools-manifest.json`，启动自检 sha256）、`artex doctor` 部署预检、systemd unit |
-| **稳定性** | 任务 deadline 冻结感知（宿主机睡眠不烧任务）、LLM 调用硬墙钟、会话探活与启动卫生 |
+| ![任务控制台](screenshots/dashboard.png) | ![资产图](screenshots/graph.png) |
 
-详细二开说明见 `README-FORK.md`；分布式演进评估见 `FUTURE.md`。
+| 资产 | 发现结果 |
+| --- | --- |
+| ![资产列表](screenshots/assets.png) | ![发现结果](screenshots/findings.png) |
 
----
+</details>
 
-## 安装
+## 功能
 
-> 依赖 **PostgreSQL**；探索功能需配置 **LLM**（兼容 OpenAI / Anthropic 协议，可在 UI 内配置）。
+| 模块 | 说明 |
+| --- | --- |
+| 任务规划 | planner/worker 多 agent 协作，支持任务暂停、纠偏、审批和过程记录。 |
+| 双图数据 | 资产图保存跨任务资产关系；探索图记录每个任务的目标、事实、发现及证据关系。 |
+| 内网阶段 | 管理 Webshell 与反弹 Shell 会话、代理隧道、内网拓扑和凭据，并支持从外网阶段移交到内网任务。 |
+| 范围与审批 | 支持 RoE 范围策略；发现范围外网段时先进入待审批队列，批准后才纳入任务范围。 |
+| 验证与防护 | 按漏洞类别执行反证检查；提供蜜罐静态签名识别、出口信息审查和 tarpit 抓取熔断。 |
+| 部署与运维 | 提供 Docker Compose、交互式安装脚本、工具版本清单、自检命令和 systemd unit。 |
 
-### 方式一：一键安装脚本
+## 架构
+
+```mermaid
+flowchart LR
+    UI[Web UI / API] --> P[Planner]
+    P --> I[任务意图]
+    I --> W[Worker Agents]
+    W --> T[已配置的工具]
+    T --> W
+    W --> G[资产图与探索图]
+    G --> DB[(PostgreSQL)]
+    DB --> P
+```
+
+planner 读取任务态势并生成意图；worker 领取意图、调用工具、记录事实或发现。图数据变化后会唤醒下一轮规划。更完整的架构和二开说明见 [`README-FORK.md`](README-FORK.md)。
+
+## 快速开始
+
+推荐用 Docker Compose 在本地启动。需要 Docker Engine 和 Docker Compose v2。
 
 ```bash
 git clone https://github.com/XXXXXQ-0206/focus-agent.git
 cd focus-agent
+cp .env.example .env
+```
+
+编辑 `.env`，把 `POSTGRES_PASSWORD` 改成强密码（不要包含 `#`）。不要提交包含真实密码或 API key 的 `.env` 文件。然后构建并启动：
+
+```bash
+docker compose up -d --build
+docker compose logs -f artex
+```
+
+首次启动时查看日志中的门控入口路径，再按[首次访问](#首次访问)打开界面。
+
+也可以运行交互式安装脚本，它会让你选择全部使用 Docker，或在本机编译运行：
+
+```bash
 ./install.sh
 ```
 
-脚本会检测 / 自动安装 Docker，可选 **① 全部 Docker** 或 **② 本地编译运行**（生成 `config.json` 并编译内嵌单二进制）。装好后打开 `http://localhost:8787`。
+## 首次访问
 
-### 方式二：从源码编译单二进制
+非回环监听默认启用伪装门控。直接访问 `http://<IP>:8787` 可能只会显示 nginx 欢迎页，这是门控的预期行为。
 
-> 前置要求：Go ≥ 1.26、Node ≥ 20（前端构建内存建议 ≥ 4G）。
-> **老发行版注意**：Node ≥ 18 官方构建要求 glibc ≥ 2.28，Ubuntu 18.04（glibc 2.27）无法运行——需使用 [unofficial-builds 的 glibc-217 构建](https://unofficial-builds.nodejs.org/download/release/) 或更换更新的系统。
-> **国内网络**：克隆 GitHub、npm、Go 模块可能需要代理 / 镜像，参考：`git config --global http.proxy socks5h://127.0.0.1:7890`、`npm config set registry https://registry.npmmirror.com`、`go env -w GOPROXY=https://goproxy.cn,direct`。
+1. 查看启动日志中的入口路径，例如 `/g-xxxxxxxx`；路径也会写入 `data/gate.path`。
+2. 打开 `http://localhost:8787/g-xxxxxxxx`，并按部署配置输入门控口令。默认口令与随机入口路径相同。
+3. 首次进入后到 `/setup` 设置管理员密码。
 
-```bash
-git clone https://github.com/XXXXXQ-0206/focus-agent.git
-cd focus-agent
-# 1) 前端静态导出
-cd web && npm ci && npm run build:static && cd ..
-# 2) 拷进内嵌目录（全新克隆下若报目录不存在，先 mkdir -p server/webui/dist）
-cp -r web/out server/webui/dist
-# 3) 编译（-tags embedui 才内嵌前端）
-CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
-# 4) 配置数据库连接（必须，否则起不来）
-cp config.example.json config.json   # 编辑填好 database 段
-./start.sh
-```
+## 使用流程
 
-### 方式三：systemd 托管（Linux 服务器推荐）
-
-```bash
-sudo install -m644 packaging/artex.service /etc/systemd/system/artex.service
-# 编辑 unit：User= / WorkingDirectory= / ExecStart= 改成你的部署账号与安装目录
-sudo systemctl daemon-reload && sudo systemctl enable --now artex
-journalctl -u artex -f
-```
-
-可选环境变量（如 `ARTEX_CALLBACK_ADDR` 回连地址）写在 `/etc/artex.env`。
-
-### 方式四：Docker
-
-仓库内的 `docker-compose.yml` 已配置为**从源码构建二开版镜像**（`Dockerfile.source`：前端构建 → Go 编译 → 工具运行时，全部在 Docker 内完成，宿主无需 Go / Node）：
-
-```bash
-git clone https://github.com/XXXXXQ-0206/focus-agent.git
-cd focus-agent
-cp .env.example .env   # 填 POSTGRES_PASSWORD（不要用 # 字符）
-docker compose up -d --build
-```
-
-⚠️ 不要把该 compose 的镜像改成 `autumn27/artex`——那是**上游原版**，不含二开代码（2026-09 实测踩坑：照抄上游 compose 部署会得到原版）。
-⚠️ 构建需要访问 apt / npm / Go 模块源，国内机器请先为 Docker 配置代理（`~/.docker/config.json` 的 proxies 段）或镜像站。
-
----
-
-## 首次使用（重要）
-
-二开版默认开启**反测绘伪装门控**：非 loopback 监听时，直接访问 `http://<IP>:8787` 看到的是 nginx 欢迎页（正常现象）。
-
-1. 启动日志会打印入口路径，形如 `[gate] 伪装门控已启用，入口路径：/g-xxxxxxxx`（同时写入 `data/gate.path`）；
-2. 浏览器访问 `http://<IP>:8787/g-xxxxxxxx`，输入门控口令（默认同入口路径随机串）；
-3. 首次进入 `/setup` 设置管理员密码。
-
-## 外部工具（军火库）与部署自检
-
-渗透能力依赖一批外部工具，统一存放于 **`data/tools/`**：
-
-| 工具 | 用途 |
-| --- | --- |
-| suo5 / chisel / ligolo | 隧道与多层代理（目标无出网 / 能出网 / TUN 组网） |
-| gogo / naabu / httpx / katana / fscan | 端口扫描、HTTP 探测、爬虫、内网综合扫描 |
-| impacket / nxc / mimikatz / pypykatz / laZagne | Windows 协议利用与凭据收割 |
-| peass / penelope | 提权枚举 / 反弹 shell handler |
-
-- **钉版清单**：`packaging/tools-manifest.json` 记录版本 / 平台 / sha256 / 相对路径，启动自检（不匹配只警告，留空 = 未钉）。
-- **部署预检**：装完 / 升级后运行 `./artex doctor`——检查 PG、LLM profile、data 可写、隧道工具、军火库、门控、回连地址，FAIL 退出码 1。
-- 工具需在「工具」页注册为自定义工具（`kind=shell`）后，agent 才能调用。
-
-## 升级
-
-- **重启即迁移**：schema 每次启动幂等重跑，升级只换程序不动数据（备份 `./data` 与数据库仍是好习惯）。
-- ⚠️ **不要使用页面上的「一键更新」**：它指向**上游** release 源，会把二开版覆盖成上游原版。升级二开版请用 `git pull` + 重新编译（方式二）。
+1. 仅在本地隔离靶场中创建任务，并明确填写允许测试的目标和范围。
+2. 配置 LLM，并在「工具」页面注册需要使用的外部工具。
+3. 查看任务记录和待处理审批；只有确认目标在已授权范围内，才批准范围变更。
+4. 检查发现结果及其证据，再决定是否在隔离环境中复测。
 
 ## 配置
 
-**数据库**（`config.json`，或环境变量 `ARTEX_PG_DSN` 覆盖）：
+### 数据库
+
+Docker Compose 部署会启动 PostgreSQL。自行运行二进制时，可编辑 `config.json` 中的数据库字段，或通过 `ARTEX_PG_DSN` 提供连接串：
 
 ```json
 {
   "database": {
-    "host": "127.0.0.1", "port": 5432,
-    "user": "artex", "password": "yourpass",
-    "dbname": "artex", "sslmode": "disable"
+    "host": "127.0.0.1",
+    "port": 5432,
+    "user": "artex",
+    "password": "替换为本地数据库密码",
+    "dbname": "artex",
+    "sslmode": "disable"
   }
 }
 ```
 
-**LLM**：在界面「LLM 配置」页填写（推荐）；或 `export ANTHROPIC_API_KEY=sk-...` / `OPENAI_API_KEY`。
-**常用参数**：`./start.sh -addr :8787 -proxy :8788`（`-addr` 前端 + API，`-proxy` 流量录制代理，默认只绑回环）。
-**并发**：每任务 work agent 数在「系统设置」中配置（默认 3）。
+### LLM 与工具
 
----
+推荐在界面的「LLM 配置」页填写模型服务。也可以在 `.env` 中设置 `ANTHROPIC_API_KEY`、`OPENAI_API_KEY` 和 `ARTEX_LLM_*` 参数。密钥只应放在本机配置中，不要写入仓库或日志。
 
-## 系统技术架构
+扫描器、隧道和会话工具需按 [`packaging/tools-manifest.json`](packaging/tools-manifest.json) 放置并校验，再到「工具」页面注册。安装完成或升级后可运行 `./artex doctor` 检查数据库、LLM 配置、数据目录和工具链。
 
-ARTEX 是一套 **LLM 多 agent 驱动的自主渗透系统**：Go 单体后端（内嵌 Next.js 前端）+ PostgreSQL，agent 能力由 [`norma`](https://github.com/Autumn-27/norma) SDK 提供。核心是**双图架构**：
+其他常用参数：
 
-- **资产图（全局共享）**：跨任务的资产真值库，节点为 root_domain / subdomain / ip / service / app / endpoint，归属公司；域名 → 子域 → 服务 → 端点的父子关系由程序计算，agent 只提交原始信息。
-- **探索图（每任务独立）**：一次任务的「思考与推进」过程，节点为 goal / intent / fact / finding / hint，靠 spawns / derived_from / yields / proves 边连成血缘链；经锚点（`exploration_anchors`）与资产图相连，支撑资产测试覆盖度。
-- **引擎是事件驱动闭环**：图一变就唤醒 planner → planner 读态势派意图 → worker 领一条意图、用真实工具执行、把新资产 / 事实 / 漏洞写回两图 → 再唤醒。worker 间有过程级信息交换（`search_all_worker_traces`）；planner 持跨唤醒共享 todolist 稳定多步攻击链。
+- `ARTEX_CALLBACK_ADDR`：反弹 Shell 或隧道回连平台所用的地址。
+- `./start.sh -addr :8787 -proxy :8788`：分别设置 Web/API 监听地址和流量记录代理地址。
+- 每个任务的 worker 数量可在「系统设置」中调整，默认值为 3。
 
-二开在此基础上增加了：会话 / 隧道 / 移交的内网作战层、待授权网段审批链、蜜罐置信度数据线（识别 + 防护）、chains 场景化激活。详见各设计文档。
+## 能力边界
 
-## 文档索引
+- 自动化结果取决于所选模型、工具版本和任务输入；输出不能替代人工复核，也不保证发现所有问题。
+- 外部工具需要单独部署和注册。未安装或未配置的工具不会自动可用。
+- 蜜罐识别目前包含静态签名层。行为探针和登录后的主机检查仍处于设计阶段；高交互蜜罐可能无法识别。
+- 分布式执行仍是评估与设计事项，见 [`FUTURE.md`](FUTURE.md)。
+
+## 文档
 
 | 文档 | 内容 |
 | --- | --- |
-| `README-FORK.md` | 二开完整说明（与上游关系、新增能力清单、验证情况） |
-| `FUTURE.md` | 分布式改造全面评估（server 大脑 + 远程 node 执行） |
-| `HONEYPOT-DETECTION-DESIGN.md` | 蜜罐识别模块调研与设计（含反 AI 代理蜜罐） |
-| `INTRANET-PIVOT-DESIGN.md` | 内网作战子系统设计 |
-| `CHAINS-INTEGRATION-DESIGN.md` | chains 场景化激活设计 |
-| `POSTMORTEM-RED-SUN-3.md` / `AB-REPORT-RED-SUN-3.md` | 红日靶场 3 实战复盘 |
+| [`README-FORK.md`](README-FORK.md) | 与 ARTEX 的关系、二开能力、验证结果和已知不足。 |
+| [`HONEYPOT-DETECTION-DESIGN.md`](HONEYPOT-DETECTION-DESIGN.md) | 蜜罐识别与反 AI 蜜罐防护设计。 |
+| [`INTRANET-PIVOT-DESIGN.md`](INTRANET-PIVOT-DESIGN.md) | 内网会话、隧道和阶段移交设计。 |
+| [`CHAINS-INTEGRATION-DESIGN.md`](CHAINS-INTEGRATION-DESIGN.md) | 场景化思维链与发现验证设计。 |
+| [`FUTURE.md`](FUTURE.md) | 分布式执行架构评估；尚未实施。 |
+| [`POSTMORTEM-RED-SUN-3.md`](POSTMORTEM-RED-SUN-3.md) / [`AB-REPORT-RED-SUN-3.md`](AB-REPORT-RED-SUN-3.md) | 红日靶场 3 的复盘与 A/B 验证记录。 |
 
-## 许可与免责声明
+## 开发与构建
 
-### 开源协议
+源码构建需要 Go 1.26.3 或更新版本、Node.js 20 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中编译前后端。
 
-本项目采用 **GNU Affero General Public License v3.0（AGPL-3.0）** 授权，完整条款见仓库根目录的 [LICENSE](LICENSE) 文件。
+<details>
+<summary>从源码构建单体程序</summary>
 
-这意味着任何人都可以自由使用、修改和分发本项目，但**衍生作品必须同样以 AGPL-3.0 开源**；特别地，**若你修改本项目并通过网络（如部署为在线服务）向用户提供服务，也必须向这些用户公开对应的完整源码**（给出本仓库链接即可满足：<https://github.com/XXXXXQ-0206/focus-agent>）。
+```bash
+git clone https://github.com/XXXXXQ-0206/focus-agent.git
+cd focus-agent
 
-> ⚠️ **重要提示**：开源协议本身不限制软件的使用用途。以下的「使用限制」与「免责声明」是对使用者的额外约定与郑重声明，请务必遵守。
+cd web && npm ci && npm run build:static && cd ..
+mkdir -p server/webui/dist
+cp -r web/out/. server/webui/dist/
 
-**本项目仅供个人学习、代码研究与本地技术验证使用，不得用于对任何线上系统或网站发起实际测试。**
+CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
+cp config.example.json config.json
+# 编辑 config.json，填入本地 PostgreSQL 连接信息
+./start.sh
+```
 
-### 允许使用范围
+Ubuntu 18.04 的 glibc 版本低于 Node.js 官方构建要求；这类旧系统需要选用兼容构建或升级系统。国内网络环境可能需要为 Git、npm、Go 模块和 Docker 配置代理或镜像。
 
-- 仅可用于**阅读、学习与研究本项目源码**，以及在**本地隔离环境**（自建靶场、授权明确的实验环境）中进行技术原理验证；
-- 适用于个人学习、学术研究、代码审阅等非攻击性用途。
+</details>
 
-### 禁止事项
+Linux 服务器也可使用 [`packaging/artex.service`](packaging/artex.service) 交由 systemd 管理。部署前请先检查服务监听范围、门控、回连地址和本机密钥权限。
 
-- **严禁使用本工具对任何网站、线上服务或联网系统发起扫描、探测、利用或攻击**（无论是否获得授权、是否为自有资产）；
-- 严禁将本工具用于任何实际的渗透测试、攻防对抗或生产环境；
-- 严禁将本工具用于非法入侵、数据窃取、勒索、拒绝服务或任何破坏性、犯罪性活动；
-- 严禁利用本工具从事违反所在国家 / 地区法律法规的行为。
+## 许可与使用限制
 
-### 合规责任
+Focus Agent 按 **GNU Affero General Public License v3.0（AGPL-3.0）** 发布，完整条款见 [`LICENSE`](LICENSE)。本项目基于 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 二次开发，上游采用的许可和来源说明见许可证及 [`README-FORK.md`](README-FORK.md)。
 
-使用者须自行遵守所在国家 / 地区关于网络安全、数据保护与计算机犯罪的全部法律法规（在中国大陆包括但不限于《网络安全法》《数据安全法》《个人信息保护法》及相关司法解释）。**因使用本工具产生的一切法律责任与后果，均由使用者自行承担。**
+如修改本项目并通过网络向用户提供服务，AGPL-3.0 要求向这些用户提供正在运行版本对应的完整源代码；仅提供本仓库链接并不能替代与部署版本相对应的源码。
 
-### 免责声明
-
-本项目按「现状」提供，不附带任何明示或默示的担保（包括但不限于适销性、特定用途适用性与不侵权的担保）。在任何情况下，原作者与二开维护者均不对因使用或无法使用本项目而产生的任何直接、间接、附带、特殊、惩罚性或后果性损害（包括但不限于数据丢失、业务中断、系统受损、名誉损失或任何法律责任）承担责任，即使已被告知此类损害的可能性。
-
-**下载、安装、运行或使用本项目，即视为你已阅读、理解并同意上述全部条款。**
+本项目仅供源码学习和本地隔离环境验证。严禁将其用于任何线上服务或联网系统的扫描、探测、利用或攻击，包括自有系统和已获授权的目标；也不得用于生产环境、数据窃取、勒索、拒绝服务或其他违法行为。使用者须自行遵守适用法律法规，并承担因运行或使用本项目产生的责任。软件按「现状」提供，不附带明示或默示担保。
