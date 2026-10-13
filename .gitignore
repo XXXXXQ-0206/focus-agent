@@ -14,6 +14,11 @@ web/node_modules/
 web/.next/
 web/tsconfig.tsbuildinfo
 web/next-env.d.ts
+frontends/artex-web/node_modules/
+frontends/artex-web/.next/
+frontends/artex-web/out/
+frontends/artex-web/tsconfig.tsbuildinfo
+frontends/artex-web/next-env.d.ts
 *.local
 
 # development tools
