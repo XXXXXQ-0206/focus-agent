@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [username, setUsername] = useState("ARTEX");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,7 +69,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const { token } = await api.login("ARTEX", password);
+      const { token } = await api.login(username.trim(), password);
       auth.setToken(token);
       window.location.replace("/function/tasks");
     } catch {
@@ -112,7 +113,13 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="username">用户名</Label>
-              <Input id="username" value="ARTEX" readOnly className="bg-muted text-muted-foreground" />
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="ARTEX"
+                autoComplete="username"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">密码</Label>
