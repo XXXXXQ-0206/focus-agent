@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { appPath } from "@/lib/app-path";
 
 const AUTH_PAGES = ["/login", "/setup"];
 
@@ -15,12 +16,12 @@ export function proxy(request: NextRequest) {
 
   // 未登录 → 跳转登录页
   if (!token && !isAuthPage) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL(appPath("/login"), request.url));
   }
 
   // 已登录时访问登录/初始化页 → 跳转主界面
   if (token && isAuthPage) {
-    return NextResponse.redirect(new URL("/function/tasks", request.url));
+    return NextResponse.redirect(new URL(appPath("/function/tasks"), request.url));
   }
 
   return NextResponse.next();

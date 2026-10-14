@@ -1,0 +1,201 @@
+/* ============================================================================
+ * 基础设施四页（工作区 / 命令记录 / 同步 / 内网会话）的补充样式。
+ *
+ * 骨架与列表复用 pages.css（slate 页头 + .cx-row 行列表）与工程 token；
+ * 这里只放这几页专属的小件：路径条、统计芯片、同步表单、控制台块。
+ * ========================================================================== */
+
+.artex-page-note {
+  margin: 8px 0 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.artex-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+/* 路径条（工作区面包屑） */
+.artex-path-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+.artex-path-chip {
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.artex-path-chip:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+.artex-path-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 统计芯片（命令记录 / 同步结果） */
+.artex-stat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.artex-stat-chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.artex-stat-chip strong {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.artex-stat-chip span {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+/* 任务筛选下拉（与 slate 图标按钮同高） */
+.artex-task-filter select {
+  height: 32px;
+  max-width: 260px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* 同步表单 */
+.artex-sync-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.artex-form-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.artex-form-row > span {
+  color: var(--color-text-tertiary);
+}
+
+.artex-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.artex-sync-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.artex-sync-types {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.artex-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* 分页条 */
+.artex-pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+/* 命令详情块 */
+.artex-dialog-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.artex-dialog-block h3 {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 会话控制台（内网会话详情） */
+.artex-console {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.artex-console__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.artex-console__exec,
+.artex-console__fs {
+  display: flex;
+  gap: 8px;
+}
+
+.artex-console__entries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}

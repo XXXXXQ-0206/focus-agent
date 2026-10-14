@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { auth } from "@/lib/auth";
+import { appPath } from "@/lib/app-path";
 import { api } from "@/lib/api";
 import { cn, getInitials } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export function AccountSwitcher({
       })
       .finally(() => {
         auth.clearToken();
-        window.location.href = "/login";
+        window.location.href = appPath("/login");
       });
   }
 

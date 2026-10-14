@@ -37,7 +37,7 @@
 ```sh
 go test -race ./agent ./db ./server ./sidequestion ./llmrec ./llmpool \
   -run 'Test(Side|Checkpoint|Snapshot|BuildRequest|Service|MainSide|CaptureRun|TaskArchive|CompleteForwards|StopIntent|CancelIntent)' -count=1
-cd web
+cd frontends/codex-client
 npx tsc --noEmit
 npx biome check src/lib/side-questions.ts src/hooks/use-side-questions.ts src/components/side-question-workspace.tsx
 npm run build

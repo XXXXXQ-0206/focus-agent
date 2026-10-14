@@ -1,0 +1,68 @@
+/**
+ * 控件库（/controls）标本行的样式。
+ *
+ * 用户口径（2026-10-15 第二轮）：**遵循设置页的基本布局（标题 + 页边距），但不要卡片**
+ * —— 所以这里只给"素行"补节奏（左名称/备注、右控件、行间发丝线），
+ * 不铺卡面底色、不画卡片描边；页面骨架与列宽沿用 .cx-settings 的那套。
+ */
+
+.cx-specimen-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 行内边距照设置行（12px 16px），行间 1px 发丝线（无卡片、无外框） */
+.cx-specimen-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 16px;
+  position: relative;
+}
+
+/* 行间发丝线：与设置页行分隔线同款 —— 不全长，左右各内缩一个行内距（16px）。
+   出处：用户 2026-10-15 给的官方「常规」页截图（卡片内分隔线两端各留空隙）。 */
+.cx-specimen-line + .cx-specimen-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--cx-settings-row-padding-inline, 16px);
+  right: var(--cx-settings-row-padding-inline, 16px);
+  height: var(--cx-settings-card-hairline, 0.5px);
+  background-color: var(--cx-settings-card-hairline-color, rgb(255 255 255 / 0.082));
+}
+
+.cx-specimen-line__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cx-specimen-line__name {
+  color: var(--color-text);
+  font-size: var(--cx-settings-control-font-size, 13px);
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.cx-specimen-line__note {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cx-specimen-line__control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-specimen-line__row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

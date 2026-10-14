@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { appPath } from "@/lib/app-path";
 
 export function ChangePasswordDialog({
   open,
@@ -56,7 +57,7 @@ export function ChangePasswordDialog({
         // 改密会吊销全部已签发凭证(密钥版本 +1),必须重新登录(F6)。
         toast.success("密码已修改，请重新登录");
         auth.clearToken();
-        window.location.href = "/login";
+          window.location.href = appPath("/login");
       })
       .catch((err) => toast.error(`修改失败：${(err as Error).message}`))
       .finally(() => setSaving(false));

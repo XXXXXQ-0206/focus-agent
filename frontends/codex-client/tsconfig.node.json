@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "allowJs": true
+  },
+  // 只纳入构建配置与主进程：tools/ 下的脚本是给 node 直接跑的取证/验收工具，
+  // 它们的正确性由「能否跑出确定结果」验证，不走 tsc（避免工具脚本的写法反过来卡住应用构建）。
+  "include": ["vite.config.ts", "electron/**/*.ts"]
+}

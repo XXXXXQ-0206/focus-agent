@@ -67,7 +67,7 @@ function probe(port = PORT, timeoutMs = 400) {
   });
 }
 
-function createController(installDir, log) {
+function createController(installDir, log, runSync = spawnSync) {
   let pgStartedByUs = false;
   let artexChild = null;
 
@@ -80,13 +80,13 @@ function createController(installDir, log) {
     const pgData = bin("data\\pgdata");
     if (!fs.existsSync(pgCtl) || !fs.existsSync(pgData)) return true; // 外部数据库部署
 
-    const ready = spawnSync(bin("pgsql\\bin\\pg_isready.exe"), ["-h", HOST, "-p", String(PG_PORT), "-q"], {
+    const ready = runSync(bin("pgsql\\bin\\pg_isready.exe"), ["-h", HOST, "-p", String(PG_PORT), "-q"], {
       windowsHide: true,
       timeout: 5000,
     });
     if (ready.status === 0) return true;
 
-    const res = spawnSync(pgCtl, ["-D", pgData, "-l", bin("data\\pg.log"), "-w", "start"], {
+    const res = runSync(pgCtl, ["-D", pgData, "-l", bin("data\\pg.log"), "-w", "start"], {
       windowsHide: true,
       timeout: 60000,
     });
@@ -131,29 +131,34 @@ function createController(installDir, log) {
   function killTree(pid) {
     if (!pid || pid <= 0) return;
     try {
-      spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true, timeout: 8000 });
+      runSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true, timeout: 8000 });
     } catch {
       /* ignore */
     }
   }
 
-  /** 停掉 ARTEX：先杀我们拉起的进程树，再按端口占用者兜底；最后按需停库。 */
+  /** 停掉当前控制器拉起的 ARTEX；未知端口占用者只告警，绝不代替用户结束。 */
   function stopArtex() {
-    if (artexChild && artexChild.pid) killTree(artexChild.pid);
+    const ownedPid = artexChild && artexChild.pid;
+    if (ownedPid) killTree(ownedPid);
     artexChild = null;
-    // 端口占用者兜底（例如上一轮遗留的实例）
-    const out = spawnSync("netstat", ["-ano"], { windowsHide: true, timeout: 5000, encoding: "utf8" });
+    // 不把“占用了 ARTEX 默认端口”当作进程归属证明；保留未知服务并给操作者提示。
+    const out = runSync("netstat", ["-ano"], { windowsHide: true, timeout: 5000, encoding: "utf8" });
     if (out.stdout) {
       for (const line of out.stdout.split(/\r?\n/)) {
-        if (line.includes(`:${PORT}`) && line.toUpperCase().includes("LISTENING")) {
+        const fields = line.trim().split(/\s+/);
+        const localAddress = fields[1] || "";
+        if (localAddress.endsWith(`:${PORT}`) && line.toUpperCase().includes("LISTENING")) {
           const pid = Number(line.trim().split(/\s+/).pop());
-          if (Number.isFinite(pid) && pid > 0 && pid !== process.pid) killTree(pid);
+          if (Number.isFinite(pid) && pid > 0 && pid !== process.pid && pid !== ownedPid) {
+            log?.(`[backend] leaving unowned listener on ${localAddress} (pid=${pid}) untouched`);
+          }
         }
       }
     }
     if (pgStartedByUs && installDir) {
       try {
-        spawnSync(bin("pgsql\\bin\\pg_ctl.exe"), ["-D", bin("data\\pgdata"), "stop", "-m", "fast"], {
+      runSync(bin("pgsql\\bin\\pg_ctl.exe"), ["-D", bin("data\\pgdata"), "stop", "-m", "fast"], {
           windowsHide: true,
           timeout: 20000,
         });

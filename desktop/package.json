@@ -9,6 +9,7 @@
   "license": "AGPL-3.0",
   "scripts": {
     "start": "electron .",
+    "test": "node --test",
     "pack": "electron-packager . --platform=win32 --arch=x64 --out=build --overwrite --asar --icon=assets/artex.ico --app-version=1.0.0 --executable-name=ARTEX"
   },
   "devDependencies": {

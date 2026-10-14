@@ -1,0 +1,179 @@
+/* ============================================================================
+ * 元素级基线 —— 与 Codex 参考端 getComputedStyle 实测一致
+ *
+ * 出处标注：
+ *   [rt]   C:\artex-ymh\evidence\codex-desktop\captures\tokens.runtime.json（参考端实测生效值）
+ *   [css]  ./tokens.css（官方 @layer theme 原文，行号即该文件行号）
+ *   [main] N\src\main\main-p91kJShj.js（Electron 主进程可读化产物，行号即该文件行号）
+ * ========================================================================== */
+
+html {
+  height: 100%;
+  font-family: var(--font-sans);
+  /* [rt] info.rootFont = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif / 16px / 24px" */
+  font-size: 16px;
+  line-height: 24px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-sans);
+  /* [rt] Codex 正文基准字重是 430，不是 400 —— "看着像却不像" 的主要来源之一 */
+  font-weight: var(--font-ui-weight, 430);
+  color: var(--color-text); /* [rt] info.rootColor = rgb(223, 223, 223) */
+  /* 外壳 / 窗口底色 = --app-color-background-shell = rgb(40, 40, 40)。
+     出处：[rt] --app-color-background-shell 实测 rgb(40,40,40)，且与 --color-surface-tertiary /
+     --app-color-background-editor-opaque 同值；cx-shell 另用截图像素取色交叉验证过。
+     暗色层次（由暗到亮）：主内容面 --color-surface #181818 → 面板（#181818@65% 叠在外壳上 ≈ #1e1e1e）
+     → 外壳 --app-color-background-shell #282828。
+     注：官方 html/body 自身背景是 transparent（[rt] info.rootBackground = rgba(0,0,0,0)），
+     更外层还有一层 Electron 窗口底（[main] main-p91kJShj.js:75778：深色不透明窗口面 = #000000，
+     否则 #00000000 走 Windows mica），但外壳根是不透明的 #282828，正常路径下那一层不可见。 */
+  /* [task-68] body **不再铺外壳底色** —— 官方页面侧没有这一层：
+     html 与 body 实测都是 rgba(0,0,0,0)（task-63 §B：elementFromPoint 全链逐层透明），
+     三视图的导轨 (25,300) / 顶栏 (600,18) / 右缘 (1278,400) 都是 rgb(0,0,0)（task-66 五点表）
+     ⇒ 那些黑来自**原生窗口底**（主进程 setBackgroundColor：深色 #000000 / 浅色 #f9f9f9，
+     官方 main-p91kJShj.js:75110/75777；我们 electron 侧同款常量，见 electron/README.md:432 的 R1 裁决）。
+     ⚠️ 官方那个 --app-color-background-shell（rgb(40,40,40)）确实存在，但**只上在**
+     `._FullHeightPageSurfaceLayout_` 这一个布局元素上（shell-initial.css:3199-3202，@media width>=768），
+     本工程对应的三视图是 _PageSurfaceLayout_ + _ApplicationMenuPageSurfaceLayout_ ⇒ 那里不上色。
+     历史上这里写 rgb(40,40,40)，依据是旧 reference 截图 (26,400)=rgb(40,40,40)；
+     task-66 在同环境三视图**无法复现**该读数，故以新证据为准。
+     注：浏览器（无原生窗口底）里这些区域会露出浏览器画布色，这是与官方同构的结果。 */
+  outline: none;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── 代码族 ─────────────────────────────────────────────────────────────── */
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  /* [rt] --font-code-size = 12px（electron 档） */
+  font-size: var(--font-code-size, 12px);
+  /* [rt] --font-code-weight = normal */
+  font-weight: var(--font-code-weight, normal);
+}
+
+/* ── 选中色 ─────────────────────────────────────────────────────────────
+ * [rt] --color-background-text-selection = color-mix(in srgb, rgb(131, 195, 255) 30%, transparent)
+ * （tokens.css:40 声明，实测生效值与之一致） */
+::selection {
+  background-color: var(--color-background-text-selection);
+}
+
+/* ── 滚动条 ─────────────────────────────────────────────────────────────
+ * 官方 electron 端是细滚动条 + 半透明滑块：
+ *   [rt] --color-token-scrollbar-slider-hover-background = rgba(255, 255, 255, 0.156)
+ *   [rt] --color-border-heavy = rgba(255, 255, 255, 0.156)
+ * Chromium 下同时给出标准属性与 ::-webkit-scrollbar 两套（Electron 42/Chromium 155 两套都认）。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-text) 18%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--color-text) 16%, transparent);
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--color-token-scrollbar-slider-hover-background);
+}
+
+/* ── 焦点环 ─────────────────────────────────────────────────────────────
+ * [rt] --color-ring = rgba(131, 195, 255, 0.76)
+ * 官方只在 :focus-visible 上画环，鼠标点击不留环。 */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* ── 动效开关 ───────────────────────────────────────────────────────────
+ * 属性由使用方打在 <html> 上（本工程 src/settings/store.ts:267 写、默认 false，见下面「保留理由」第 4 条）。
+ * 规则形态 = 官方的「根属性 + 系统偏好」双条件写法：
+ *   :root[data-reduced-motion=true] …        → 显式强制降级
+ *   @media (prefers-reduced-motion: reduce)
+ *     :root:not([data-reduced-motion]) …     → 未显式设置时跟随系统
+ * 即 data-reduced-motion="false" 是"显式允许动效"，会压过系统偏好。
+ *
+ * ══ D1 裁决（第 7 轮收口）：**这条全局降级保留不动，是有意的「多降级」** ══
+ *
+ * 事实（本组逐条复核，非转述）：
+ *   1. 官方**没有**全局降级。官方 4 份发行 CSS（shell-initial / shell-primary / shell-shared /
+ *      webview）里 `:root[data-reduced-motion=true] *` 命中 **0 处**；官方只有逐组件分支：
+ *      组件级 [data-reduced-motion=true] 46 处、@media (prefers-reduced-motion) 115 处
+ *      （SPEC-INTERACTION §11.1 双分支写法 + §11.2 逐组件表）。
+ *      §11.2 明确：Button / Switch / MenuItem / Checkbox / Modal / cmdk / Input / Tooltip
+ *      官方**都没有**分支 —— 参考端开了「减少动态效果」这些仍然会动。
+ *   2. 但官方是用**逐组件**把该降级的地方降到位（shimmer / panel-animated / sonner / pulsing-dot /
+ *      slideFromLeft / checklist … 每处一条）。
+ *   3. 本工程**还没**把那份逐组件覆盖补齐 —— 依赖这条全局兜底的实测清单（grep 计数）：
+ *      · src/chat/blocks/blocks.css：2 个 animation 且 **0 条** reduced-motion 规则，
+ *        其中 `cx-activity-shimmer … linear infinite`（blocks.css:1368）与
+ *        `cx-ansi-blink 1s steps(2,start) infinite`（:622）是**无限循环**动画；
+ *      · src/shell/sidebar-panel.css：11 条 transition（含 transform/opacity 位移与淡入）且 0 条分支；
+ *      · src/ui/ui.css：19 个 animation / 27 条 transition，只有 6 条自带分支；
+ *      · src/settings/settings.css：3 条 transition，0 条分支。
+ *   4. 直接删掉这条全局规则 = 上述无限 shimmer 与位移动画在「减少动效」下照跑，
+ *      是**实打实的可访问性回退**；要删得先把 3. 里那些文件的逐组件分支补齐，
+ *      而那 4 个文件都不在 src/styles/**（本组写范围）内。
+ *   5. 风险不可见：verify.mjs 只量几何 + token（不含动效），behave 的 2 条 reduced-motion 用例
+ *      两种写法都 PASS（st.reduced-motion.effect 由 shell.css:476 的逐组件分支满足），
+ *      也就是说删错了没有任何门槛会报警。
+ * 结论：**保留 + 登记**。删这一条的前置条件写进汇报，补齐后由 Lead 统一决定。
+ *
+ * ⚠️ 已登记的口径缺口（本次不动，属设置层）：本媒体查询被 `:root:not([data-reduced-motion])` 门住，
+ *   而本工程 store.ts:162 默认值是 `reducedMotion:false`、store.ts:267 每次都会把属性写上，
+ *   于是这条媒体查询**永远不会命中** —— 系统级「减少动态效果」在本工程不生效（官方那 115 条
+ *   组件级 media 规则是不带属性门的，系统偏好用户能吃到）。修法在设置层（默认取
+ *   matchMedia("(prefers-reduced-motion: reduce)")），不在这一条规则里。 */
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion]) *,
+  :root:not([data-reduced-motion]) *::before,
+  :root:not([data-reduced-motion]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

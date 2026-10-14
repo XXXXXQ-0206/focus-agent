@@ -1,0 +1,102 @@
+.artex-task-transcript .cx-message__actions {
+  display: none;
+}
+
+.artex-task-transcript .cx-message--assistant .cx-message__body:has(> .cx-markdown:empty) {
+  display: none;
+}
+
+.artex-task-panel__tab[data-active="true"] {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--color-text-emphasis);
+}
+
+/* 「查看原始 ARTEX 事件」折叠行。
+ *
+ * ★ 2026-10-15 第三版（用户：对话区域要像官方截图那样）：
+ *   前两版分别被否过 —— 浏览器默认 disclosure（三角 + 11px 系统字）太土、
+ *   1px 发丝边 + 圆角 + 2% 白底的**整块卡片**又太重：官方转录里的这类入口是**一行素行**
+ *   （16px 图标 + 13px 文字 + 展开箭头在行尾），没有卡片描边、没有底色。
+ *   现在：容器去边框去底色、行头左图标右箭头（箭头展开时转 90°），
+ *   正文（原始事件 `pre`）才用一层淡卡面把它与正文区分开。 */
+.artex-task-transcript__raw {
+  margin: 16px 24px 0;
+  border: 0;
+  background: none;
+}
+
+.artex-task-transcript__raw > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 4px;
+  margin-inline-start: -4px;
+  border-radius: var(--radius-md); /* 10px —— 与设置行 / 工具行的 hover 底同族 */
+  color: color-mix(in oklab, var(--color-text) 60%, transparent);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 20px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+/* 行内 16px 图标与文字：图标不缩、文字截断（长计数也不撑破列宽） */
+.artex-task-transcript__raw-icon {
+  flex: 0 0 auto;
+  color: inherit;
+}
+
+.artex-task-transcript__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 干掉 Chromium 的默认三角（Safari/Firefox 走 list-style 与 ::marker） */
+.artex-task-transcript__raw > summary::-webkit-details-marker {
+  display: none;
+}
+
+.artex-task-transcript__raw > summary::marker {
+  content: "";
+}
+
+.artex-task-transcript__raw > summary:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-emphasis);
+}
+
+.artex-task-transcript__raw > summary:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.artex-task-transcript__chevron {
+  flex: 0 0 auto;
+  transition: transform var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.artex-task-transcript__raw[open] > summary .artex-task-transcript__chevron {
+  transform: rotate(90deg);
+}
+
+.artex-task-transcript__raw pre {
+  max-height: 320px;
+  max-width: 100%;
+  margin: 8px 0 0;
+  overflow: auto;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgb(255 255 255 / 0.02);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

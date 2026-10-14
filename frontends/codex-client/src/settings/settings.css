@@ -1,0 +1,1124 @@
+/* ============================================================================
+ * 设置页样式（settings）
+ *
+ * ★ 数值出处：docs/SPEC-SETTINGS.md（官方设置面全量取证，411 行）。
+ *   带 §N 的都是该文档的章节；带 file:line 的是官方发行 CSS（captures/css-pretty/*.css）。
+ *
+ * 页面骨架（SPEC §2 / §2.1 实测 @1280×816，主内容区 [340,1266] = 926 宽）：
+ *   拖拽带      [340.67,44 **935.33×46**]（blocks-settings：`div.flex.items-center.px-panel.draggable
+ *               .electron:h-toolbar`，childCount=0 —— 官方设置页顶部的**空**可拖拽带）
+ *   滚动区      [340.67,**90** 935.33×722]（= 44 + 46；padding 0）
+ *     内壳      `_shell_bomwa_2` padding **16px 0 0**（y=90 → 标题带 106）
+ *   页面标题带  419,106 **768×60**（padding 0 20px，`_title_bomwa_2` padding 12px 0 + 居中）
+ *   页面 h1     **28px/500/33.6**（439,**119.2** 56×34）
+ *   设置列      419,**166.67** **768×2070**（padding 20px）→ 列内层 439,**186.67** **728**×2030
+ *   分区标题行  **728×46**（padding-bottom 6px，标题居中 → 文字 y=196.17）
+ *   ★ 以上 y 坐标逐条对应 FIDELITY-AUDIT #91/#92/#93（[C52]/[C53]）的「期望值」：
+ *     h1 y=119.2 / h2 y=196.17（审计表记 187 为分区起点加 9.5 后的口径）/ 首卡 y=232.67。
+ *   列内层分区间距 **40px**（div.flex.flex-col.gap-10）；分区标题行 **46**（padding-bottom 6）
+ *   卡片        bg **rgb(35,35,35)** · 圆角 **20px** · **发丝边框 1 设备像素**（≈0.667px，SPEC §7.3）
+ *   行          padding **12px 16px** · 列间 gap **24** · 行高 **60.5625/44/76.5625/92.5625**（内容自适应；SPEC §2.1/§7.1 原记 61/77/93 是 E2 取整，2026-10-10 更正）
+ *   行标签      **13px/500/18.5714**（布局落位 18.5625）；说明 **12px/430/16**，色 = 白 65%
+ *
+ * 侧栏导航（SPEC §2 实测）：
+ *   搜索框 **272×36** 药丸 · bg rgba(255,255,255,.08) · padding 0 12px · 14px/430
+ *   分组标题 **30**（14/500/21）· 标题→列表 gap 4 · 组间 gap 16 · 列表内 gap 1（步进 31）
+ *   条目 **30 高** · 圆角 **12.5** · padding 5px 8px · 14px/400/21 · 图标 x=68 · 文字 x=92
+ *   选中底 rgba(255,255,255,.08)
+ *
+ * 控件（SPEC §5 实测）：Switch 32×20 / 下拉 28 高 / 次要按钮 43×28 / 分段 23 高 / 录制钮 28×28；
+ * 都写在 .cx-settings 作用域里覆盖 @/ui 默认（@/ui 属 W5，本文件不改它）。
+ * ========================================================================== */
+
+:root {
+  /* 页面列宽：实测 768（SPEC §2.1）；减去左右各 20px 内距 = 内容 728 */
+  --cx-settings-page-width: 768px;
+  --cx-settings-page-gutter: 20px;
+  /* 标题带高：实测 768×**60**（SPEC §2.1 `_content_bomwa_2`） */
+  --cx-settings-title-band: 60px;
+  /* 内容页顶部空拖拽带高：实测 935.33×**46**（blocks-settings `.flex.items-center.px-panel.draggable`） */
+  --cx-settings-dragbar-height: 46px;
+  /* 标题带外壳上内距：官方 `_shell_bomwa_2 { padding-top: calc(var(--spacing,.25rem) * 4) }`
+   * = **16px**（captures/css-pretty/shell-initial.css:3767） */
+  --cx-settings-shell-padding-top: 16px;
+  /* 卡片底色：实测 rgb(35,35,35)；浅色主题下取官方 card 底（--color-surface-card） */
+  --cx-settings-card-background: rgb(35 35 35);
+  --cx-settings-card-radius: 20px;
+  --cx-settings-card-padding: 16px;
+  /* 卡片发丝边框：官方 token --border-width-hairline = .5px（shell-shared:2938） */
+  --cx-settings-card-hairline: var(--border-width-hairline, 0.5px);
+  --cx-settings-card-hairline-color: rgba(255, 255, 255, 0.082);
+  /* 行内距：实测 12px 16px（SPEC §2.1） */
+  --cx-settings-row-padding-block: 12px;
+  --cx-settings-row-padding-inline: 16px;
+  --cx-settings-row-gap: 24px;
+  /* 行标签行高 = 官方 .text-sm 的算法值（**不要写 19px**）。
+   * 官方声明：--text-sm--line-height: calc(1.25 / .875)（captures/css-pretty/shell-shared.css:2809）
+   *          .text-sm{ font-size:var(--text-sm); line-height:var(--tw-leading,var(--text-sm--line-height)) }
+   *          （shell-shared.css:1009；webview.css:5961-5963 同式）
+   * Windows electron 档把 --text-sm 覆写成 13px（SPEC §2.2）⇒ 计算行高 = 13 × 1.25/0.875 = 18.5714px，
+   * Chromium 行盒落位 18.5625px（= 1188/64）—— 与官方 blocks-settings.json blocks[178]
+   * （font-size 13px / font-weight 500 / line-height 18.5714px / height 18.5625）逐位相等，
+   * 于是整行 = 12 + 18.5625 + 2 + 16 + 12 = **60.5625**（blocks[175].rect.h）。
+   * 19px 是 E2 采集器（reference-shots/04-codex-settings-view.json）的整数取整产物，裁决见
+   * docs/FORENSICS-F1-F2-F3.md 的 F2 节（E2 的 458 个 rect 零小数；round(E3) == E2 命中 25/25）。 */
+  --cx-settings-label-line-height: calc(1.25 / 0.875);
+  /* 选中底：实测 rgba(255,255,255,.08) */
+  --cx-settings-selected-background: rgba(255, 255, 255, 0.08);
+  /* 导航条目圆角 / 高 / 步进 */
+  --cx-settings-nav-item-radius: 12.5px;
+  --cx-settings-nav-item-height: 30px;
+  --cx-settings-nav-item-step: 31px;
+  /* 控件：SPEC §5 实测 */
+  --cx-settings-control-height: 28px;
+  --cx-settings-control-radius: 12.5px;
+  --cx-settings-control-font-size: 13px;
+  --cx-settings-control-font-weight: 430;
+  --cx-settings-soft-background: rgba(255, 255, 255, 0.03);
+  --cx-settings-secondary-background: rgba(255, 255, 255, 0.05);
+  /* 开关：SPEC §5/§7.2 实测 32×20；未选轨道 oklab(0.903646 0.0000412762 0.0000180602 / 0.1)、选中 rgb(51,156,255) */
+  --cx-settings-switch-width: 32px;
+  --cx-settings-switch-height: 20px;
+  --cx-settings-switch-track: oklab(0.903646 0.0000412762 0.0000180602 / 0.1);
+  --cx-settings-switch-track-checked: rgb(51, 156, 255);
+  /* 值文本：实测 w-48 = 192px */
+  --cx-settings-value-width: 192px;
+}
+
+:root[data-theme="light"] {
+  --cx-settings-card-background: var(--color-surface-card, #ffffff);
+  --cx-settings-card-hairline-color: rgba(0, 0, 0, 0.082);
+  --cx-settings-selected-background: rgba(0, 0, 0, 0.06);
+  --cx-settings-soft-background: rgba(0, 0, 0, 0.03);
+  --cx-settings-secondary-background: rgba(0, 0, 0, 0.05);
+  /* 未选轨道 = color-mix(in oklab, var(--color-text) 10%, transparent)（tokens.css:79） */
+  --cx-settings-switch-track: color-mix(in oklab, var(--color-text) 10%, transparent);
+}
+
+/* 「使用指针光标」开关（官方外观页 settings.general.appearance.usePointerCursors）：
+ * 关掉时把官方 --cursor-interaction 打回 default，@/ui 与外壳都读这个变量。 */
+:root[data-pointer-cursors="false"] {
+  --cursor-interaction: default;
+}
+
+/* 「字体平滑」开关（官方外观页 settings.general.appearance.fontSmoothing）：macOS 原生抗锯齿 */
+:root[data-font-smoothing="true"] body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 页面骨架 ─────────────────────────────────────────────────────────────── */
+
+/* 内容页顶部空拖拽带：官方 blocks-settings 里 `.flex.items-center.px-panel.draggable.electron:h-toolbar`
+ * 实测 [340.67,44 935.33×**46**]、childCount=0、text=""（**没有内容**，只是一条窗口拖拽区）。
+ * ★ FIDELITY-AUDIT #91/#92：这 46px + 滚动区 16px 内距 + 标题带 13.2 = h1 的 119.2。 */
+.cx-settings__dragbar {
+  flex: 0 0 auto;
+  height: var(--cx-settings-dragbar-height);
+}
+
+.cx-settings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-text-sm-size);
+}
+
+/* 标题带**外壳** —— 官方 `_shell_bomwa_2`（shell-initial.css:3765-3771）：
+ *   padding-top: calc(var(--spacing) * 4) = **16px**
+ *   border-bottom-width: **1px**（行 3769，同元素类 `border-transparent` → 颜色透明）
+ *   container-type: inline-size
+ * 官方 DOM 里这个壳**只包标题带**（childCount=1），内容列 `div.group/settings` 是它的兄弟。
+ * ★ FIDELITY-AUDIT #91/[C52]（P0）：滚动区顶 y=90（= 44 + 46px 拖拽带）+ 这 16px
+ *   → 标题带 y=106、h1 y=**119.198**（参考端实测 119.1979，逐位一致）。
+ * ★ FIDELITY-AUDIT #93/#94/[C53]（本组本轮）：参考端 `_shell_bomwa_2` 实测
+ *   [340.67,90 925.33×**76.667**] = 16 + 60 + **0.667** —— 末尾那 0.667 就是这条 1px 底边
+ *   在 dpr1.5 下的**用量**（1 设备像素 = 1/1.5 = 0.667 CSS px；同一渲染器里本工程
+ *   `.cx-settings-card` 的 0.5px 发丝边 computed 也是 0.666667px，互证）。
+ *   缺了它整列会整体高 0.667：内容列 166.667 / h2 186.667 / 首卡 232.667
+ *   （blocks-settings 实测值），我们此前是 166 / 186 / 232。 */
+.cx-settings__shell {
+  flex: 0 0 auto;
+  padding-top: var(--cx-settings-shell-padding-top);
+  border-bottom: 1px solid transparent;
+}
+
+/* 滚动容器自身内距为 0（上内距在 `_shell_bomwa_2` 里，见上）；
+ * 下内距官方也是 0，列自带 20px 内距 —— 此前多写的 64px 会让 scrollHeight 凭空多 64（#108）。 */
+.cx-settings__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  /* 官方滚动容器类串里的 `.scrollbar-stable`（blocks-settings block[134] 的类全串）：
+     app-shared-f2d570e85ceb.css @374438 原文 `.scrollbar-stable{scrollbar-gutter:stable}`
+     —— 只有**右侧**一条 10px（不是 both-edges），所以官方子节点 block[135] 是
+     **925.333** = 935.333 − 10。
+     本机改前：内容溢出时 clientW 已是 925（真滚动条占位），但**内容不满一屏时是 935**，
+     居中列因此右移 5px、与官方 419.333 差 5。写 `stable` 后**恒**预留右槽，
+     两种内容长度都落在官方值上（这正是官方加这个类的目的）。 */
+  scrollbar-gutter: stable;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 页面列：实测 768（max-w-3xl）居中 */
+.cx-settings__page {
+  width: 100%;
+  max-width: var(--cx-settings-page-width);
+  margin-inline: auto;
+}
+
+/* 页面标题带：实测 768×60，h1 28px/500/33.6 → 13 + 34 + 13 = 60 */
+/* 标题带：实测 **768×60**（`_content_bomwa_2`）。h1 33.6 在 60 高、上下各 12 内距的盒里
+ * 居中 → **+13.2** → h1 上沿 106 + 13.2 = **119.2**（FIDELITY-AUDIT #92/[C52]）。
+ * ⚠️ 这里**不能**再放 h1 以外的第二行：官方内容页的标题带就是 60 高，
+ *    多一行说明会把整列往下推（#93/#94 的 -25/-37px 就是这么来的）。 */
+.cx-settings__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: var(--cx-settings-title-band);
+  padding: 12px var(--cx-settings-page-gutter);
+}
+
+.cx-settings__title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-heading-app, 28px);
+  font-weight: var(--font-weight-medium);
+  line-height: 33.6px;
+}
+
+/* ⚠️ 当前**未使用**：官方内容页的标题带里只有 h1（高 60），多渲染一行说明会把整列下移
+ * （FIDELITY-AUDIT #91/#92/#93/#94）。SettingsPage 已把说明改成 h1 的 title 提示。
+ * 规则保留，供将来需要「非官方附加页」的说明行时复用。 */
+.cx-settings__lede {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 18px;
+}
+
+/* 设置列：实测 768×2070，padding 20px；列内层分区间距 40px */
+.cx-settings__column {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: var(--cx-settings-page-gutter);
+}
+
+.cx-settings__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 分区标题行 = 官方 `div.flex.justify-between …:min-h-0`（blocks-settings 实测
+ *   439.33,**186.667** 728×**46**；同一元素 computed：padding 0 0 **6px**、align-items center、
+ *   min-height **46**）—— 它就是 FIDELITY-AUDIT #93/[C53] 里 `main h2` 期望值 **187** 指的**那一行**
+ *   （不是行内的文字盒：官方行内 `div.font-medium.text-default` 实测 y=**196.167** = 186.667 + (40−21)/2）。
+ * ★ 本组本轮把这一行的几何做到 h2 自己身上（而不是外层 div），理由：
+ *   ① 审计探针量的是 `main h2`，这样它的 rect 与参考端那一行**同一个盒**（[186.667, 46]）；
+ *   ② 文字仍在 196.167（h2 display:flex + align-items:center + padding-bottom:6 → 内容盒 40，21 居中 +9.5），
+ *      视觉位置一个像素都不动；
+ *   ③ 官方那一行本来就是「标题 + 右侧动作」的整行（行内标题列 flex-1 = 728 宽），
+ *      所以 h2 取 flex:1 1 auto 后其宽度也与参考端一致（此前是 min-content 28 宽）。
+ * ⚠️ 46/6 只能有一处带：h2 带上之后外层 head 不再带（否则叠加成 92 高）。 */
+.cx-settings__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cx-settings__section-title {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 46px;
+  align-items: center;
+  margin: 0;
+  padding-bottom: 6px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: var(--font-weight-medium);
+  line-height: 21px;
+}
+
+/* ── 卡片 / 行 ────────────────────────────────────────────────────────────── */
+
+/*
+ * 卡片：SPEC §2.1 实测 728×154、bg rgb(35,35,35)、圆角 20px、**有发丝边框**（§7.3）。
+ * 交叉验证：卡内容 728 − 0.5×2 = **727 = 实测行宽**；行 x=440 = 卡 x=439 + 0.5。
+ * padding = 0：内距由行自带（行 padding 12px 16px）；非行内容用 .cx-settings-card__body。
+ */
+.cx-settings-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: var(--cx-settings-card-hairline) solid var(--cx-settings-card-hairline-color);
+  border-radius: var(--cx-settings-card-radius);
+  corner-shape: var(--codex-corner-shape);
+  background-color: var(--cx-settings-card-background);
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+/* 卡片内的非行内容（16px 内距 = 官方卡片内距） */
+.cx-settings-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--cx-settings-card-padding);
+}
+
+/*
+ * 行之间的发丝分隔线。
+ *
+ * 官方是「卡片容器 &>*:not(:last-child)」的**伪元素/子元素**（SPEC §2.1 原话：分隔线本身未逐像素实测），
+ * 所以这里也用绝对定位伪元素而不是 border-top：
+ *   · 用 border-top 会让每行多 0.5px，行高变成 61.0625 / 44.5 / 77.0625 / 93.0625，
+ *     与官方真值 **60.5625 / 44 / 76.5625 / 92.5625** 全部差 +0.5（真值出处见下方 .cx-settings-row 注释）；
+ *   · 伪元素不占布局，行高严格等于内容高。
+ *
+ * ★ 2026-10-15（用户给官方截图：「codex 中的分隔线不是全长的，而是有一定空隙」）：
+ *   分隔线**左右各内缩 16px**（= 官方行的水平内距 --cx-settings-row-padding-inline）。
+ *   量图复核：官方截图里卡片宽 1700 图像像素、分隔线两端各缩进 37 图像像素 ≈ 2.2%，
+ *   按卡片 728 CSS 宽折算 ≈ **16px** —— 与行内距一致，故直接引用同一个变量。
+ */
+.cx-settings-card[data-divided] > .cx-settings-row + .cx-settings-row {
+  position: relative;
+}
+
+.cx-settings-card[data-divided] > .cx-settings-row + .cx-settings-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: var(--cx-settings-row-padding-inline);
+  left: var(--cx-settings-row-padding-inline);
+  height: var(--cx-settings-card-hairline);
+  background-color: var(--cx-settings-card-hairline-color);
+}
+
+/*
+ * 行：SPEC §2.1 实测 padding 12px 16px、列间 gap 24、标签块 510.667×18.5625、说明 y+21 起 16 高。
+ * ★ 官方常规页行高真值是 **60.5625 / 44 / 76.5625 / 92.5625**（SPEC §7.1 原记 61/44/77/93 是
+ *   E2 采集器的整数取整，2026-10-10 裁决更正，见 docs/FORENSICS-F1-F2-F3.md F2 节），
+ *   **没有一行是 64** —— 所以这里**不写 min-height**，高度完全由内容决定：
+ *     单行 12+18.5625+2+16+12 = 60.5625；无说明且控件 20 高 → 12+20+12 = 44；
+ *     多一行说明 +16（76.5625 / 92.5625）。
+ */
+.cx-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-settings-row-gap);
+  padding: var(--cx-settings-row-padding-block) var(--cx-settings-row-padding-inline);
+  box-sizing: border-box;
+}
+
+.cx-settings-row__main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  /* 标签列最宽 = 实测 511（有右控件时） */
+  max-width: 511px;
+  min-width: 0;
+}
+
+.cx-settings-row__label {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  /* 官方 .text-sm 的算法值（见 :root 里 --cx-settings-label-line-height 的出处链） */
+  line-height: var(--cx-settings-label-line-height);
+}
+
+.cx-settings-row__description {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-settings-row__control {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  /* SPEC §5：次要按钮「列内 gap 4px」 */
+  gap: 4px;
+}
+
+.cx-settings-row[data-control-block] {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cx-settings-row[data-control-block] .cx-settings-row__main {
+  max-width: none;
+}
+
+.cx-settings-row[data-control-block] .cx-settings-row__control {
+  flex-shrink: 1;
+}
+
+/* ── 控件（SPEC §5 实测几何；只覆盖 .cx-settings 作用域内的 @/ui 默认）────────── */
+
+/* 开关：**32×20**（@/ui 默认是 token 的 32×19，SPEC §7.2 已裁定以实测 32×20 为准） */
+.cx-settings .cx-switch {
+  --switch-track-width: var(--cx-settings-switch-width);
+  --switch-track-height: var(--cx-settings-switch-height);
+  --switch-track-color: var(--cx-settings-switch-track);
+  --switch-track-color-checked: var(--cx-settings-switch-track-checked);
+}
+
+/*
+ * ★ disabled 档（本轮肉眼复核发现 + 官方代码确证）：官方「默认权限」开关写死
+ *   `{checked:!0, disabled:!0}`（general-settings-c429ae79df7c.js），button 上只有
+ *   Tailwind 的 `cursor-not-allowed opacity-60` —— **轨道/滑块颜色一个都没换**；
+ *   views-settings.json 实测该 button computed opacity **0.6**、cursor not-allowed，
+ *   渲染出来就是「正常蓝轨 × 0.6」（暗蓝轨 + 灰滑块，ref-09 截图肉眼可辨）。
+ *   @/ui 的 disabled 档换的是轨道色（--switch-track-color-disabled / -checked-disabled），
+ *   与本条不符（且后者在本工程 tokens 里**没有定义** → 会被判成 invalid 而失效），
+ *   所以在 .cx-settings 作用域内按官方口径改回「原色 + opacity .6」（不动 @/ui/ui.css）。 */
+.cx-settings .cx-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.cx-settings .cx-switch:disabled {
+  background-color: var(--switch-track-color);
+}
+
+.cx-settings .cx-switch[data-state="checked"]:disabled {
+  background-color: var(--switch-track-color-checked);
+}
+
+/* @/ui 的 disabled 滑块色是 var(--switch-thumb-color-disabled)（本工程 = --white，同值），
+ * 这里仍显式钉回非 disabled 档，避免将来 token 改动把「原色 × opacity」变成「换色 × opacity」。 */
+.cx-settings .cx-switch:disabled .cx-switch__thumb {
+  background-color: var(--switch-thumb-color);
+  box-shadow: var(--switch-thumb-shadow);
+}
+
+/* 下拉触发按钮：高 28 / 圆角 12.5 / bg rgba(255,255,255,.03) / padding 0 12px / 13px/430/18
+ * ★ 两处实测更正（docs/FORENSICS-F1-F2-F3.md F1 节，官方 blocks-settings.json blocks[181]）：
+ *   · gap：官方 class 串是 `… flex border gap-1 rounded-button-toolbar border-default bg-primary-soft-alpha
+ *     … px-3` ⇒ gap-1 = var(--spacing) = **4px**（shell-shared.css:13456-13457；--spacing:.25rem @:2788），
+ *     布局实测 gap "4px"（blocks[181].s.gap）。此前继承 @/ui 的 --input-gap-sm = 6px，宽了 2px。
+ *   · 边框：官方 `border` = border-width **1px**（shell-shared.css:14367-14370）+ `border-default`
+ *     = border-color var(--color-border)（:14988-14989）。dpr1.5 下 1px 落位成 **0.666667px**
+ *     （1 设备像素；本工程 .cx-settings__shell 同样 1px → 实测 0.666667px，互证），
+ *     颜色 = 官方该元素 computed **rgba(255,255,255,.082)**（= 卡片发丝线同色）。此前被 @/ui 的 border:0 清零。
+ *   官方算式复核：0.666667×2 + 12×2 + 18(徽标 img.icon-sm) + 6(gap-1.5) + 48.6667(文字) + 4 + 14(chevron) = 116
+ *   ⇒ 本工程无徽标（F1：官方资产不存在、由宿主下发）时宽度应 = 116 − 24 = **92**。
+ *   ⚠️ 2026-10-15 偏差：内距按用户新参考从 12px 收到 10px ⇒ 同算式宽度 = **88**（比旧口径窄 4px）。
+ *      这是有意偏离旧实拍值，理由见下面注释；想回到 92 就把 padding 改回 `0 12px`。 */
+.cx-settings .cx-settings-select,
+.cx-settings .cx-select__trigger {
+  height: var(--cx-settings-control-height);
+  gap: 4px;
+  /* 2026-10-15 选择器改形（用户参考官方新版截图）：内距 12→10、圆角 12.5→10（圆角矩形，
+     28 高下 12.5 已接近药丸）、底改成毛玻璃面（半透明 elevated + backdrop-blur）。
+     发丝边颜色不变（官方实测 rgba(255,255,255,.082)），仍贴边。 */
+  padding: 0 10px;
+  border: 1px solid var(--cx-settings-card-hairline-color);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(var(--blur-lg, 16px));
+  font-size: var(--cx-settings-control-font-size);
+  font-weight: var(--cx-settings-control-font-weight);
+  line-height: 18px;
+}
+
+.cx-settings .cx-settings-select:hover,
+.cx-settings .cx-select__trigger:hover {
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 82%, transparent);
+}
+
+/* 次要按钮：43×28 / 圆角 12.5 / bg oklab(0.903646 … / 0.05) / padding 0 8px / 13px/430 */
+.cx-settings .cx-btn.cx-settings-btn {
+  --cx-btn-size: var(--cx-settings-control-height);
+  --cx-btn-gutter: 8px;
+  --cx-btn-radius: var(--cx-settings-control-radius);
+  --cx-btn-font-size: var(--cx-settings-control-font-size);
+  --cx-btn-bg: var(--cx-settings-secondary-background);
+  font-weight: var(--cx-settings-control-font-weight);
+}
+
+.cx-settings .cx-btn.cx-settings-btn::before {
+  opacity: 1;
+}
+
+/* 分段控件：高 23 / 段宽随内容（实测 43）/ 圆角 9999 / padding 2px 8px / 13px/430 */
+.cx-settings-segmented {
+  display: inline-flex;
+  align-items: center;
+  /* fieldset 默认样式复位（用 fieldset 是为了让 aria-label 有合法宿主角色） */
+  min-inline-size: 0;
+  margin: 0;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background-color: var(--cx-settings-soft-background);
+}
+
+.cx-settings-segmented__item {
+  height: 19px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--cx-settings-control-font-size);
+  font-weight: var(--cx-settings-control-font-weight);
+  line-height: 18px;
+  cursor: var(--cursor-interaction, pointer);
+  transition: background-color var(--transition-duration-basic) var(--transition-ease-basic);
+}
+
+/* 选中段底 oklab(…)/0.05（SPEC §5） */
+.cx-settings-segmented__item[data-selected] {
+  background-color: var(--cx-settings-secondary-background);
+}
+
+.cx-settings-segmented__item:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 值文本：192×16（w-48）/ 12px/430/16 / 单行省略 */
+.cx-settings-value {
+  display: block;
+  width: var(--cx-settings-value-width);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 快捷键录制按钮：28×28 / 圆角 12.5 / 无底色 */
+.cx-settings-hotkey {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--cx-settings-control-radius);
+  background: transparent;
+  color: var(--color-text);
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.cx-settings-hotkey[data-recording] {
+  box-shadow: 0 0 0 1px var(--color-ring) inset;
+}
+
+.cx-settings-hotkey__hint {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* 徽标（证据状态：未实测 / 附加） */
+.cx-settings-badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--cx-settings-secondary-background);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.cx-settings-badge[data-tone="warn"] {
+  background-color: color-mix(in srgb, var(--color-text) 10%, transparent);
+  color: var(--color-text);
+}
+
+.cx-settings-link {
+  color: var(--color-text-info, var(--color-text));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── 自定义 API 页 ───────────────────────────────────────────────────────── */
+
+.cx-settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cx-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cx-settings-field__label {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  /* 与 .cx-settings-row__label 同一官方档（.text-sm 算法行高，见 :root 的 --cx-settings-label-line-height） */
+  line-height: var(--cx-settings-label-line-height);
+}
+
+.cx-settings-field__help {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-settings-field__error {
+  margin: 0;
+  color: var(--color-text-danger);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cx-settings-field__warn {
+  margin: 0;
+  color: var(--color-text-warning, var(--color-text-secondary));
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cx-settings-note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-settings-note code {
+  font-family: var(--font-mono);
+  font-size: var(--font-code-size, 12px);
+}
+
+.cx-settings-note[data-tone="ok"] {
+  color: var(--color-text);
+}
+
+.cx-settings-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cx-settings-issues li[data-level="error"] {
+  color: var(--color-text-danger);
+}
+
+.cx-settings-issues li[data-level="warn"] {
+  color: var(--color-text-warning, var(--color-text-secondary));
+}
+
+.cx-settings-headers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cx-settings-headers__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-settings-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.cx-settings-test {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--cx-settings-control-radius);
+  background-color: var(--cx-settings-soft-background);
+}
+
+.cx-settings-test__title {
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--cx-settings-label-line-height);
+}
+
+.cx-settings-test[data-tone="ok"] .cx-settings-test__title {
+  color: var(--color-text-success, var(--color-text));
+}
+
+.cx-settings-test[data-tone="bad"] .cx-settings-test__title {
+  color: var(--color-text-danger);
+}
+
+.cx-settings-test__detail {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  word-break: break-word;
+}
+
+.cx-settings-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cx-settings-model {
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background-color: var(--cx-settings-soft-background);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.cx-settings-model[data-selected] {
+  background-color: var(--cx-settings-secondary-background);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── 令牌预览 / 关于 / 许可证 ─────────────────────────────────────────────── */
+
+.cx-settings-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.cx-settings-swatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.cx-settings-swatch__chip {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 0.5px var(--color-border) inset;
+}
+
+.cx-settings-swatch__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cx-settings-swatch__name {
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cx-settings-swatch__value {
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--font-code-size, 12px);
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-settings-about {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 8px 16px;
+  align-items: baseline;
+}
+
+.cx-settings-about__key {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.cx-settings-about__value {
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 18px;
+  word-break: break-word;
+}
+
+.cx-settings-about__value code {
+  font-family: var(--font-mono);
+  font-size: var(--font-code-size, 12px);
+}
+
+.cx-settings-license {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cx-settings-license h3 {
+  margin: 0 0 6px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--cx-settings-label-line-height);
+}
+
+/* ── 快捷键页 ─────────────────────────────────────────────────────────────── */
+
+.cx-settings-shortcuts__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cx-settings-shortcuts__keys {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  color: var(--color-text-secondary);
+}
+
+/* 可改键的组合键按钮（官方这一页可改键；几何未实测，沿用设置页控件骨架） */
+.cx-settings-chord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 96px;
+  height: var(--cx-settings-control-height);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--cx-settings-control-radius);
+  background: transparent;
+  cursor: var(--cursor-interaction, pointer);
+  transition: background-color var(--transition-duration-basic) var(--transition-ease-basic);
+}
+
+.cx-settings-chord:hover {
+  background-color: var(--cx-settings-soft-background);
+}
+
+.cx-settings-chord[data-hit] {
+  background-color: var(--cx-settings-selected-background);
+}
+
+.cx-settings-chord[data-recording] {
+  box-shadow: 0 0 0 1px var(--color-ring) inset;
+}
+
+.cx-settings-capture {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--cx-settings-soft-background);
+}
+
+.cx-settings-capture__hint {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cx-settings-capture[data-recording] {
+  box-shadow: 0 0 0 1px var(--color-ring) inset;
+}
+
+/* ── 侧栏导航（数据模型在 nav-model.ts，渲染交给 cx-shell）───────────────────
+ * 搜索框 → 分组：
+ *   官方：面板头 y=96 放搜索框（272×36）→ 滚动区 140（padding-top 4）→ 首组标题 y=144（30 高）
+ *         → 列表 y=178（gap 4）；条目步进 31（30 + gap 1）
+ *   横向 8px 内距**由宿主（面板滚动区/分区容器）提供** —— 本组件不再自带，
+ *   否则搜索框会落在 x=68、宽 256（旧实现的偏差，SPEC §2 实测是 x=60 / 272×36）。
+ * -------------------------------------------------------------------------- */
+
+.cx-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+}
+
+/*
+ * 搜索框：**272×36** 药丸 · bg rgba(255,255,255,.08) · padding 0 12px · 14px/430（SPEC §2）。
+ * ⚠️ 选择器带元素名 + 两个 class（0,2,1），是为了压过 @/ui 的 .cx-input[data-size] / [data-pill]（0,2,0）——
+ *    直接写 height: 36px 会被 --cx-input-size 的更高优先级取值盖掉（实测过：那样只有 28 高）。
+ * ⚠️ 宽度：官方 272 = 面板 288 − 左右各 8px（**搜索框在面板头里，不受滚动条影响**）。
+ *    本工程由 cx-shell 把导航整体放进滚动区，滚动条（本机 10px）会吃掉宽度 → 实测 262。
+ *    这是宿主布局差异，不是本组件的 padding 问题：宿主把搜索框挪到面板头即可回到 272。
+ */
+.cx-settings-nav span.cx-settings-nav__search {
+  --cx-input-size: 36px;
+  --cx-input-radius: var(--radius-full);
+  --cx-input-gutter: 12px;
+  flex-shrink: 0;
+  gap: 8px;
+  background-color: var(--cx-settings-selected-background);
+  font-size: 14px;
+  font-weight: var(--font-ui-weight, 430);
+}
+
+/* ★ FIDELITY-AUDIT #81（补色，本组本轮）：官方设置搜索药丸的底色是
+ *   `bg-background-secondary-soft-alpha`（blocks-settings.json 元素
+ *     `no-drag flex items-center py-0 text-base leading-[18px] h-9 shrink-0 gap-2
+ *      rounded-full bg-background-secondary-soft-alpha px-3 min-w-0 flex-1`，rect 60,96 272×36）
+ *   → 该刻 computed 实测 **rgba(255,255,255,0.08)** = 本工程同名 token
+ *     `--color-background-secondary-soft-alpha`（实测 #ffffff14，dark 档）。
+ *   宿主（src/shell/SidebarPanel.tsx:190 + src/shell/sidebar-panel.css:532）把这个 Input 渲染成
+ *   `data-variant="soft"`，于是底色走 `--input-soft-background-color` = **#ffffff08（0.03）** —— 比参考端淡。
+ *   ⚠️ 该元素归 cx-shell，规范落点应在 src/shell/**（不在本组写范围），这里按更高权重覆盖：
+ *      本选择器 0,3,0 > `.cx-input[data-variant="soft"]` 的 0,2,0，不依赖文件加载顺序。 */
+.cx-input.codex-panel__settings-search[data-variant="soft"] {
+  background-color: var(--color-background-secondary-soft-alpha);
+}
+
+.cx-settings-nav__group {
+  display: flex;
+  flex-direction: column;
+  /* 标题与列表之间 4px（SPEC §2） */
+  gap: 4px;
+}
+
+/* 附加分组：与官方 3 组之间加一条发丝线，视觉上明确不是官方分区 */
+.cx-settings-nav__group[data-additional] {
+  padding-top: 12px;
+  border-top: var(--cx-settings-card-hairline) solid var(--cx-settings-card-hairline-color);
+}
+
+/* 分组标题：30 高 · padding 0 6px 0 8px · 文字 14px/500/21 · 色 text-tertiary */
+.cx-settings-nav__group-title {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  margin: 0;
+  padding: 0 6px 0 8px;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: var(--font-weight-medium);
+  line-height: 21px;
+}
+
+.cx-settings-nav__list {
+  display: flex;
+  flex-direction: column;
+  /* 条目之间 1px → 步进 31（SPEC §2） */
+  gap: 1px;
+}
+
+/* 条目：30 高 · 圆角 12.5 · padding 5px 8px · gap 8 · 14px/400/21 */
+.cx-settings-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--cx-settings-nav-item-height);
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--cx-settings-nav-item-radius);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+  text-decoration: none;
+  cursor: var(--cursor-interaction, pointer);
+  transition:
+    background-color var(--transition-duration-basic) var(--transition-ease-basic),
+    color var(--transition-duration-basic) var(--transition-ease-basic);
+}
+
+/* hover：SPEC §2 标「未实测」，这里沿用官方 ghost-hover 底 */
+.cx-settings-nav__item:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+/* 选中底 rgba(255,255,255,.08)（SPEC §2 实测：只有「常规」有底色） */
+.cx-settings-nav__item[aria-current="page"],
+.cx-settings-nav__item[data-selected] {
+  background-color: var(--cx-settings-selected-background);
+  color: var(--color-text);
+}
+
+/* 选中时图标额外挂 text-codex-icon-active（官方 settings-page-91875ee7b4c6.js） */
+.cx-settings-nav__item[aria-current="page"] .cx-settings-nav__item-icon,
+.cx-settings-nav__item[data-selected] .cx-settings-nav__item-icon {
+  color: var(--color-codex-icon-active);
+}
+
+.cx-settings-nav__item:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 图标 16×16（x=68 = 条目 x60 + 内距 8）；文字 x=92（= 68 + 16 + gap 8） */
+.cx-settings-nav__item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  color: currentColor;
+}
+
+.cx-settings-nav__item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-settings-nav__empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* ── [task-90] 外观页「模式」行：官方 3 个 80×60 预览 tile（第 1 行）──────────
+   官方（docs/RECON-TASK88-APPEARANCE-ROWS.md 第 1 行）：行容器 440,233.3 **726.7×76**（padding 8px 16px）；
+   控件容器**总宽 272px**、三列、列间距 **16px** ⇒ 每格 (272 − 2×16)/3 = **80**、高 **60**
+   （三个 tile 横跨 x 878.7..1150.7，正好 272）。
+   ⚠️ 未实测：tile 内的**预览缩略图**与**选中态配色** —— capture 只给了网格几何与「sr-only radio 存在」，
+     ⇒ 这里只做 80×60 盒 + 文字标签（本工程占位），选中态用本工程既有令牌，**不编造画面**、不声称一致。
+   ⚠️ DOM 形态差异（已登记）：官方是「tile 内放 sr-only 原生 radio」，本工程用 @/ui 的 RadioItem
+     （button + Radix 写出的 role="radio"/data-state）。理由是 behave 用**字面量** [role=radio] 定位并点击
+     （settings.mjs 的 clickRadioByText；routing.mjs 还数 [role=radio] ≥ 3），而 biome 的 a11y 规则不允许
+     在原生 input / label / div 上写字面量 role="radio"（noRedundantRoles / useSemanticElements 都会命中）。
+     ⇒ a11y 语义等价、DOM 形态不同。 */
+.cx-mode-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 80px);
+  gap: 16px;
+  width: 272px;
+}
+
+.cx-mode-tile {
+  justify-content: center;
+  box-sizing: border-box;
+  width: 80px;
+  height: 60px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+/* 选中态：官方配色未采 ⇒ 用本工程既有「选中描边」令牌（--color-ring），不声称与官方一致。
+   Radix 在选中时写 data-state="checked"（RadioItem 由 @/ui 渲染，见上）。 */
+.cx-mode-tile[data-state="checked"] {
+  border-color: var(--color-ring);
+}
+
+/* 藏掉 Radix 的圆点指示器：tile 本体就是控件（官方的可见形态里同样没有圆点）。 */
+.cx-mode-tile .cx-radio-item__indicator {
+  display: none;
+}
+
+/* ── [task-90] 外观页字号两行：官方 input **64×28** + 「px」（第 7 / 第 8 行）──────
+   官方读数（docs/RECON-TASK88-APPEARANCE-ROWS.md）：
+     界面字号     行 440,638   726.7×60.6（padding 12px 16px）；input 64×28 @1065.1,654.3（aria「无衬线字体大小」）
+     代码字体大小 行 440,698.6 726.7×60.6（padding 12px 16px）；input 64×28 @1065.1,714.8（aria「代码字体大小」）
+   行高自证：12 + 18.5625(标签 13px) + 2(gap) + 16(说明 12px) + 12 = **60.5625** ⇒ 就是本工程标准设置行（非 block 档）。
+   ⚠️ 未实测：输入框自身的描边 / 底色 / 字号 / 圆角、以及它与「px」的间距（capture 只给了 rect 与 aria）
+     ⇒ 走本工程既有输入令牌；`border-box` 是必须的（官方 rect 64×28 是含边界的盒）。 */
+.cx-num-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cx-num-input__field {
+  box-sizing: border-box;
+  width: 64px;
+  height: 28px;
+  /* 2026-10-15 与「常规」页其它控件（选择器 / 输入框）统一成同一套：
+     圆角矩形 10px · 毛玻璃底 · 贴边发丝边（官方实测 rgba(255,255,255,.082)）· 内距 10px。
+     用户口径：「不是药丸按钮而是圆角矩形」「背景有毛玻璃效果」「边框离按钮边距更小」，
+     并要求其它设置页与『常规』同一规范。 */
+  padding: 0 10px;
+  border: 1px solid var(--cx-settings-card-hairline-color, rgb(255 255 255 / 0.082));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(var(--blur-lg, 16px));
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: end;
+}
+
+.cx-num-input__field:hover {
+  background: color-mix(in srgb, var(--color-surface-elevated) 82%, transparent);
+}
+
+.cx-num-input__unit {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+/* 控件库（/controls）标本页：一行里摆多个控件时的排布与说明文字 */
+.cx-controls-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-controls-note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}

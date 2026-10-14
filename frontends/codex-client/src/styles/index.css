@@ -1,0 +1,19 @@
+/* 样式入口：顺序即层叠顺序
+   1. tailwindcss —— 框架基线（Rolldown/Vite 8 同代 Tailwind v4）
+   2. tokens.css  —— Codex 官方 design token 原文（颜色阶/字号阶/圆角/间距/阴影/动效/组件 token）
+   3. theme.css   —— 把官方 token 接到本工程的主题机制（明暗双值开关、超椭圆角、Tailwind 出口）
+   4. base.css    —— 元素级基线（字体栈、基准字重 430、滚动条、选中色、焦点环）
+   5. app.css     —— 外壳/页面级的少量全局规则 */
+/* ⚠️ 内容源显式钉死：Tailwind v4 默认扫描**整个项目树**，docs/**、tools/**、electron/**、
+ * public/** 与根目录的 *.md / *.json 里出现的裸类名都会被当作候选并生成工具类。
+ * 后果：改一句文档就能改变生产 CSS 产物（实测 +83 B，见 docs/ENV-TRAPS.md E8），
+ * 构建哈希漂移会被误判成某个组的 CSS 回归；文档成了样式的隐式契约。
+ * 这里只认真正的样式输入：src/** 与 index.html。
+ * 需要额外钉进产物的出口类名，走 theme.css §5.13 的 @source inline(...)。 */
+@import "tailwindcss" source(none);
+@source "../../src";
+@source "../../index.html";
+@import "./tokens.css";
+@import "./theme.css";
+@import "./base.css";
+@import "./app.css";

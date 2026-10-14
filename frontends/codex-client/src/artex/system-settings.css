@@ -1,0 +1,475 @@
+.cx-artex-system-settings__messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cx-artex-system-settings__workspace {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+  min-width: 0;
+}
+
+.cx-artex-system-settings__navigation {
+  position: sticky;
+  top: 20px;
+  min-width: 0;
+}
+
+.cx-artex-system-settings__navigation .cx-settings-nav__item {
+  width: 100%;
+  text-align: left;
+}
+
+.cx-artex-system-settings__panel {
+  min-width: 0;
+}
+
+.cx-artex-admin {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  color: var(--color-text);
+}
+
+.cx-artex-admin__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cx-artex-admin__header > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.cx-artex-admin__header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cx-artex-admin__header p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cx-artex-admin__workbench {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.cx-artex-admin__list-pane,
+.cx-artex-admin__detail-pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--color-surface-secondary, rgb(35 35 35));
+  box-shadow: 0 0 0 var(--border-width-hairline, 0.5px) color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.cx-artex-admin__list-toolbar {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--color-surface-secondary, rgb(35 35 35));
+}
+
+.cx-artex-admin__list-toolbar > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.cx-artex-admin__list-toolbar > span {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-artex-admin__agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 8px;
+}
+
+.cx-artex-admin__agent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+
+.cx-artex-admin__agent-row:hover,
+.cx-artex-admin__agent-row[data-selected] {
+  background: var(--cx-settings-selected-background, rgb(255 255 255 / 8%));
+}
+
+.cx-artex-admin__agent-row:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 1px;
+}
+
+.cx-artex-admin__agent-mark {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--cx-pane-subtle-bg, rgb(255 255 255 / 5%));
+  color: var(--color-text-secondary);
+}
+
+.cx-artex-admin__agent-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cx-artex-admin__agent-name,
+.cx-artex-admin__agent-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-artex-admin__agent-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cx-artex-admin__agent-meta,
+.cx-artex-admin__agent-count,
+.cx-artex-admin__quiet {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.cx-artex-admin__agent-count {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-artex-admin__quiet {
+  padding: 20px 12px;
+  text-align: center;
+}
+
+.cx-artex-admin__detail-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.cx-artex-admin__detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cx-artex-admin__detail-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cx-artex-admin__detail-title h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.cx-artex-admin__detail-title code {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.cx-artex-admin__badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--cx-pane-subtle-bg, rgb(255 255 255 / 5%));
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.cx-artex-admin__detail-header > p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cx-artex-admin__prompt-card {
+  margin-top: 16px;
+}
+
+.cx-artex-admin__readonly-block {
+  padding: 16px;
+}
+
+.cx-artex-admin__readonly-block .cx-pane__textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.cx-artex-admin__readonly-block .cx-pane__row-footer {
+  margin-top: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.cx-artex-secret-input {
+  width: 300px;
+}
+
+.cx-artex-secret-input > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.cx-artex-admin__inline-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-danger, #ff7777);
+  font-size: 12px;
+}
+
+.cx-artex-logs {
+  min-height: 0;
+}
+
+.cx-artex-logs__status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.cx-artex-logs__status > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-text-tertiary);
+}
+
+.cx-artex-logs__status[data-connected] > span {
+  background: #4fb477;
+}
+
+.cx-artex-logs__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cx-artex-logs__counts,
+.cx-artex-logs__visible-count {
+  margin-inline-start: auto;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cx-artex-logs__terminal {
+  display: flex;
+  flex: 1;
+  min-height: 180px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  border-radius: 12px;
+  background: var(--color-codeblock-background, #101010);
+}
+
+/* slate 内容列里的日志终端：给一个确定高度，日志视口的「贴底自动跟随」才有滚动容器。
+   高度随窗口收紧（640px 上限，最小 320px 由 min-height 兜底）。 */
+.cx-artex-logs-terminal-fixed {
+  height: min(640px, max(320px, calc(100vh - 320px)));
+}
+
+.cx-artex-logs__terminal-head {
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.cx-artex-logs__visible-count {
+  font-family: var(--font-mono);
+}
+
+.cx-artex-logs__viewport {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 8px 10px;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.65;
+  scrollbar-gutter: stable;
+}
+
+.cx-artex-logs__older {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 10px;
+}
+
+.cx-artex-logs__line {
+  display: grid;
+  grid-template-columns: max-content 46px max-content minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.cx-artex-logs__line:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.cx-artex-logs__time,
+.cx-artex-logs__tag {
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.cx-artex-logs__level {
+  color: #9ba7b2;
+  font-size: 10px;
+}
+
+.cx-artex-logs__line[data-level="warn"] .cx-artex-logs__level {
+  color: #d8aa53;
+}
+
+.cx-artex-logs__line[data-level="error"] .cx-artex-logs__level,
+.cx-artex-logs__line[data-level="error"] .cx-artex-logs__text {
+  color: #ec7777;
+}
+
+.cx-artex-logs__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 760px) {
+  .cx-artex-system-settings__workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .cx-artex-system-settings__navigation {
+    position: static;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .cx-artex-system-settings__navigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cx-artex-system-settings__navigation .cx-settings-nav__list {
+    min-width: max-content;
+    flex-direction: row;
+  }
+
+  .cx-artex-system-settings__navigation .cx-settings-nav__item {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .cx-artex-admin {
+    padding: 16px;
+  }
+
+  .cx-artex-admin__workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cx-artex-admin__list-pane {
+    max-height: 240px;
+  }
+
+  .cx-artex-admin__detail-pane {
+    overflow: visible;
+    padding: 14px;
+  }
+
+  .cx-artex-logs__line {
+    grid-template-columns: max-content 42px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .cx-artex-logs__tag {
+    display: none;
+  }
+
+  .cx-artex-logs__toolbar {
+    align-items: stretch;
+  }
+
+  .cx-artex-logs__counts {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+}
+
+/* ── Agent 详情页（/system/agents/:key）────────────────────────────────────────
+   slate 内容列本身已有 16/30/24 内距与 PaneSection 分组卡；主区不再叠一层
+   卡片 chrome（旧版工作台是 .cx-artex-admin__detail-pane 自带底衬）。 */
+.cx-page[data-page="agents-detail"] .cx-artex-admin__detail-pane {
+  padding: 0;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}

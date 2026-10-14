@@ -1,0 +1,19 @@
+<!doctype html>
+<html data-theme="dark" data-codex-window-type="electron" data-codex-os="win32" lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>会话块自测台 · codex-desktop-src</title>
+    <!--
+      会话块（src/chat/blocks/**）自测台，仅开发用。
+      用 MemoryRouter 挂进**真实外壳**（@/shell 的 AppShell），截图即实机画面。
+
+      打开方式（先 npm run dev）：
+        http://127.0.0.1:5273/src/chat/blocks/dev-preview.html
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./dev-preview.tsx" type="module"></script>
+  </body>
+</html>

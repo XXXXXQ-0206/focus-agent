@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
+import { appPath } from "@/lib/app-path";
 import type {
   InterceptApprovalFilter,
   InterceptApprovalRow,
@@ -71,9 +72,10 @@ function ApprovalOrigin({ row, detail = false }: { row: InterceptApprovalRow; de
     query.set("id", row.task_id);
     href = `/function/tasks/detail?${query}`;
   }
-  return href ? (
+  const routeHref = href ? appPath(href) : undefined;
+  return routeHref ? (
     <a
-      href={href}
+      href={routeHref}
       className="text-primary underline-offset-4 hover:underline"
       aria-label={`定位审批 #${row.id} 的来源：${label}`}
       aria-busy={locating}
@@ -85,7 +87,7 @@ function ApprovalOrigin({ row, detail = false }: { row: InterceptApprovalRow; de
         setLocating(true);
         try {
           await api.interceptExecution(row.id, row.conversation_id ?? undefined);
-          window.location.assign(href);
+          window.location.assign(routeHref);
         } catch (error) {
           toast.error((error as Error).message || "无法定位对应执行");
           setLocating(false);

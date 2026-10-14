@@ -35,10 +35,10 @@ Focus Agent 现在保留两套前端，它们共用同一个 Go API，但源码�
 
 | 前端 | 目录 | 状态与用途 |
 | --- | --- | --- |
-| 类 Codex 风格客户端 | [`web/`](web) | **开发中**。默认单体构建嵌入此版本，提供任务对话、Codex 式工作区外壳和实时任务插话。 |
+| 类 Codex 风格客户端 | [`frontends/codex-client/`](frontends/codex-client) | **开发中**。默认单体构建嵌入此版本，提供任务对话、Codex 式工作区外壳和实时任务插话。 |
 | 原始 ARTEX Web | [`frontends/artex-web/`](frontends/artex-web) | 从 `artex-ymh/upstream/main@1e0ebcc5b58e69d2b5893578d18dd58a674a9146` 重新提取的传统控制台，保留任务、资产、发现和系统设置等原始页面。 |
 
-原始前端不是当前 `web/` 的覆盖替代品。`artex-ymh` 的个人 `origin/main` 已经包含后续 Codex 适配提交，因此这里固定使用 `upstream/main` 的纯 ARTEX Web 快照；来源、启动方式和端口见 [`frontends/README.md`](frontends/README.md)。
+原始前端不是 Codex renderer 的覆盖替代品。`artex-ymh` 的个人 `origin/main` 已经包含后续 Codex 适配提交，因此这里固定使用 `upstream/main` 的纯 ARTEX Web 快照；来源、启动方式和端口见 [`frontends/README.md`](frontends/README.md)。旧的根目录 Codex Web 已移除，历史路由由 Codex renderer 和 `/artex/` 原生前端共同承接。
 
 <details>
 <summary>界面预览</summary>
@@ -103,10 +103,10 @@ docker compose logs -f artex
 
 ```bash
 # 类 Codex 风格客户端（开发中）
-cd web && npm ci && npm run dev -- --port 3000
+cd frontends/codex-client && npm ci && npm run dev -- --port 3000
 
 # 原始 ARTEX Web
-cd ../frontends/artex-web && npm ci && npm run dev -- --port 3001
+cd ../artex-web && npm ci && npm run dev -- --port 3001
 ```
 
 两个开发服务器默认都把 `/api/*` 反代到 `http://localhost:8787`；可通过 `AUTOPENTEST_API` 覆盖后端地址。
@@ -185,7 +185,7 @@ Docker Compose 部署会启动 PostgreSQL。自行运行二进制时，可编辑
 
 ## 开发与构建
 
-源码构建需要 Go 1.26.3 或更新版本、Node.js 20 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中编译根目录 `web/` 这套 Codex 风格前端；`frontends/artex-web/` 需要单独安装依赖和构建。
+源码构建需要 Go 1.26.3 或更新版本、Node.js 20 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中分别编译 `frontends/codex-client/` 和 `frontends/artex-web/`，再由 Go 宿主分别挂载到 `/` 与 `/artex/`。
 
 <details>
 <summary>从源码构建单体程序</summary>
@@ -194,9 +194,11 @@ Docker Compose 部署会启动 PostgreSQL。自行运行二进制时，可编辑
 git clone https://github.com/XXXXXQ-0206/focus-agent.git
 cd focus-agent
 
-cd web && npm ci && npm run build:static && cd ..
-mkdir -p server/webui/dist
-cp -r web/out/. server/webui/dist/
+cd frontends/codex-client && npm ci && npm run build && cd ../..
+cd frontends/artex-web && npm ci && NEXT_EXPORT=1 npm run build && cd ../..
+mkdir -p server/webui/dist/codex server/webui/dist/artex
+cp -r frontends/codex-client/dist/. server/webui/dist/codex/
+cp -r frontends/artex-web/out/. server/webui/dist/artex/
 
 CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 cp config.example.json config.json

@@ -1,0 +1,70 @@
+/* ============================================================================
+ * 外壳 / 页面级的少量全局规则
+ *
+ * 出处标注： [css] ./tokens.css ；[main] 主进程可读化产物 ；[rt] 参考端运行时实测
+ * ========================================================================== */
+
+/* ── Electron 窗口拖拽区 ─────────────────────────────────────────────────
+ * 官方 .startup-loader 就带 -webkit-app-region: drag（见 index.html 内联样式）。
+ * 浏览器下这两个属性无副作用。 */
+.codex-drag-region {
+  -webkit-app-region: drag;
+}
+
+.codex-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ── 启动 loader ────────────────────────────────────────────────────────
+ * loader 本体（OpenAI 花标 + shimmer）是官方 index.html 的内联 <style> 与 DOM，逐字节搬运，
+ * 归档副本见 docs/startup-loader.css。
+ *
+ * 实测（Edge headless + CDP 打本工程 dev server）：
+ *   · loader 挂在 #root 里，HTML 解析完即可见 —— 样式全在内联 <style>，不依赖 JS 或网络请求；
+ *   · React 首次 commit 时随 createRoot 替换 #root 子节点而移除。这与官方 index.html 的 DOM
+ *     结构完全一致（官方同样是 <div id="root"><div class="startup-loader">…</div></div>）。
+ * 因此 src/main.tsx 里 data-dismissed / hidden 的收尾逻辑在"React 正常挂载"这条路径上是 no-op
+ * （querySelector 取不到节点直接 return），只在 React 挂不上的兜底路径里生效。
+ * 下面两条规则就是给兜底路径准备的。 */
+
+/* 1) 收起。src/main.tsx 在 React 首帧后打 data-dismissed="true"，再在 220ms 后加 hidden。 */
+.startup-loader[data-dismissed="true"] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease-out;
+}
+
+/* 2) [hidden] 兜底。index.html 里 .startup-loader{display:flex}（0,1,0）会盖掉 UA 的
+ *    [hidden]{display:none}（0,1,0，但 UA 源优先级更低），所以必须显式补一条，
+ *    否则 loader 会以 display:flex 一直占满 #root。 */
+.startup-loader[hidden] {
+  display: none;
+}
+
+/* ── 浮层层级 ───────────────────────────────────────────────────────────
+ * [rt] --max-app-overlay-z-index = 2147480000（官方给浮层留的天花板）
+ * 官方 Radix 浮层默认 z-index 50（见 SPEC §5），这里只暴露天花板常量。 */
+.codex-overlay-layer {
+  z-index: var(--max-app-overlay-z-index, 2147480000);
+}
+
+/* ── sonner toast 容器 ──────────────────────────────────────────────────
+ * 官方类名 codex-sonner-toaster（App.tsx 已挂）。默认 sonner 用系统字体与自家变量，
+ * 这里把它拉到官方字体/字号体系上。 */
+.codex-sonner-toaster {
+  font-family: var(--font-sans);
+  font-size: var(--font-text-sm-size);
+  line-height: var(--font-text-sm-line-height);
+  letter-spacing: -0.15px;
+  --normal-bg: var(--color-surface-elevated);
+  --normal-border: var(--color-border);
+  --normal-text: var(--color-text);
+  --border-radius: var(--tooltip-border-radius);
+}
+
+/* ── 全局兜底 ───────────────────────────────────────────────────────────
+ * 无语义 <button> 在官方里一律 cursor:pointer（[rt] --cursor-interaction = pointer）。 */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: var(--cursor-interaction, pointer);
+}

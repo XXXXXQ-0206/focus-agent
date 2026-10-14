@@ -1,0 +1,138 @@
+/* 内置检查器（Ctrl+Shift+X）——高亮框/标签层 pointer-events:none，只有面板可点。 */
+
+:root[data-cx-inspect="true"] {
+  cursor: crosshair;
+}
+
+.cx-inspect {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+
+.cx-inspect__hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: rgb(20 20 20 / 0.92);
+  box-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.16);
+  color: rgb(223 223 223 / 0.9);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.cx-inspect__hint kbd {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.12);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.cx-inspect__box {
+  position: fixed;
+  border: 1px solid #4c8dff;
+  background: rgb(76 141 255 / 0.12);
+  pointer-events: none;
+}
+
+.cx-inspect__box[data-pinned="true"] {
+  border-color: #ff6764;
+  background: rgb(255 103 100 / 0.12);
+}
+
+.cx-inspect__label {
+  position: fixed;
+  max-width: 72vw;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgb(20 20 20 / 0.92);
+  box-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.16);
+  color: #dfe6ff;
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.cx-inspect__panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: 60vh;
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgb(30 30 30 / 0.97);
+  box-shadow:
+    0 0 0 0.5px rgb(255 255 255 / 0.16),
+    0 12px 32px rgb(0 0 0 / 0.4);
+  color: var(--color-text, #dfdfdf);
+  pointer-events: auto;
+}
+
+.cx-inspect__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.cx-inspect__panel button {
+  border: 0;
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: rgb(255 255 255 / 0.08);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cx-inspect__panel button:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.cx-inspect__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.cx-inspect__facts > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.cx-inspect__facts dt {
+  color: rgb(223 223 223 / 0.55);
+}
+
+.cx-inspect__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: rgb(223 223 223 / 0.92);
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+}
+
+.cx-inspect__panel-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}

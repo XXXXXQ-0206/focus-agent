@@ -2,7 +2,7 @@
 
 这是 Focus Agent 仓库中的原始 ARTEX Web 前端快照，来源为 `artex-ymh/upstream/main` 的提交 `1e0ebcc5b58e69d2b5893578d18dd58a674a9146`。
 
-它与根目录的 [`web/`](../../web) 并列：根目录 `web/` 是类 Codex 风格客户端（开发中），本目录则保留 ARTEX 的传统控制台体验。两者都通过 `/api/*` 访问同一个 Go 服务，默认后端地址为 `http://localhost:8787`。
+它与 [`../codex-client/`](../codex-client) 并列：Codex renderer 是开发中的新客户端，本目录保留 ARTEX 的传统控制台体验。两者都通过 `/api/*` 访问同一个 Go 服务，默认后端地址为 `http://localhost:8787`。
 
 ```bash
 npm ci

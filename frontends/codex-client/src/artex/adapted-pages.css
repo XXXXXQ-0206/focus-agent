@@ -1,0 +1,295 @@
+/* 「新建任务」对话框表单（任务页）：字段竖排 + 12px 说明字，控件全部走原生 ui 套件。 */
+.artex-task-create {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.artex-task-create__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.artex-task-create__field > span {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.artex-adapted-page {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px 40px 48px;
+  overflow: auto;
+  background: var(--color-surface-primary);
+  color: var(--color-text);
+}
+
+.artex-adapted-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.artex-adapted-page__eyebrow {
+  margin: 0 0 6px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.artex-adapted-page h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+.artex-adapted-page__description {
+  max-width: 680px;
+  margin: 5px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.artex-adapted-page__actions,
+.artex-adapted-toolbar,
+.artex-adapted-links,
+.artex-approval-actions,
+.artex-config-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.artex-adapted-toolbar,
+.artex-config-strip,
+.artex-data-table,
+.artex-approval-list {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.artex-adapted-toolbar {
+  justify-content: space-between;
+}
+
+.artex-adapted-toolbar .cx-input {
+  width: min(420px, 100%);
+}
+
+.artex-adapted-count {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.artex-data-table {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-secondary);
+}
+
+.artex-data-table__head,
+.artex-data-table__row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 16px;
+}
+
+.artex-data-table__head {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-tertiary);
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.artex-data-table__row {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.artex-data-table__row:last-child {
+  border-bottom: 0;
+}
+
+.artex-data-table__row:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+.artex-data-table__row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artex-adapted-state {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+.artex-adapted-state--error {
+  color: var(--color-text-danger);
+}
+
+.artex-adapted-state--error strong {
+  max-width: 560px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.artex-adapted-links {
+  flex-wrap: wrap;
+  max-width: 1180px;
+  width: 100%;
+  margin: -8px auto 0;
+}
+
+.artex-adapted-links a {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.artex-adapted-links a:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.artex-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.artex-metric,
+.artex-config-strip {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-secondary);
+}
+
+.artex-metric {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.artex-metric span,
+.artex-config-strip span {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.artex-metric strong {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.artex-approval-list {
+  display: grid;
+  gap: 8px;
+}
+
+.artex-approval-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-secondary);
+}
+
+.artex-approval-row strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.artex-approval-row p {
+  margin: 4px 0 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.artex-config-strip {
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}
+
+.artex-config-strip span {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.artex-config-strip strong {
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+}
+
+@media (max-width: 760px) {
+  .artex-adapted-page {
+    padding: 24px 16px 36px;
+  }
+
+  .artex-adapted-page__header {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .artex-metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .artex-data-table {
+    overflow-x: auto;
+  }
+
+  .artex-data-table__head,
+  .artex-data-table__row {
+    min-width: 720px;
+  }
+
+  .artex-approval-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

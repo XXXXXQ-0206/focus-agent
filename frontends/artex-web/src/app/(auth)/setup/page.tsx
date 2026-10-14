@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { appPath } from "@/lib/app-path";
 import { auth } from "@/lib/auth";
 
 export default function SetupPage() {
@@ -62,7 +63,7 @@ export default function SetupPage() {
           <div className="absolute size-40 rounded-full border border-primary-foreground/20" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.png"
+            src={appPath("/logo.png")}
             alt="ARTEX"
             width={160}
             height={160}

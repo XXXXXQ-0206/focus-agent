@@ -1,0 +1,1089 @@
+/* 288px 对话面板 —— 数值见 SidebarPanel.tsx 顶部注释（captures/blocks-sidebar.json） */
+
+.codex-panel {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 52px; /* 导轨宽 */
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 288px; /* 运行时由 style.width 覆盖（可用 resizer 改宽） */
+  overflow: visible; /* resizer 要伸到面板右边界之外 8px，不能裁 */
+  border-start-start-radius: var(--codex-panel-radius, 12px); /* 12px 0 0 12px */
+  border-end-start-radius: var(--codex-panel-radius, 12px);
+  corner-shape: round;
+  /* 实测 oklab(0.209035 0 0 / 0.65) = color-mix(in oklab, rgb(24,24,24) 65%, transparent)
+     —— 不是 rgb(45,45,45)@65%（见 SidebarPanel.tsx 顶部注释的换算互证） */
+  background: color-mix(in oklab, var(--color-surface) 65%, transparent);
+  backdrop-filter: blur(20px);
+  /* [task-33] 收起 = **宽度过渡**（对齐官方）：
+     官方 `official-sidebar-05-collapse-frames.json`（390 个 rAF 点）实测
+     `aside.app-shell-left-panel` 宽度 340→52、`transform` 全程 **none**、`margin-inline-start`
+     全程 0px、无 peek 属性；t=237.3ms 到 52.42、≈245ms 归零。
+     官方那根 340 的柱子 = 导轨 52 + 面板 288 ⇒ 在本工程（导轨与面板是兄弟）里等价于
+     **面板宽度 288→0**。时长/缓动由官方 390 点拟合（见 shell.css 的 token 注释）。
+     展开态可见性立即恢复（visibility 0s 无延迟）。 */
+  transition:
+    width var(--codex-sidebar-collapse-duration, 245ms) var(--codex-sidebar-collapse-ease, ease),
+    visibility 0s linear 0s;
+}
+
+/**
+ * 收起态：[task-33] **宽度压窄**（对齐官方），**不再位移**。
+ * 下面这段「位移量」的历史理由保留作档案（它当年就是在解释官方为什么用宽度）。
+ *
+ * ⚠️ 位移量必须是 **自身宽度 + 导轨宽 52px**，不能写死 288px：
+ *   1) 面板 left = 52（导轨右缘），translateX(−自身宽度) 只能把面板右缘推到 x=52
+ *      —— 正好与导轨等宽。导轨背景是 transparent，面板 65% 半透明底和
+ *      「会话行文字被挤到右边」的残影会从导轨底下透出来（实测可见：截图左缘能读到
+ *      被 ellipsis 截断的会话标题尾巴）。导轨 z-index 40 > 面板 20，压不住这个穿透。
+ *   2) 用户用 resizer 加宽后（例如 428px）残影更宽：固定 −288 会留下 140px 露出内容区。
+ *   官方不用位移：它把左栏宽度 `--app-shell-animated-left-panel-width` 动画到 0，
+ *   面板被容器宽度裁掉，天然不会有残留（shell-initial.css:3125/3131-3136）。
+ *   `-100%` 跟随内联 style 的宽度，等价于官方的「宽度归零」。
+ *
+ * visibility / pointer-events：收起后 resizer 的命中区（面板右缘外 8px）会落在
+ * x∈[−8,8]，压在导轨左侧，必须一起关掉，否则导轨第一列图标点不到。
+ * visibility 的过渡延迟一个位移时长，保证「滑出去」的动画看得见。
+ */
+.codex-panel[data-state="collapsed"] {
+  /* [task-33] 宽度由 SidebarPanel 的内联 style 给（收起=0），过渡见 base 的 width 过渡 */
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    width var(--codex-sidebar-collapse-duration, 245ms) var(--codex-sidebar-collapse-ease, ease),
+    visibility 0s linear var(--codex-sidebar-collapse-duration, 245ms);
+}
+
+/* ── 面板头 [52,44 288×90] padding 0 8px ────────────────────────────────── */
+.codex-panel__header {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: 90px;
+  padding: 0 8px;
+}
+
+/* 导航头 [68,44 264×52] margin-left 8px padding-right 4px */
+.codex-panel__nav-header {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 52px;
+  margin-inline-start: 8px;
+  padding-inline-end: 4px;
+}
+
+/* 应用名按钮 [62,54 84.2×32] padding 0 6px margin-left −6px gap 6px
+   r 12.5px cs SE1.5；内容 = Codex 字标 SVG 53.22×18 + chevron
+   min-width: max-content 对应官方 class 串里的 min-w-max（_Button_eg66f_2 同一处）：
+   加了内层 flex-1 之后靠它把按钮宽度钉在内容最大宽，否则 flex-basis:0 会把
+   max-content 贡献算成 0。 */
+.codex-panel__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: max-content;
+  height: 32px;
+  margin-inline-start: -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-lg); /* 12.5px */
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-duration-basic) var(--cubic-enter),
+    color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+/* 官方 span._ButtonInner_eg66f_2 [68,54 72.22×32]：flex / center / gap 6 */
+.codex-panel__mode-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* 官方 span.min-w-0.flex-1.truncate.font-openai-sans.text-heading-sm.leading-6.font-semibold
+   [68,58 53.22×24]：18px / 600 / 24px 是官方 computed（blocks-sidebar.json 的 s.fontSize
+   = 18px、fontWeight = 600、lineHeight = 24px）。它承载**截断与排版**，内容本身仍是
+   一枚 SVG 字标（见 SidebarPanel.tsx 里 #17 的注释与出处）。 */
+.codex-panel__mode-label {
+  display: block;
+  flex: 1 1 0%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-openai-sans, var(--font-sans, inherit));
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+/* 官方 span.flex.h-lh.w-max.items-center.font-sans [68,58 53.22×24]
+   h-lh = height 24px（行高）：18 高的字标在这条 24 的行盒里居中 → svg y = 58 + 3 = 61 */
+.codex-panel__mode-wordmark {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  height: 24px;
+}
+
+.codex-panel__mode:hover {
+  background: var(--color-background-primary-ghost-hover);
+}
+
+.codex-panel__mode:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 动作组 [268,56 60×28] ms-auto gap 4px 两个 28×28 r 9.375px cs SE1.5 */
+.codex-panel__nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+
+.codex-panel__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 9.375px; /* 实测（--radius-md-base × 1.5625） */
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-duration-basic) var(--cubic-enter),
+    color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.codex-panel__icon-button:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-emphasis);
+}
+
+.codex-panel__icon-button:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 分组标题行里的 24×24 动作钮 */
+.codex-panel__icon-button--sm {
+  width: 24px;
+  height: 24px;
+  font-size: 13px;
+}
+
+/* 新聊天按钮 [60,96 272×30] r 12.5px cs SE1.5 padding 5px 8px gap 8px 字体 13px/18.57/430
+ * ★ 2026-10-15（用户：「新聊天按钮未被鼠标移动到的时候背景应透明」）：
+ *   官方 spec 里这枚按钮的静止底是 rgba(255,255,255,.08)，用户不要这个常驻底 ——
+ *   改成静止**全透明**、hover 才出底（hover 值沿用同一族的 .08，比原先的 .12 更贴官方 hover-ghost 观感）。 */
+.codex-panel__nav-list {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 1px;
+  margin-block-end: 8px;
+}
+
+.codex-panel__new-chat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 5px 8px;
+  border-radius: var(--radius-lg); /* 12.5px */
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+  text-decoration: none;
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.codex-panel__new-chat:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.codex-panel__new-chat:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.codex-panel__new-chat span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 滚动区 [52,134 288×678] padding 4px 0 8px gap 16px ─────────────────── */
+.codex-panel__scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 16px;
+  min-height: 0;
+  padding: 4px 0 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.codex-panel__section {
+  flex: 0 0 auto;
+  padding: 0 8px; /* --padding-row-x */
+}
+
+/* 「最近」分组：官方 -mb-4 pb-4（视觉下沿贴到滚动区底部 padding） */
+.codex-panel__section--recent {
+  padding-block-end: 16px;
+  margin-block-end: -16px;
+}
+
+/* 标题行 [60,138 272×30] padding 0 6px 0 8px gap 8px justify-between */
+.codex-panel__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 6px 0 8px;
+}
+
+/* 标题钮 [64,140.5 254×25] padding 2px 4px margin-left −4px r 10px gap 4px
+   字体 14px/21px/500 色 rgba(255,255,255,.498) */
+.codex-panel__section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 25px;
+  margin-inline-start: -4px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--radius-md); /* 10px */
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.codex-panel__section-toggle:hover {
+  color: var(--color-text-emphasis);
+}
+
+.codex-panel__section-toggle:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+.codex-panel__section-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「最近」标题右侧的折叠箭头（Lead 实机比对 ref-08-conversation.png；SPEC 未记录）。
+   展开朝下、收起朝右；transform-origin 居中，避免旋转时位移。 */
+.codex-panel__section-chevron {
+  flex: 0 0 auto;
+  color: inherit;
+  transform-origin: center;
+  transition: transform var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.codex-panel__section-chevron[data-open="false"] {
+  transform: rotate(-90deg);
+}
+
+/* 动作组：默认不可见，hover / focus-within 才显形（官方 opacity-0 group-hover:opacity-100） */
+.codex-panel__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity var(--transition-duration-basic) ease;
+}
+
+.codex-panel__section:hover .codex-panel__section-actions,
+.codex-panel__section:focus-within .codex-panel__section-actions {
+  opacity: 1;
+}
+
+/* 分组体内的会话列表：官方 section .group/nav-list padding 4px 0 0 gap 1px */
+.codex-panel__nav-list--body {
+  gap: 1px;
+  padding-block-start: 4px;
+  margin-block-end: 0;
+}
+
+/* 会话行 [60,259 272×30]：外层负责定位，内层 NavLink 做背景 */
+.codex-panel__row-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-panel__row {
+  display: block;
+  height: 30px;
+  padding: 5px 5px 5px 8px;
+  border-radius: var(--radius-lg); /* 12.5px */
+  corner-shape: superellipse(1.5);
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 20px;
+  text-decoration: none;
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.codex-panel__row:hover {
+  background: var(--color-background-primary-ghost-hover);
+}
+
+.codex-panel__row.is-active,
+.codex-panel__row[aria-current="page"] {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.codex-panel__row:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.codex-panel__row-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-panel__row-dot {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 10px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-emphasis);
+  opacity: 0.7;
+}
+
+/* 行内动作：绝对定位 end-0 top-0 h-full padding-right 6px margin-right 2px gap 8px
+   两个 20×20 r 9999px，默认 opacity 0 */
+.codex-panel__row-actions {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-inline-end: 2px;
+  padding-inline-end: 6px;
+  opacity: 0;
+  transition: opacity var(--transition-duration-basic) ease;
+}
+
+.codex-panel__row-wrap:hover .codex-panel__row-actions,
+.codex-panel__row-wrap:focus-within .codex-panel__row-actions {
+  opacity: 1;
+}
+
+.codex-panel__row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.codex-panel__row-action:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-emphasis);
+}
+
+.codex-panel__row-action:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 空态行：官方 className `px-[…] py-2 text-base text-codex-description opacity-50`
+   → padding 8px，14px/21px/430，色 rgba(255,255,255,.498)，opacity .5 */
+.codex-panel__empty {
+  padding: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 21px;
+  opacity: 0.5;
+}
+
+/* ── resizer [332,44 16×768]（面板右边界外 8px 起，跨 16px）────────────────
+ * DOM 照官方：外层容器 pointer-events-none（只占位），真正的命中区是里面
+ * 带 role=separator 的手柄**的 ::after**（见下面 .codex-panel__resizer-handle::after），
+ * 手柄线是它的子元素 .sidebar-resize-handle-line
+ * （captures/views-home.json 的 [class*=panel-resizer] 实测结构，见 SidebarPanel.tsx）。
+ * 线的几何 [339.5,44 1×768]：16 宽容器里 m-auto 居中 → 332 + (16−1)/2 = 339.5
+ * （官方原始 rect 逐值相同：captures/tree-aside.json:134）。 */
+.codex-panel__resizer {
+  position: absolute;
+  display: flex; /* 官方容器就是 `absolute flex`；手柄线靠 margin:auto 居中到 x=339.5 */
+  inset-block: 0;
+  inset-inline-end: -8px;
+  z-index: 20;
+  width: 16px;
+  pointer-events: none;
+}
+
+.codex-panel__resizer-handle {
+  position: absolute;
+  inset: 0;
+  /* <hr> 的浏览器/Tailwind preflight 默认样式全部重置：这里只用它的语义（隐式 role=separator）。
+     ⚠️ height 必须显式 auto —— Tailwind preflight 给 hr 设了 height: 0，
+     不清掉的话 inset: 0 撑不满 768px（实测过 h=0）。 */
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+/* ── ★ 命中区（官方语义；2026-10-11 修 —— 此前**真实鼠标一次都点不到**）─────────
+ * 症状（行为组实测 + 本组复现）：沿容器 x=332..348 逐像素 elementFromPoint，
+ *   **0/16 命中 resizer 子树**（332..339 = .codex-panel__scroll、340 = .codex-surface、
+ *   341.. = .cx-home__*）；hover 时手柄线 opacity 恒 0；CDP Input.dispatchMouseEvent
+ *   真拖（344→464）宽度恒 288、localStorage 不写、data-resizing 恒 false。
+ * 根因：上面那条容器 `pointer-events: none` 是**照官方抄对的那一半**，而官方把
+ *   另一半落在 [role=separator] 的 **::after** 上 —— 我们只抄了元素、没抄伪元素：
+ *     · 官方 [role=separator] 的 className 带
+ *         `after:pointer-events-auto after:absolute after:inset-0 after:left-1/2`
+ *       出处：captures/views-home.json:6499（同一串的父链见 :5284）、
+ *             captures/tree-aside.json:119、captures/blocks-sidebar.json:5775。
+ *     · 官方该 separator **元素自身** computed `pointerEvents: "none"`
+ *       （captures/views-home.json:6643）⇒ 命中区确实不在元素上，只在 ::after 上。
+ *     · 四条 Tailwind 规则（官方 CSS 搬运件 captures/css-pretty/shell-shared.css，
+ *       偏移为**字符下标**，文件共 1 324 568 字符）：
+ *         @877583 `.after\:pointer-events-auto:after{content:var(--tw-content);pointer-events:auto}`
+ *         @877811 `.after\:absolute:after{content:var(--tw-content);position:absolute}`
+ *         @878020 `.after\:inset-0:after{content:var(--tw-content);inset:0}`
+ *         @879555 `.after\:left-1\/2:after{content:var(--tw-content);left:50%}`
+ *   合成结果（确定性，不是估计）：::after 的包含块 = separator 自己 = 官方
+ *   [332,44 **16**×768]（captures/tree-aside.json:108-113）⇒ 16px 宽；`inset:0` 与
+ *   `left:50%` 同权重、后声明者胜 ⇒ **命中区 = 容器右半 = 8px 宽**，
+ *   官方容器 [332,348] ⇒ **命中带 x∈[340,348) × 768**。
+ *   ⇒ 官方取的既不是 1px（线宽）也不是 16px（容器宽），而是 **8px**：
+ *     左半 332..340 仍归面板（所以会话行照旧可点），命中带从面板右缘 x=340 起、
+ *     正好是官方 1px 手柄线 [339.5,340.5] 的**右缘**（captures/tree-aside.json:134
+ *     原始 rect {x:339.5,y:44,w:1,h:768}，与本工程逐值相同）。
+ * 不改视觉：本伪元素无背景、无边框、无尺寸可见效果（content 只有空串），
+ *   1px 线仍在 [339.5,340.5]、`--color-border-strong` 颜色不变、hover 显形不变。
+ * 收起态无需另加覆盖：.codex-panel[data-state="collapsed"] 的 visibility:hidden 会让
+ *   伪元素同样不可命中（保持上面收起态注释第 38-39 行那条约束：导轨第一列不被吃掉）。 */
+.codex-panel__resizer-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  left: 50%; /* 必须排在 inset 之后：同权重、后声明者胜（= 官方 left-1/2 覆盖 inset-0） */
+  pointer-events: auto;
+}
+
+/* 手柄线：官方 `bg-border-strong`（= --color-border-strong = rgba(255,255,255,.156)）+ 默认 opacity 0。
+ * ★ FIDELITY-AUDIT #24 / [C12]：背景色 alpha 必须 .157 档（我们此前量到 .082 档且默认无背景）。 */
+.sidebar-resize-handle-line {
+  width: 1px;
+  height: 100%;
+  margin: auto;
+  pointer-events: none;
+  background: var(--color-border-strong);
+  opacity: 0;
+  transition: opacity var(--transition-duration-basic) var(--transition-ease-basic);
+}
+
+/* 显形条件 = 官方 group-hover / group-active / group-has-focus-visible */
+.codex-panel__resizer:hover .sidebar-resize-handle-line,
+.codex-panel__resizer:active .sidebar-resize-handle-line,
+.codex-panel__resizer:has(:focus-visible) .sidebar-resize-handle-line {
+  opacity: 1;
+}
+
+/* 键盘聚焦时改用焦点环色（官方 focus:outline-none 之外的既有行为） */
+.codex-panel__resizer:has(:focus-visible) .sidebar-resize-handle-line {
+  background: var(--color-ring);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * 设置态面板（/settings*）
+ *
+ * 几何出处：docs/SPEC-SETTINGS.md §2（实测·DOM，参考端 1280×816）
+ *   面板头     [52,44 288×96]   padding 0 8px
+ *     标题     [68,58 260×24]   18px/600
+ *     搜索框   [60,96 272×36]   r 9999px  bg rgba(255,255,255,.08)  padding 0 12px  14px/430
+ *   导航滚动区 [52,140 288×672]  padding 4px 8px 8px  组间 gap 16px
+ *     分组     [60,144 262×30](标题) → gap 4 → 条目列表 gap 1px
+ *     条目     [60,178 262×30]   r 12.5  padding 5px 8px  14px/400/21
+ *       图标 x=68（条目 x 60 + padding 8）；文字 x=92（图标 16 + gap 8）
+ *     ⚠️ 条目宽官方量到 262 而不是 272：官方导航 18 条必然出滚动条，占 10px。
+ *        本工程导航数据只有 2 组 4 条、不滚动，所以是 272 —— 等 cx-settings 补齐 18 条即自动对齐。
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+.codex-panel__settings-header {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 14px;
+  height: 96px;
+  padding: 14px 8px 8px;
+}
+
+/* 标题 x=68 = 面板 52 + 头 padding 8 + 自己再缩进 8；宽 260 = 272 − 8 − 4 */
+.codex-panel__settings-title {
+  flex: 0 0 auto;
+  height: 24px;
+  margin: 0 4px 0 8px;
+  color: var(--color-text-emphasis);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.codex-panel__settings-search {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+/**
+ * ★ 设置页搜索框（FIDELITY-AUDIT #81 / [C50][C57]）：参考端是**裸 input**。
+ *   容器 [60,96 272×36]（药丸 + bg rgba(255,255,255,.03)，这两项我们已对齐），
+ *   内部 input 实测 [**96**,105 **224×18**]（出处 views-settings.json 的 input 元素）：
+ *     96  = 60 + 12(padding) + 16(图标) + 8(gap)
+ *     224 = 272 − 12 − 12 − 16 − 8
+ *   同一条证据里 input 的 computed 是 font-size **14px** / line-height **18px**，类串为
+ *     min-w-0 flex-1 bg-transparent text-default outline-none select-text
+ *     placeholder:text-tertiary [&::placeholder]:select-none text-base leading-[18px]
+ *   —— 官方**没有走** _Container_1pj83_2 的档位（那档是 13px），直接是 text-base 14px。
+ *
+ * 我们修前实测：容器 padding-inline 15.96px（--control-gutter-md 乘了 pill 的 1.25 缩放），
+ * 于是 input 落在 [99.96, 96 **216.08×36**]、字号 13px、行高 24px、高 36px。
+ * 这里把容器内距钉回 12px、把 input 的排版钉回 14px/18px/18px。
+ * 选择器带 .codex-panel 前缀是为了压过 src/ui/ui.css 的 .cx-input[data-pill] 与
+ * .cx-input[data-size="lg"]（都是 0-2-0）；ui.css 不在本组写范围内。 */
+.codex-panel .codex-panel__settings-search[data-size] {
+  padding-inline: 12px;
+}
+
+.codex-panel .codex-panel__settings-search[data-size] .cx-input__control {
+  height: 18px;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+/* 滚动区：横向内距换成 8px（会话列表态是 0，靠 .codex-panel__section 各自 8px） */
+.codex-panel__scroll--settings {
+  gap: 16px;
+  padding: 4px 8px 8px;
+}
+
+.codex-panel__settings-group {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+/* 「还原工程（附加）」分组：与官方 3 组**视觉分开**（FIDELITY-AUDIT #88 / [C51] +
+ * 用户明确要求：自定义 API 必须保留，但不得混进官方 18 项冒充）。
+ * 官方设置导航里没有这个分组，所以这里额外给一条发丝分隔线 + 更大的组间留白。
+ * ⚠️ 只作用在 data-additional 分组上 —— 官方「个人/集成/编码」3 组自身的几何
+ * （标题 30 高 · 标题→列表 gap 4 · 列表 gap 1 · 条目步进 31）完全不受影响。 */
+.codex-panel__settings-group[data-additional] {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: var(--border-width-hairline, 0.5px) solid var(--color-border);
+}
+
+/* 分组标题 [60,144 262×30]：文字 [68,149 248×21] 14px/500/21 色 text-tertiary */
+.codex-panel__settings-group-title {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 30px;
+  margin: 0;
+  padding: 0 6px 0 8px;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.codex-panel__settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* 条目 [60,178 262×30]：步进 31（30 + 1px gap） */
+.codex-panel__settings-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 5px 8px;
+  border-radius: var(--radius-lg); /* 12.5px */
+  corner-shape: superellipse(1.5);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+  text-decoration: none;
+  transition:
+    background-color var(--transition-duration-basic) var(--cubic-enter),
+    color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.codex-panel__settings-item:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-emphasis);
+}
+
+/* 选中底 rgba(255,255,255,.08)（SPEC-SETTINGS §2 实测） */
+.codex-panel__settings-item.is-active,
+.codex-panel__settings-item[aria-current="page"] {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-text-emphasis);
+}
+
+.codex-panel__settings-item:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.codex-panel__settings-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.codex-panel__settings-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 页面态面板头（官方 /scheduled）[52,44 288×90] padding 0 8px ────────────────
+ * 出处：C:\artex-ymh\evidence\codex-desktop\captures\recon-official\official-scheduled-aside-geom.json
+ *       + docs/RECON-OFFICIAL-PANELS.md §目标1（逐元素几何表）
+ *   h1「定时任务」[68,58 232×24] 18px/600/24px 色 oklab(0.903646…)/0.85 padding 0
+ *   按钮「新建任务」[60,96 272×30] padding 5px 8px；文字 span [92,100.5 232×21] 14px/430/21px
+ * 与 .codex-panel__header（会话态）同为 90px 块，但内容与字号不同 ⇒ 单独一类，不复用。
+ * -------------------------------------------------------------------------- */
+
+.codex-panel__page-head {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: 90px;
+  padding: 0 8px;
+}
+
+/* ★ [task-58] 放大镜展开时，标题区**整体长高 44px**（官方 task-57：下方内容整体下推 44px：
+   新建任务 96→140、分组标题 138.5→182.5、任务标题 173.67→217.67、计划行 195→239、行内按钮 178→222）。
+   账：52(标题行) + 36(胶囊) + 8(间距) + 30(新建任务) + 8 = **134** = 90 + 44 ✓ */
+.codex-panel__page-head[data-search-open] {
+  height: 134px;
+}
+
+/* 搜索胶囊 272×36 @60,96：padding 0 12px / r 9999 / gap 8 / bg rgba(255,255,255,.08)
+   ⇒ 输入框左缘 60 + 12(padding) + 16(图标) + 8(gap) = **96** ✓（官方实测 [96,105 224×18]） */
+.codex-panel__page-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-text-tertiary);
+}
+
+.codex-panel__page-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+  font-size: 14px;
+  line-height: 18px;
+  outline: none;
+}
+
+.codex-panel__page-search-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* [task-61] 清除按钮。官方实测存在 button[aria-label="清空搜索"]（task-59 ②），
+ * 但**几何与图标形状未采集**（capture 只给了 aria-label）⇒ 这里按「胶囊内右端小图标按钮」
+ * 承接：宽高 18、无底、色继承胶囊；出现时机为输入框非空（官方采到它时输入框里有词）。 */
+.codex-panel__page-search-clear {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.codex-panel__page-search-clear:hover {
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+}
+
+/* 展开态：胶囊与「新建任务」之间 8px（新建任务从 96 落到 **140** = 96 + 36 + 8） */
+.codex-panel__page-head[data-search-open] .codex-panel__nav-list {
+  margin-block-start: 8px;
+}
+
+/* 触发器激活态：图标由 rgba(255,255,255,.498) 变**蓝 rgb(102,181,255)**（官方 task-57） */
+.codex-panel__page-search-trigger[aria-expanded="true"] {
+  color: rgb(102, 181, 255);
+}
+
+/* 标题行 [68,44 264×52]（ms-2 = margin-inline-start 8；官方该行还有 4px 右内距） */
+.codex-panel__page-head-row {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 52px;
+  margin-inline-start: 8px;
+  padding-inline-end: 4px;
+}
+
+/* 官方 h1 className = `min-w-0 flex-1 truncate font-openai-sans text-heading-sm leading-6
+ * font-semibold text-default`，实测 [68,58 **232**×24]、容器 [68,44 **264**×52]。
+ * ★ [task-51] 上一轮那个「没采到的 28px 兄弟节点」= 行右端的**放大镜按钮**（task-48 实测
+ *   button[aria-label="搜索已安排的任务"] [300,56 28×28]）⇒ 行内容宽 260 − 28 = **232** ✓
+ *   所以这里回到官方的 `flex-1` 语义：宽度由 flex 分配出来（260 − 28），与实测自洽，
+ *    不再是「钉死一个没有解释的常数」。 */
+.codex-panel__page-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「新建任务」全宽按钮 [60,96 272×30]：与 .codex-panel__new-chat 同盒（30 高 / padding 5px 8px /
+ * r 12.5 / cs SE1.5 / bg rgba(255,255,255,.08)），但官方这一处的文字是 **14px/430/21px**
+ * （会话态的「新聊天」是 13px/430/18.5714px）⇒ 字号行高不同，单独一类。 */
+.codex-panel__page-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* <button> 的 UA 默认 text-align:center，会把 span 里的「新建任务」居中（实测截图里 + 与文字之间
+     出现一大段空隙）。官方截图（official-scheduled-aside.png）里文字是**紧跟在 + 后面左对齐**的，
+     且官方 span 左缘实测 92 = 按钮内容左缘 68 + 图标 16 + 间距 8 ⇒ 这里必须显式左对齐。 */
+  text-align: start;
+  height: 30px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-lg); /* 12.5px */
+  corner-shape: superellipse(1.5);
+  background: rgb(255 255 255 / 0.08);
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 21px;
+  cursor: pointer;
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.codex-panel__page-new:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.codex-panel__page-new:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 官方那个文字 span 的 cls 是 `text-fade-truncate`、实测宽 **232** = 按钮内容宽 256 − 图标 16 − 间距 8
+ * ⇒ 它是**撑满剩余宽度**的 flex 项（不是按文字收缩）。第一版我漏了 flex:1，实测 span=56（文字自然宽），
+ * 与官方 232 不符 ⇒ 补上。x=92 / y=100.5 / h=21 第一版就已经对上了。 */
+.codex-panel__page-new span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 页面态面板的**官方空态块**（task-44）：官方「没有已安排任务」时的面板内容 ─────────────
+ * 出处：C:\artex-ymh\evidence\codex-desktop\captures\recon-official\official-scheduled-aside-geom.json
+ *   （同一份 capture 的 chain 逐跳原文；asarSha256=11CEC09E…9F9C1）
+ *   滚动层 [52,134 288×69.56] cls=`flex flex-col gap-4 px-row-x pb-row-x` ⇒ 上内距 **0**、横向 8、gap 16；
+ *     分组标题行(div group/nav-section-title) [60,134 272×30]（padding 0 6px 0 8px、行高 30 垂直居中）
+ *       └ 标题 div [68,138.5 222×21] 14px/500/21px rgba(255,255,255,0.498)
+ *     列表 div(group/nav-list) [60,168 272×27.56]（比行高 1px，来源未证）
+ *       └ 空态行 div [60,169 272×26.56] 13px/430/18.5714px rgba(…,0.498) padding 4px 8px **role="status"**
+ * ★ [task-56] 官方**有任务态**（recon-official/official-task53-has-tasks.json）里，滚动层第一件事
+ *   仍然是同一个分组标题行 [60,134]、列表仍是 [60,168] —— 所以这一套 `__page-section-title` /
+ *   `__page-section-label` 与 `__page-list` 是**空态与有任务态共用**的（Lead 要求 ① 不许改坏空态）。
+ * ----------------------------------------------------------------------------------------- */
+
+/* 官方页面态滚动层上内距为 0（.codex-panel__scroll 基础值 4px 是会话态/设置态的）。
+   ★ [task-56] 改成**按面板档位**命中而不是 :has(空态块)：官方有任务态的滚动层是同一个容器
+     （同一条 `flex flex-col gap-4 px-row-x pb-row-x`），两态一致；page 档只有 /scheduled 一条路由。 */
+.codex-panel[data-panel-mode="page"] .codex-panel__scroll {
+  padding: 0 8px 8px;
+}
+
+/* 官方 group/nav-section：flex column / gap 4 —— 空态块与有任务态共用同一套 section 类 */
+.codex-panel__page-empty-section,
+.codex-panel__page-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* 行 [60,134 272×30]（官方 div.group/nav-section-title，padding 0 6px 0 8px）：
+   行高 30、标题文字 21px ⇒ y = 134 + (30−21)/2 = 138.5 ✓，标题左缘 = 60 + 8 = 68 ✓ */
+.codex-panel__page-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 官方：文字 222 + **8px 间距** + 按钮 28 = 258（= 行内容宽 272 − 8 − 6） */
+  flex: 0 0 auto;
+  width: 272px;
+  height: 30px;
+  padding: 0 6px 0 8px;
+}
+
+/* ★ [task-84] 浅色档坏点修复（像素已证）：本文件 **5 处**原为直写 `rgb(255 255 255 / 0.498)` ——
+   本规则 `.codex-panel__page-section-label`、`.codex-panel__page-row-plan`、`.codex-panel__page-empty-row`、
+   搜索胶囊的 `.codex-panel__search-capsule` 两处（color）。
+   为什么一直没被发现：深色下这个直写值**恰好等于** --color-text-tertiary 的渲染结果
+   （--gray-600 #8f8f8f 叠 #181818 ≈ 139）；而它在浅色下**不跟随主题** ⇒ 近白压近白。
+   ⇒ 像素仲裁（2%/98% 分位亮度）：浅色下分区标题「即将执行」与 6 条计划行**采样区整块同色**（1 色）、对比度 **1.0** = 文字根本没渲染出来。
+   处置：改用官方同类元素的 token（官方 class 串 `text-tertiary`，见上方注释）⇒
+     深色 computed 逐值不变、像素逐值不变（label 5.24 / plan 4.34~4.77）；浅色 1.0 → **label 3.33 / plan 2.25~2.68**（有字形，17 色）。
+   ⚠️ 浅色下仍低于 AA 4.5：那是 **token 自身的浅色值**（gray-400 @50%）所致，非本工程直写色造成 —— 要提就得偏离 token，不做。 */
+/* 标题 div [68,138.5 **222**×21] 14px/500/21px rgba(255,255,255,0.498)
+   （官方 cls: min-w-0 flex-1 text-base font-medium text-tertiary browser:leading-4.5）
+   ★ [task-51] 上一轮那个「没采到的 36px」= 8px 间距 + 行右端**筛选按钮**（task-48 实测
+     button[aria-label="任务筛选"] [298,135.33 28×28]）⇒ 258 − 8 − 28 = **222** ✓
+     所以这里也回到官方的 `flex-1` 语义。 */
+.codex-panel__page-section-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-panel__page-empty-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-block-start: 1px; /* 官方列表 27.56 = 行 26.56 + 1px、行 y=169 ⇒ 那 1px 按实测钉 */
+}
+
+/* 有任务态的列表容器：**不含**那 1px（官方空态行 y=169 比列表顶多 1px，有任务态的行 y=**168** 与列表顶齐平）；
+   空态那份 `__page-empty-list` 因此保持原样、没有合并。 */
+.codex-panel__page-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── 任务行（官方「有任务」态，task-53 实测）──────────────────────────────────────
+ *   行容器 [60,168 **272×48**] cls=div.group.relative.cursor-interaction.text-sm.hover:bg…
+ *   标题   [68,173.67 231.3×18.67] **14px/20px** w430 oklab(0.903646…)/0.85（x=68 = 左内距 8）
+ *   计划行 [68,**195** **251**×16] **12px/16px** w430 rgba(255,255,255,0.498)
+ *   操作钮 [**296**,**178** 28×28] button[aria-label="已安排任务操作"]
+ *   ⇒ 纵向账：5(上内距) + 20(标题) + 2(行间距) + 16(计划行) + 5 = **48** ✓
+ *             操作钮 y=178 = 168 + (48−28)/2（行内垂直居中）、x=296 = 332 − 8 − 28（右内距 8）✓
+ * ⚠️ 标题/计划行的**宽度**不做钉死：官方那个 231.3 是 inline 文本自身的范围（那条链是 _clipViewport_/_track_
+ *    的跑马灯实现），251 的来源也未证 ⇒ 我们给的是普通 truncate 盒（272 − 8 − 8 = 256）。
+ * ⚠️ 行 hover 底色、选中态、行圆角官方**未采到**（cls 串被截断）⇒ 沿用本工程既有的行 hover/选中写法。
+ * ----------------------------------------------------------------------------------------- */
+
+.codex-panel__page-row-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.codex-panel__page-row {
+  display: block;
+  width: 100%;
+  height: 48px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: start; /* <button> 的 UA 默认是 center（task-44 踩过） */
+}
+
+.codex-panel__page-row:hover,
+.codex-panel__page-row[data-selected="true"] {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.codex-panel__page-row:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.codex-panel__page-row-title {
+  display: block;
+  overflow: hidden;
+  color: color-mix(in oklab, var(--color-text-emphasis) 85%, transparent);
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-panel__page-row-plan {
+  display: block;
+  margin-block-start: 2px;
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 行内操作钮：位置/尺寸按官方实测（296,178 28×28），**显隐未实测** ——
+   官方截图里这一行看不见它、但 DOM 里有 ⇒ 沿用本工程既有的「hover/focus 才显形」。 */
+.codex-panel__page-row-action {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-end: 8px;
+  opacity: 0;
+  transition: opacity var(--transition-duration-basic) var(--cubic-enter);
+}
+
+/* ── 行内操作菜单（官方 task-57 实测）────────────────────────────────────────────
+ *   容器 220×**150.81** @103,208.33、bg oklab(0.297161…/0.9)、**r 20**、padding 4、z 50
+ *   5 条 212×**28.56**（步进 28.56、13px/18.5714px、padding 5px 8px、**r 15**、都带图标）
+ *   hover ⇒ data-highlighted + bg rgba(255,255,255,.08)（本工程 @/ui 的 Radix item 已带该 data 属性）
+ *   ★「删除」是唯一红色 **rgb(255,103,100)**
+ *   ⚠️ 位置由 Radix 自动锚定（官方那个 @103,208.33 是它自己的落点，我们没有它的 placement 规则）
+ *      ⇒ 只对齐**容器与条目的尺寸/圆角/配色**，落点标未实测。
+ * ----------------------------------------------------------------------------------------- */
+
+/* ⚠️ 必须写成 `.codex-panel__row-menu.cx-menu__content`（0,2,0）：@/ui 的 `.cx-menu__content` 自带
+   min-width（实测把它撑到 **300**），同特异度下谁在后谁赢、光写 `width:220px` 会被 min-width 压过去。
+   第一版就是这么错的（实测容器 300×150.73 @24,210、条目 292 宽），钉住 min-width 后才等于官方 220。 */
+.codex-panel__row-menu.cx-menu__content {
+  z-index: 50;
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+  padding: 4px;
+  border-radius: 20px;
+  background: oklab(0.297161 0 0 / 0.9);
+}
+
+.codex-panel__row-menu .cx-menu__item {
+  height: 28.56px;
+  padding: 5px 8px;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+}
+
+.codex-panel__row-menu .cx-menu__item[data-highlighted] {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.codex-panel__row-menu-item--danger {
+  color: rgb(255, 103, 100);
+}
+
+.codex-panel__page-row-wrap:hover .codex-panel__page-row-action,
+.codex-panel__page-row-wrap:focus-within .codex-panel__page-row-action {
+  opacity: 1;
+}
+
+.codex-panel__page-empty-row {
+  padding: 4px 8px;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+}
+
+/* ── [task-33] 收起档的横向裁切 ──────────────────────────────────────────────
+ * 放在**文件末尾**：这几条 (0,2,0) 必须排在基础规则 `.codex-panel__header`(0,1,0) /
+ * `.codex-panel__scroll`(0,1,0) **之后**，否则触发 biome 的 noDescendingSpecificity。
+ * 为什么要裁：收起 = 面板宽度 288→0（对齐官方 `official-sidebar-05-collapse-frames.json`），
+ * 宽度归零时 288 宽的内容会横向溢出到导轨上。CSS 过渡取"变化后"的其余属性 ⇒ 收起档的
+ * overflow 在过渡全程都生效，收窄过程同样是裁切效果（与官方的「左列被压窄」一致）。
+ * 展开档不裁：面板里的浮层 / 弹出菜单照旧可以超出面板边界。 */
+.codex-panel[data-state="collapsed"] .codex-panel__header,
+.codex-panel[data-state="collapsed"] .codex-panel__page-head,
+.codex-panel[data-state="collapsed"] .codex-panel__scroll,
+.codex-panel[data-state="collapsed"] .codex-panel__page-slot {
+  overflow-x: hidden;
+}

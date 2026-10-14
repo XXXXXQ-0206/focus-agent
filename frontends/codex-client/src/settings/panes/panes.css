@@ -1,0 +1,780 @@
+/* ============================================================================
+ * C2 · 15 个取证页的样式（只作用在 src/settings/panes/** 内）
+ *
+ * 几何出处（docs/SPEC-SETTINGS.md）：
+ *   §2.1  内容列 728 居中、列内 padding 20px、分区间距 40px、卡片 bg rgb(35,35,35)、
+ *         圆角 20px、行 padding 12px 16px、列间 gap 24px、标签 13px/500、说明 12px/430/16 白 65%
+ *   §7.1  官方行高不是 64px，而是「内容自适应」：单行 60.5625 / 无说明 44 / 两行说明 76.5625
+ *         （60.5625/76.5625 是 2026-10-10 F2 裁决后的真值；SPEC §7.1 原记 61/77 是 E2 取整）
+ *   §7.3  卡片发丝边框 0.667px rgba(255,255,255,.082)（dpr1.5 下 1 设备像素）
+ *   §5    下拉触发按钮 高 28 / 圆角 12.5 / bg rgba(255,255,255,.03) / padding 0 12px；
+ *         次要按钮 43x28 / bg oklab(…)/0.05；分段控件 高 23 / padding 2px 8px / 圆角 9999；
+ *         值文本 192x16（w-48）12px/430/16 单行省略；开关 32x20
+ *   §8.1  除「常规」外 17 页**无任何几何实测** → 本文件里凡未标实测的数值都是通用规格推导
+ *
+ * 主题：只改颜色，不改几何（官方同一套几何跨明暗）。
+ * ========================================================================== */
+
+.cx-pane {
+  --cx-pane-card-bg: rgb(35 35 35);
+  --cx-pane-hairline: color-mix(in srgb, var(--color-text) 8.2%, transparent);
+  --cx-pane-track-bg: color-mix(in srgb, var(--color-text) 3%, transparent);
+  --cx-pane-selected-bg: color-mix(in srgb, var(--color-text) 5%, transparent);
+  --cx-pane-subtle-bg: color-mix(in srgb, var(--color-text) 4%, transparent);
+
+  height: 100%;
+  min-height: 0;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+:root[data-theme="light"] .cx-pane {
+  --cx-pane-card-bg: var(--color-surface-card, #fff);
+  --cx-pane-hairline: color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+
+/* 内容列：默认**不**自绘内距/宽度 —— 宿主（C1 的 .cx-settings__column）已提供
+ * 768 列 + padding 20px + 分区间距 40px（§2.1 实测）。这里只保留分区间距。 */
+.cx-pane__column {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* 独立渲染（无宿主）时自绘：列 728 居中 + padding 20px（§2.1 实测 439,187 728x2030） */
+.cx-pane[data-standalone] .cx-pane__column {
+  max-width: 728px;
+  margin-inline: auto;
+  padding: 20px;
+}
+
+/* 页面级操作行（官方 hooks/worktrees 页的工具栏位）：右对齐，下面紧跟第一个分区（净 16px） */
+.cx-pane__page-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: -24px;
+}
+
+/* 页面自绘标题（standalone 时才出现；28px/500/33.6，§2.1 实测） */
+.cx-pane__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx-pane__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: -16px;
+}
+
+.cx-pane__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* 页面 h1：28px/500/33.6（§2.1 实测） */
+.cx-pane__title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 33.6px;
+}
+
+.cx-pane__lede {
+  margin: 0;
+  max-width: 560px;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 13px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 18px;
+}
+
+.cx-pane__header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── 分区 / 卡片 ─────────────────────────────────────────────────────────── */
+
+.cx-pane__section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cx-pane__section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 6px;
+}
+
+.cx-pane__section-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cx-pane__section-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.cx-pane__section-description {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-pane__section-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 卡片：bg rgb(35,35,35) + 圆角 20px + 发丝外线（§2.1 / §7.3）；行自带内距，所以卡片无内距 */
+.cx-pane__card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background-color: var(--cx-pane-card-bg);
+  /**
+   * 卡片发丝边与「常规」页统一（2026-10-15 用户：其他设置页也要和常规一样的规范）：
+   * 常规页是 `border: 0.5px solid rgba(255,255,255,.082)`（--cx-settings-card-hairline[-color]，
+   * 浅色另有 rgba(0,0,0,.082) 档），这里改用**同一对变量**画实边，
+   * 不再用 `box-shadow` 环 —— 两者的设备像素厚度虽然都是 0.667，但实边在圆角上的收口更稳，
+   * 且明暗两档共用同一套色值。
+   */
+  border: var(--cx-settings-card-hairline, 0.5px) solid
+    var(--cx-settings-card-hairline-color, rgb(255 255 255 / 0.082));
+}
+
+/* ── 设置行 ──────────────────────────────────────────────────────────────── */
+
+/* 行：padding 12px 16px + 内容自适应（§4.1 / §7.1 + F2 裁决：单行 60.5625、无说明 44、两行说明 76.5625） */
+.cx-pane__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+}
+
+/* 行之间的发丝分隔线：**必须用绝对定位伪元素，不能用 border-top**。
+ * 官方卡片的分隔线就是伪元素（class 串：[&>*:not(:last-child)]:after:absolute … :after:h-px
+ * … :after:bg-border，见 captures/views-settings.json 的卡片 html；行本体没有 border）。
+ * 写 border-top 会让**每一行多 1 设备像素**：dpr1.5 下 0.5px 落位 0.666667px
+ * ⇒ 单行 60.5625 → 61.2292、两行说明 76.5625 → 77.2292（本组实测，与 SPEC §7.1 第 7 条同因）。
+ * 伪元素不占布局，行高严格等于内容高（与 .cx-settings-card 的实现同口径）。 */
+.cx-pane__row + .cx-pane__row {
+  position: relative;
+}
+
+.cx-pane__row + .cx-pane__row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  /* 2026-10-15（用户给的官方截图）：分隔线不全长，左右各内缩 16px —— 与「常规」页
+     （settings.css 里同款伪元素）以及行内距保持一致。 */
+  right: var(--cx-settings-row-padding-inline, 16px);
+  left: var(--cx-settings-row-padding-inline, 16px);
+  height: var(--border-width-hairline, 0.5px);
+  background-color: var(--cx-pane-hairline);
+}
+
+.cx-pane__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cx-pane__row-label {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--cx-settings-label-line-height, calc(1.25 / 0.875));
+}
+
+.cx-pane__row-description {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-pane__row-control {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 「插件（MCP）/ 归档」两页新增的行内动作组：一行里放查看/编辑/恢复/删除等多个按钮 */
+.cx-pane__row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 行内小标签（例如 LLM 配置档案的「激活」）—— 与选择器同一套圆角矩形口径 */
+.cx-pane__tag {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--cx-pane-hairline);
+  border-radius: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 归档页的搜索框：卡片上方一行，宽 320（与设置左栏搜索框同档） */
+.cx-pane__search {
+  max-width: 320px;
+  margin-bottom: 12px;
+}
+
+/* MCP 添加/编辑对话框里的「允许不安全 TLS」行：文字 + 右侧开关 */
+.artex-task-create__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cx-pane__row[data-block] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.cx-pane__row-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+/* ── 控件（§5 实测几何）────────────────────────────────────────────────── */
+
+/* 下拉触发：高 28 / 圆角 12.5 / bg rgba(255,255,255,.03) / padding 0 12px / 13px 430
+ * ★ 与 .cx-settings 作用域同一支官方控件（class `border gap-1 … border-default … px-3`）：
+ *   gap 4px（shell-shared.css:13456-13457）、边框 `border` 1px（:14367-14370）→ dpr1.5 落位
+ *   0.666667px（1 设备像素）、色 = 官方 blocks[181] computed rgba(255,255,255,.082)。
+ *   实测出处见 docs/FORENSICS-F1-F2-F3.md F1 节。 */
+.cx-pane .cx-select__trigger {
+  height: 28px;
+  min-width: 96px;
+  gap: 4px;
+  padding: 0 12px;
+  border: 1px solid var(--cx-settings-card-hairline-color, rgba(255, 255, 255, 0.082));
+  border-radius: 12.5px;
+  background-color: var(--cx-pane-track-bg);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 18px;
+}
+
+.cx-pane .cx-select__trigger:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+}
+
+.cx-pane__select {
+  max-width: 320px;
+}
+
+.cx-pane__option {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cx-pane__option-label {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.cx-pane__option-description {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  line-height: 15px;
+}
+
+/* 输入框：与下拉同高（28）*/
+.cx-pane .cx-input {
+  --cx-input-size: 28px;
+  border-radius: 12.5px;
+  background-color: var(--cx-pane-track-bg);
+}
+
+/* 定宽：@/ui 的 .cx-input 是 width:100%，这里的 width 必须落在包裹层上（Input 的 style 只到内层 input） */
+.cx-pane .cx-input.cx-pane__input {
+  flex: 0 0 auto;
+}
+
+/**
+ * 2026-10-15（用户：三点点名「圆角矩形 / 毛玻璃 / 贴边边框」，并说设置里**其他页面
+ * 要和『常规』一样的规范」）。
+ *
+ * 事故：panes 里的输入框此前直接吃 @/ui 的默认口径 —— 实测 **36×36 药丸**（radius 9999px、
+ * 只有一层 3% 底色），而「常规」页的控件是 **28 高圆角矩形 + 发丝边**（下拉 10px、
+ * 数字输入 7.5px、按钮 28 高）。两页放一起就是两套规范 ⇒ 用户看到「并未生效」。
+ *
+ * 现在把整族设置控件统一成同一套（与选择器同一档）：
+ *   高 28（--cx-settings-control-height）· 圆角 --radius-md = 10px · 毛玻璃底
+ *   （半透明 elevated 面 + backdrop-blur）· 1px 贴边发丝边（官方实测 rgba(255,255,255,.082)）
+ *   · 内距 10px（内容离边框更近）。
+ * 归档页的搜索框例外：它是"搜索"而不是行内控件，按官方搜索框口径保持 36 高药丸（见下）。
+ */
+.cx-pane .cx-input,
+.cx-pane .cx-input.cx-pane__input {
+  height: var(--cx-settings-control-height, 28px);
+  padding-inline: 10px;
+  border: 1px solid var(--cx-settings-card-hairline-color, rgb(255 255 255 / 0.082));
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(var(--blur-lg, 16px));
+  font-size: var(--cx-settings-control-font-size, 13px);
+}
+
+.cx-pane .cx-input:hover:not([data-disabled]) {
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 82%, transparent);
+}
+
+/* 归档页搜索框：官方搜索框是 36 高药丸（左栏搜索同款），不随行内控件收窄 */
+.cx-pane__search .cx-input {
+  height: 36px;
+  border-radius: var(--radius-full);
+}
+
+.cx-pane .cx-input.cx-pane__input--w160 {
+  width: 160px;
+}
+
+.cx-pane .cx-input.cx-pane__input--w180 {
+  width: 180px;
+}
+
+.cx-pane .cx-input.cx-pane__input--w200 {
+  width: 200px;
+}
+
+.cx-pane .cx-input.cx-pane__input--w240 {
+  width: 240px;
+}
+
+.cx-pane .cx-input.cx-pane__input--w260 {
+  width: 260px;
+}
+
+/* 包裹层定宽（PaneInputRow 用）：组宽即输入宽 */
+.cx-pane__input-group[data-fixed-width] .cx-input {
+  width: 100%;
+}
+
+.cx-pane__input-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-pane__input {
+  font-size: 13px;
+}
+
+.cx-pane__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  /* 与同页输入框/选择器同一套：圆角矩形 10px + 毛玻璃 + 贴边发丝边 */
+  border: 1px solid var(--cx-settings-card-hairline-color, rgb(255 255 255 / 0.082));
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(var(--blur-lg, 16px));
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* 行内按钮与「常规」页的次要按钮同档：28 高 / 圆角 12.5 / 内距 8 */
+.cx-pane .cx-btn {
+  --cx-btn-size: var(--cx-settings-control-height, 28px);
+  --cx-btn-gutter: 8px;
+  --cx-btn-radius: var(--cx-settings-control-radius, 12.5px);
+}
+
+/* 值文本：192x16（官方 w-48）、12px/430/16、单行省略（§5）*/
+.cx-pane__value-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cx-pane__value {
+  display: block;
+  overflow: hidden;
+  width: 192px;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-pane__value--mono {
+  font-family: var(--font-mono);
+}
+
+/* 分段控件：高 23 / 圆角 9999 / padding 2px 8px；选中段底 oklab(…)/0.05（§5）*/
+.cx-pane__segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9999px;
+  background-color: var(--cx-pane-subtle-bg);
+}
+
+.cx-pane__segment {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 23px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--color-text) 80%, transparent);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 18px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.cx-pane__segment:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+.cx-pane__segment[data-selected] {
+  background-color: var(--cx-pane-selected-bg);
+  color: var(--color-text);
+}
+
+.cx-pane__segment:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* ── 状态条 / 空态 ──────────────────────────────────────────────────────── */
+
+.cx-pane__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background-color: var(--cx-pane-subtle-bg);
+  box-shadow: 0 0 0 var(--border-width-hairline, 0.5px) var(--cx-pane-hairline);
+}
+
+.cx-pane__banner[data-tone="warning"] {
+  background-color: color-mix(in oklab, var(--color-text-warning) 12%, transparent);
+}
+
+.cx-pane__banner[data-tone="danger"] {
+  background-color: color-mix(in oklab, var(--color-text-danger) 12%, transparent);
+}
+
+.cx-pane__banner[data-tone="success"] {
+  background-color: color-mix(in oklab, var(--color-text-success) 12%, transparent);
+}
+
+.cx-pane__banner-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cx-pane__banner-title {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--cx-settings-label-line-height, calc(1.25 / 0.875));
+}
+
+.cx-pane__banner-description {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-pane__banner-action {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-pane__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.cx-pane__empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 4px;
+  border-radius: 9999px;
+  background-color: var(--cx-pane-subtle-bg);
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+}
+
+.cx-pane__empty-title {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--cx-settings-label-line-height, calc(1.25 / 0.875));
+}
+
+.cx-pane__empty-description {
+  max-width: 420px;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-pane__empty-action {
+  margin-top: 8px;
+}
+
+/* ── 列表（Archived chats / 钩子 / 连接 / 工作树 / 插件 …）───────────────── */
+
+.cx-pane__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-pane__list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 16px;
+  position: relative;
+}
+
+/* 列表项之间的发丝线同样不全长：左右各内缩一个行内距（16px），与 .cx-pane__row 同口径。
+   用伪元素而不是 border-top，行高不受 0.5px 落位影响（见本文件 .cx-pane__row 的注释）。 */
+.cx-pane__list-item + .cx-pane__list-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--cx-settings-row-padding-inline, 16px);
+  right: var(--cx-settings-row-padding-inline, 16px);
+  height: var(--border-width-hairline, 0.5px);
+  background-color: var(--cx-pane-hairline);
+}
+
+.cx-pane__list-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cx-pane__list-title {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-pane__list-meta {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+.cx-pane__list-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.cx-pane__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+}
+
+.cx-pane__toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 键值编辑器 */
+.cx-pane__kv {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.cx-pane__kv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-pane__kv-key {
+  width: 200px;
+}
+
+.cx-pane__kv-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.cx-pane__kv-empty {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+/* 通用小件 */
+.cx-pane__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cx-pane__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background-color: var(--cx-pane-subtle-bg);
+  color: color-mix(in srgb, var(--color-text) 80%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+/* 可点击芯片（自定义 API 的模型列表）+ 芯片区两侧内距 + 自定义请求头编辑器 —— 均为该页新增 */
+.cx-pane__chip--action {
+  border: 0;
+  cursor: pointer;
+}
+
+.cx-pane__chip--action:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+}
+
+.cx-pane__chip--action[data-selected] {
+  background-color: var(--color-background-primary-soft-alpha);
+  color: var(--color-text);
+}
+
+.cx-pane__chips--pad {
+  padding: 0 16px 14px;
+}
+
+.cx-pane__header-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(420px, 46vw);
+}
+
+.cx-pane__header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-pane__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.cx-pane__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  border-radius: 16px;
+  background-color: var(--cx-pane-subtle-bg);
+}
+
+.cx-pane__hint {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-pane__segment {
+    transition: none;
+  }
+}

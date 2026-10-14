@@ -148,7 +148,7 @@ export default function IntranetPage() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <NetworkIcon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold tracking-tight">内网作战</h1>
+          <h1 className="text-xl font-semibold tracking-tight">内网会话</h1>
           <Badge variant="secondary" className="tabular-nums">
             会话 {aliveSessions}/{sessions.length}
           </Badge>

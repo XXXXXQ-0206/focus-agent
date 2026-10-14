@@ -1,0 +1,1651 @@
+/* ============================================================================
+ * ARTEX · 会话块（conversation activity blocks）· 视觉
+ *
+ * 真值来源：docs/SPEC-CONVERSATION-BLOCKS.md（下称 SPEC，857 行，官方逐层 DOM + 运行时实测）
+ * 出处记号：
+ *   [SPEC §x]  = SPEC 章节（其内部再去引官方 CSS file:line / 包内 JS 字面量）
+ *   实测       = 官方运行中应用的 getComputedStyle / 逐层 DOM
+ *   ⚠️ 推断    = SPEC §13 明列「证据不足」，本文件按最保守方式落地并逐条标注
+ *
+ * 数值策略（与工程既有约定一致，见 src/chat/chat.css 顶部）：
+ *   1) SPEC 给了**实测 computed 值**的，直接钉那个值，并在注释里写出处；
+ *   2) SPEC 只给了**类名 / token 名**的，用工程 token（tokens.css 原文搬运）；
+ *   3) token 在本工程解析为**无效值**（其 --app-color-* 依赖项 theme.css 未定义）时，
+ *      写成 var(--token, 字面回退)，回退值标 ⚠️ 推断；
+ *   4) 参考端 dpr 1.5 的 0.666667px 这类「设备像素取整」值，按工程约定写**作者值 1px**。
+ *
+ * ⚠️ SPEC §13.10：本轮实测全部在 dark（data-theme="dark"）。浅色主题未实测。
+ * ========================================================================== */
+
+/* ── 0. 局部变量 ───────────────────────────────────────────────────────────── */
+:root {
+  /* [SPEC §2.3] 实测 --color-surface = #181818（= rgb(24,24,24)，dark）。
+     ⚠️ 本工程 tokens.css 的 dark 档把 --color-surface 解析到 --app-color-background-surface，
+        而 theme.css 未定义该 --app-color-*（只有 ...-surface-under: #141414），会落到 gray-200 #212121。
+        这里按 SPEC 的实测值钉住（blocks 范围内），差异已写进交付说明。 */
+  --cx-block-surface: #181818;
+  /* [SPEC §4.2] 实测类型标签行 color = rgba(223,223,223,0.7) */
+  --cx-block-desc: rgba(223, 223, 223, 0.7);
+  /* [SPEC §2.1] 块间距默认 16px（gap-[var(--conversation-item-gap,16px)]，shell-shared.css:13567-13568） */
+  --cx-block-gap: var(--conversation-item-gap, 16px);
+  /* [SPEC §2.1] 分组内条目间距 4px（--conversation-grouped-item-gap） */
+  --cx-block-gap-grouped: var(--conversation-grouped-item-gap, 4px);
+}
+
+/* ── 1. 块容器 / 分组（[SPEC §2.1] 实测，116 个块头一致）─────────────────────
+ *   div.group/agent-activity.flex.flex-col.gap-[var(--conversation-item-gap,16px)]  [data-spacing]
+ *   └─ div.outline-none[tabindex=-1][data-local-conversation-item-target-ids]        ← 每个「块」的根
+ *      └─ div.min-w-0.text-size-chat.relative.overflow-visible.py-0
+ *         └─ div.flex.min-w-0.flex-col
+ * ------------------------------------------------------------------------- */
+.cx-activity-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-block-gap);
+}
+
+.cx-activity-group[data-spacing="grouped"] {
+  gap: var(--cx-block-gap-grouped);
+}
+
+/* 分组间隔：官方是 div.w-full.shrink-0 [aria-hidden]，仅 grouped 档有高度 */
+.cx-activity-gap {
+  width: 100%;
+  flex-shrink: 0;
+  height: 0;
+}
+
+.cx-activity-group[data-spacing="grouped"] .cx-activity-gap {
+  height: var(--cx-block-gap-grouped);
+}
+
+.cx-block {
+  min-width: 0;
+  position: relative;
+  overflow: visible;
+  padding-block: 0;
+  outline: none;
+}
+
+.cx-block__col {
+  min-width: 0;
+  /* text-size-chat：SPEC §13.13 说明该 token 的声明处未在 CSS 中找到，只知实测 14px / 21px */
+  font-size: 14px;
+  line-height: 21px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 文件卡等块自带 overflow-clip + rounded-lg（[SPEC §6.1]） */
+.cx-block--clip .cx-block__col {
+  overflow: clip;
+  border-radius: var(--radius-lg);
+}
+
+/* ── 2. 块头（[SPEC §2.1] 实测）──────────────────────────────────────────────
+ *   div.group/activity-header.relative.inline-flex.min-w-0.max-w-full.self-start
+ *       .items-center.gap-1.p-0.text-start
+ *   ├─ button.absolute.inset-0 [aria-labelledby][aria-expanded]   ← 整行即点击区
+ *   └─ span#<summary id>.inline-flex.min-w-0.gap-1.5.items-center.shrink.truncate
+ * ------------------------------------------------------------------------- */
+.cx-activity-header {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px; /* gap-1 */
+  padding: 0;
+  text-align: start;
+}
+
+.cx-activity-header__button {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  border: none;
+  /* rounded-md = 10px（SPEC §4.2 实测命令行 rounded-md = 10px） */
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  padding: 0;
+}
+
+/* focus-visible:ring-2 ring-ring ring-offset-0 ring-inset（[SPEC §2.1] 类名） */
+.cx-activity-header__button:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+  outline-style: inset;
+}
+
+.cx-activity-header__summary {
+  display: inline-flex;
+  min-width: 0;
+  gap: 6px; /* gap-1.5 */
+  align-items: center;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* SPEC §2.3 实测摘要字形：14px / 行高 21px / font-weight 430 */
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 430;
+  pointer-events: none;
+  position: relative;
+  /* [SPEC §2.1] 官方 _summary_1qt3f_2 把 --agent-activity-summary-color 设为 --color-text
+     （shell-primary.css:21-23） */
+  --cx-activity-summary-color: var(--color-text);
+}
+
+/* [SPEC §2.1] span.contents.text-text/60 包 16×16 类型图标
+   ★ 2026-10-11 补证：官方同类 60% 叠色用的是 **oklab** 插值
+     （shell-primary.css:26 `--agent-activity-summary-color:color-mix(in oklab, var(--color-text) 60%, transparent)`）；
+     Tailwind v4 的 /60 透明度也是 oklab。这里跟随（✅ [task-81] **官方编译产物已采到**：`app-shared-f2d570e85ceb.css` @572126 = `.text-text/60{color:var(--color-text)}` + `@supports (color: color-mix(in lab, red, red)){.text-text/60{color:color-mix(in oklab, var(--color-text) 60%, transparent)}}` ⇒ oklab 判断**证实**，且官方带**非 color-mix 回退**）。 */
+.cx-activity-header__icon {
+  display: contents;
+  color: color-mix(in oklab, var(--color-text) 60%, transparent);
+}
+
+.cx-activity-header__icon > svg {
+  flex-shrink: 0;
+}
+
+/* 摘要文字：实测色 text-text/60；hover 提到 --color-text（group-hover/activity-header:text-default） */
+.cx-activity-header__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  /* ★ 官方 _summary_1qt3f_2（shell-primary.css:26）就是
+     `color-mix(in oklab, var(--color-text) 60%, transparent)` —— 改前我们写的是 in srgb（插值空间不同、结果略偏） */
+  color: color-mix(in oklab, var(--cx-activity-summary-color) 60%, transparent);
+}
+
+.cx-activity-header__label {
+  font-family: var(--font-sans);
+  color: inherit;
+}
+
+/* [SPEC §3.2] 推理块摘要是 text-text/30，hover 时同样提到 --color-text
+   ★ 官方 _execDescendants_1qt3f_2（shell-primary.css:35）与 shell-shared.css:17192 均为
+     `color-mix(in oklab, var(--color-text) 30%, transparent)` ⇒ 插值空间改 oklab */
+.cx-activity-header__label[data-tone="dim"] {
+  color: color-mix(in oklab, var(--color-text) 30%, transparent);
+}
+
+@media (hover: hover) {
+  .cx-activity-header:hover .cx-activity-header__text {
+    color: var(--cx-activity-summary-color);
+  }
+
+  .cx-activity-header:hover .cx-activity-header__label[data-tone="dim"] {
+    color: var(--color-text);
+  }
+}
+
+/* 折叠箭头 20×20（[SPEC §2.1]：span.pointer-events-none.relative.flex 包 svg 20×20）
+   ⚠️ 箭头**形状未实测**（SPEC §13.8：官方 path 只取到前缀 M7.52925 3.7793…），见 icons.tsx */
+.cx-activity-header__chevron {
+  pointer-events: none;
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+/* ── 3. 折叠正文容器（[SPEC §2.1] timeline-activity-body）────────────────────
+ *   variant=default，gap-2 pt-2 pb-1（8px / 8px 0 4px）
+ *   variant=grouped，gap-[var(--conversation-grouped-item-gap,4px)] pt-1
+ *   indent=true（默认），ps-6（24px）
+ * ------------------------------------------------------------------------- */
+.cx-disclosure.is-expanded {
+  overflow: visible; /* [SPEC §2.2] */
+}
+
+.cx-disclosure.is-collapsed {
+  overflow: hidden; /* [SPEC §2.2]；同时由组件给 aria-hidden + inert + pointer-events:none */
+}
+
+.cx-disclosure__content {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-disclosure__content--default {
+  gap: 8px; /* gap-2 */
+  padding: 8px 0 4px; /* pt-2 pb-1 */
+}
+
+.cx-disclosure__content--grouped {
+  gap: var(--cx-block-gap-grouped); /* 4px */
+  padding-top: 4px; /* pt-1 */
+}
+
+.cx-disclosure__content--indent {
+  padding-inline-start: 24px; /* ps-6 */
+}
+
+/* ── 4. 摘要分色（[SPEC §4.4] 的 <action> / <detail> 富文本标签）──────────────
+ *   实测：action 段与 detail 段取不同透明度（text-text/60 vs text-text/40）
+ * ------------------------------------------------------------------------- */
+.cx-summary__action {
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+.cx-summary__detail {
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+@media (hover: hover) {
+  .cx-activity-header:hover .cx-summary__action,
+  .cx-activity-header:hover .cx-summary__detail {
+    color: inherit;
+  }
+}
+
+/* ── 5. 复制按钮（[SPEC §4.5] / §6.1 / §11.1）──────────────────────────────── */
+.cx-copybtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 实测 23×23（文件卡头，[SPEC §6.1]）；官方类名 p-0.5 会给 25×25，取实测 */
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  /* [SPEC §4.2] transition-opacity duration-basic = .15s（shell-shared.css:2981） */
+  transition: opacity var(--transition-duration-basic, 0.15s);
+}
+
+.cx-copybtn:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+/* ── 6. bash / shell 命令块（[SPEC §4]，**完整实测**）───────────────────────
+ *   实测：卡片 background rgba(255,255,255,0.08)（= bg-secondary-soft-alpha）
+ *         border-radius 12.5px（--radius-lg）、border rgba(255,255,255,0.157)（border-strong）
+ *         卡片尺寸 726×246（内容决定）
+ * ------------------------------------------------------------------------- */
+.cx-exec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* gap-2 */
+  padding: 8px 0 4px; /* pt-2 pb-1 */
+  overflow: visible;
+}
+
+.cx-exec__card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg); /* 实测 12.5px（--radius-lg = calc(.625rem * 1.25)） */
+  border: 1px solid var(--color-border-strong, rgba(255, 255, 255, 0.156));
+  /* [SPEC §4.2] 实测 rgba(255,255,255,0.08)，官方 token 名 = bg-secondary-soft-alpha。
+     ⚠️ 本工程该 token 的 dark 档 = --alpha-12 = 12% 白（≠ 实测 8%），故按 SPEC 实测值钉住。 */
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.cx-exec__clip {
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+  border-radius: 0;
+  border: none;
+}
+
+/* [SPEC §4.2] 类型标签行 padding 4px 8px；font 13px/18.5714；color rgba(223,223,223,0.7) */
+.cx-exec__type {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px; /* gap-2 */
+  padding: 4px 8px; /* px-2 py-1 */
+  font-family: var(--font-sans);
+  font-size: 13px; /* 实测 13px（官方 --text-sm 声明 12px，实测生效 13px） */
+  line-height: 18.5714px; /* 实测 13 × 1.42857 */
+  color: var(--cx-block-desc);
+  user-select: none;
+}
+
+.cx-exec__body-clip {
+  position: relative;
+  overflow: hidden;
+}
+
+.cx-exec__body {
+  position: relative;
+}
+
+.cx-exec__command-wrap {
+  padding: 8px 8px 0; /* px-2 pt-2 */
+}
+
+/* 命令行 wrapper（group/command）：relative + pe-6（24px，给右上角复制按钮留位） */
+.cx-exec__command {
+  position: relative;
+  padding-inline-end: 24px;
+}
+
+/* [SPEC §4.2] 命令行 font-size 13px / line-height 19.5px / font-weight 430 / white-space pre-wrap
+ *           border-radius 10px（rounded-md）；line-clamp-2 默认折成两行 */
+.cx-exec__command-text {
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 19.5px;
+  font-weight: 430;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: var(--cx-block-desc);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.cx-exec__command-text:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+  outline-style: inset;
+}
+
+/* [SPEC §4.1/§4.2] 提示符 span.me-[1ch].text-tertiary，文本 "$ " */
+.cx-exec__prompt {
+  margin-inline-end: 1ch;
+  color: var(--color-text-tertiary);
+}
+
+.cx-exec__command-code {
+  display: contents;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* 两处 hover 才出的复制按钮（[SPEC §4.2]/§4.3） */
+.cx-exec__copy-host {
+  display: contents;
+}
+
+.cx-exec__copy {
+  position: absolute;
+  top: 0;
+  opacity: 0;
+  /* transition-opacity duration-basic = .15s（shell-shared.css:2981） */
+  transition: opacity var(--transition-duration-basic, 0.15s);
+}
+
+.cx-exec__copy--command {
+  right: 0; /* top-0 right-0 */
+}
+
+.cx-exec__copy--output {
+  right: 10px; /* right-2.5 */
+}
+
+.cx-exec__command:hover .cx-exec__copy--command,
+.cx-exec__output:hover .cx-exec__copy--output,
+.cx-exec__copy:focus-visible {
+  opacity: 1;
+}
+
+/* 输出区：[SPEC §4.2] max-height 144px（max-h-36 = 36 × .25rem）、white-space pre、
+   flex-direction column-reverse、font-weight 500、渐隐 --edge-fade-distance: 2rem */
+.cx-exec__output {
+  position: relative;
+  min-height: 20px; /* min-h-[1.25rem] */
+  padding-inline-end: 0; /* pe-0 */
+}
+
+.cx-exec__out-scroll {
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: auto hidden;
+  max-height: 144px;
+  white-space: pre;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 13px; /* text-size-chat-sm：SPEC §13.13 实测 13px */
+  font-weight: 500;
+  color: var(--cx-block-desc);
+}
+
+.cx-exec__out-inner {
+  width: max-content;
+  min-width: 100%;
+  padding: 8px; /* p-2 */
+}
+
+.cx-exec__out-code {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* [SPEC §4.2] 状态行 flex items-center gap-2 px-2.5 pt-0.5 pb-1 text-size-chat text-tertiary
+   → gap 8px；padding 2px 10px 4px（pt-0.5 = 2px、pb-1 = 4px、px-2.5 = 10px）。
+   ⚠️ SPEC §4.2 文字版写的是「padding:4px 8px 4px 10px」，与它自己给的类名不一致，
+      这里按**类名**换算（Tailwind 映射是确定性的）。 */
+.cx-exec__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px 4px;
+  font-size: 14px; /* text-size-chat */
+  color: var(--color-text-tertiary);
+}
+
+.cx-exec__status-group {
+  margin-inline-start: auto; /* ms-auto：整组右对齐 */
+  display: flex;
+  align-items: center;
+  gap: 4px; /* gap-1 */
+}
+
+.cx-exec__status-icon {
+  display: flex;
+  align-items: center;
+}
+
+.cx-exec__status-icon[data-state="ok"] {
+  color: inherit;
+}
+
+/* ⚠️ SPEC §13.7：失败态图标**未实测**，这里只做着色区分，不冒充官方图标 */
+.cx-exec__status-icon[data-state="failed"] {
+  color: var(--color-text-danger, #fa423e);
+}
+
+/* ── 7. 终端 ANSI（[SPEC §5]，包内确证；CSS 逐条来自 ansi-block-cecb2c03ae9a.css）──
+ * 官方写法是**两条声明**：先 hex 回退，再 token + !important（SPEC §5.2）。
+ * 本工程实测（自测台 computed style）：tokens.css:70 的 electron 档定义了 --app-color-accent-*，
+ * 所以 --color-codex-terminal-ansi-* **解析成功**（red = rgb(255,103,100)），即 token 优先，
+ * 与 SPEC §5.2「token 桥都比 hex 优先级高」一致。
+ * 两条声明合并成 var(token, hex) 的原因：本仓库 biome 的 noDuplicateProperties 禁止同属性写两遍；
+ * 语义等价 —— token 缺失时 var() 会退到 SPEC §5.2 的官方 hex，而不是变成「继承色」。
+ * ------------------------------------------------------------------------- */
+.ansi-black-fg {
+  color: var(--color-codex-terminal-ansi-black, #000) !important;
+}
+
+.ansi-red-fg {
+  color: var(--color-codex-terminal-ansi-red, #f66) !important;
+}
+
+.ansi-green-fg {
+  color: var(--color-codex-terminal-ansi-green, #94f494) !important;
+}
+
+.ansi-yellow-fg {
+  color: var(--color-codex-terminal-ansi-yellow, #f4f47b) !important;
+}
+
+.ansi-blue-fg {
+  color: var(--color-codex-terminal-ansi-blue, #9e9eff) !important;
+}
+
+.ansi-magenta-fg {
+  color: var(--color-codex-terminal-ansi-magenta, #db6bdb) !important;
+}
+
+.ansi-cyan-fg {
+  color: var(--color-codex-terminal-ansi-cyan, #81eeee) !important;
+}
+
+.ansi-white-fg {
+  color: var(--color-codex-terminal-ansi-white, #d6d6d6) !important;
+}
+
+.ansi-bright-black-fg {
+  color: var(--color-codex-terminal-ansi-bright-black, #6e6e6e) !important;
+}
+
+.ansi-bright-red-fg {
+  color: var(--color-codex-terminal-ansi-bright-red, #ffa8a8) !important;
+}
+
+.ansi-bright-green-fg {
+  color: var(--color-codex-terminal-ansi-bright-green, #0f0) !important;
+}
+
+.ansi-bright-yellow-fg {
+  color: var(--color-codex-terminal-ansi-bright-yellow, #ffffa8) !important;
+}
+
+.ansi-bright-blue-fg {
+  color: var(--color-codex-terminal-ansi-bright-blue, #9494ff) !important;
+}
+
+.ansi-bright-magenta-fg {
+  color: var(--color-codex-terminal-ansi-bright-magenta, #ffb3ff) !important;
+}
+
+.ansi-bright-cyan-fg {
+  color: var(--color-codex-terminal-ansi-bright-cyan, #adffff) !important;
+}
+
+.ansi-bright-white-fg {
+  color: var(--color-codex-terminal-ansi-bright-white, #fff) !important;
+}
+
+.ansi-black-bg {
+  background-color: var(--color-codex-terminal-ansi-black, #000) !important;
+}
+
+.ansi-red-bg {
+  background-color: var(--color-codex-terminal-ansi-red, #f66) !important;
+}
+
+.ansi-green-bg {
+  background-color: var(--color-codex-terminal-ansi-green, #94f494) !important;
+}
+
+.ansi-yellow-bg {
+  background-color: var(--color-codex-terminal-ansi-yellow, #f4f47b) !important;
+}
+
+.ansi-blue-bg {
+  background-color: var(--color-codex-terminal-ansi-blue, #9e9eff) !important;
+}
+
+.ansi-magenta-bg {
+  background-color: var(--color-codex-terminal-ansi-magenta, #db6bdb) !important;
+}
+
+.ansi-cyan-bg {
+  background-color: var(--color-codex-terminal-ansi-cyan, #81eeee) !important;
+}
+
+.ansi-white-bg {
+  background-color: var(--color-codex-terminal-ansi-white, #d6d6d6) !important;
+}
+
+.ansi-bright-black-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-black, #6e6e6e) !important;
+}
+
+.ansi-bright-red-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-red, #ffa8a8) !important;
+}
+
+.ansi-bright-green-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-green, #0f0) !important;
+}
+
+.ansi-bright-yellow-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-yellow, #ffffa8) !important;
+}
+
+.ansi-bright-blue-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-blue, #9494ff) !important;
+}
+
+.ansi-bright-magenta-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-magenta, #ffb3ff) !important;
+}
+
+.ansi-bright-cyan-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-cyan, #adffff) !important;
+}
+
+.ansi-bright-white-bg {
+  background-color: var(--color-codex-terminal-ansi-bright-white, #fff) !important;
+}
+
+/* [SPEC §5.1] 装饰：ansi-bold / -dim / -italic / -underline / -blink / -reverse / -hidden / -strikethrough */
+.ansi-bold {
+  font-weight: bold;
+}
+
+.ansi-dim {
+  opacity: 0.5;
+}
+
+.ansi-italic {
+  font-style: italic;
+}
+
+.ansi-underline {
+  text-decoration: underline;
+}
+
+.ansi-strikethrough {
+  text-decoration: line-through;
+}
+
+.ansi-hidden {
+  visibility: hidden;
+}
+
+.ansi-blink {
+  animation: cx-ansi-blink 1s steps(2, start) infinite;
+}
+
+.ansi-reverse {
+  filter: invert(1);
+}
+
+@keyframes cx-ansi-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* ── 8. 文件列表 / 逐文件卡（[SPEC §6]，**完整实测**）────────────────────── */
+/* [SPEC §6.1] div.-ms-2.ps-2 套 div.-ms-2.ps-2（内外同款缩进）；
+   滚动区 max-h-56 = 224px、--edge-fade-distance: 1.5rem */
+.cx-filelist {
+  margin-inline-start: -8px;
+  padding-inline-start: 8px;
+}
+
+.cx-filelist__scroll {
+  margin-inline-start: -8px;
+  padding-inline-start: 8px;
+  display: flex;
+  flex-direction: column;
+  /* [SPEC §2.1] 补丁文件之间用 --conversation-patch-file-gap（回退 16px） */
+  gap: var(--conversation-patch-file-gap, var(--cx-block-gap));
+  max-height: 224px;
+  overflow: hidden auto;
+}
+
+/* [SPEC §6.2] 文件卡 rounded-lg border border-default mt-1.5（6px） */
+.cx-filecard {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+/* [SPEC §6.2] 文件卡头：bg-background-primary-ghost-hover/60；px-2.5 py-0.5；
+   text-size-chat-sm（13px）；实测高 28px */
+.cx-filecard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: color-mix(in srgb, var(--color-background-primary-ghost-hover) 60%, transparent);
+  padding: 2px 10px; /* py-0.5 px-2.5 */
+  font-size: 13px; /* text-size-chat-sm */
+  color: color-mix(in srgb, var(--cx-block-desc) 80%, transparent); /* text-codex-description/80 */
+}
+
+.cx-filecard__left {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+/* [SPEC §6.1] 文件名按钮 hover:underline，内含 span.truncate */
+.cx-filecard__name {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cx-filecard__name:hover {
+  text-decoration: underline;
+}
+
+.cx-filecard__name-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* [SPEC §6.2] 增删统计：tabular-nums tracking-tight disambiguated-digits */
+.cx-filecard__stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em; /* tracking-tight */
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* token 桥（实测生效）：本工程 tokens.css:70 的 electron 档定义了 --app-color-decoration-added
+   （dark = 绿）→ `--color-codex-git-added` 解析为 rgb(64,201,119)；SPEC §6.2 只给了 token 名、
+   **没给具体色值**，所以渲染色以工程 token 为准，var() 第二参只是防御性回退。 */
+.cx-filecard__added {
+  color: var(--color-codex-git-added, var(--color-text-success, #7bd88f));
+}
+
+.cx-filecard__deleted {
+  color: var(--color-codex-git-deleted, var(--color-text-danger, #fa423e));
+}
+
+.cx-filecard__copy-host {
+  display: contents;
+}
+
+.cx-filecard__copy {
+  flex-shrink: 0;
+}
+
+/* [SPEC §6.1] div.bg-surface-tertiary 套 div.composer-diff-simple-line.overflow-y-auto.max-h-60（240px） */
+.cx-filecard__diff {
+  background-color: var(--color-surface-tertiary);
+  max-height: 240px;
+  overflow: hidden auto;
+}
+
+/* ── 9. diff / 补丁预览（[SPEC §7]，**完整实测**；我们**不复刻 shadow DOM**）──
+ * SPEC §7.2：Pierre 在 shadow root 注入的 :host 段（逐字）——
+ *   color-scheme: dark; color:#fcfcfc; background-color:#111111;
+ *   --diffs-fg:#fcfcfc; --diffs-bg:#111111;
+ *   --diffs-addition-color:#00a240; --diffs-deletion-color:#e02e2a;
+ * SPEC §7.3：Codex 覆盖层（codex-diff-css-7ed82a278fa1.js）的注入变量与规则子集。
+ *
+ * ★ 2026-10-11 补证（**真机运行时常量**，不是再读 CSS）：
+ *   captures/tokens.runtime.json（app://-/index.html、1280×816、dpr1.5、dark）里读到的实际值：
+ *     --diffs-font-family = ui-monospace, "SFMono-Regular", "SF Mono", menlo, consolas, …
+ *     --diffs-font-size   = **12px**
+ *     --diffs-line-height = **calc(12px * 1.8)**   ⇒ 21.6px（**不是** 20px）
+ *     --diffs-gap-block   = **0**
+ *     --diffs-min-number-column-width = **4ch**（1ch 那个类是编辑器上下文用的）
+ *     --diffs-addition-color-override = **#40c977** ／ --diffs-deletion-color-override = **#fa423e**
+ *     --color-codex-git-added = #40c977 ／ --color-codex-git-deleted = #fa423e（同源）
+ *   ⇒ 上面 :host 段那对 #00a240/#e02e2a 是 **Pierre 的默认值**，真机被应用层 override 覆盖；
+ *     渲染取 override 值。下面的 --diffs-*-color 因此改用真机值，并同时给出 override 变量名。
+ *   出处（CSS 侧定义链）：captures/css-pretty/webview.css:904 附近 :root
+ *     { --diffs-font-size: var(--vscode-editor-font-size,12px); --diffs-line-height: calc(var(--diffs-font-size,12px)*1.8) }
+ * ------------------------------------------------------------------------- */
+.cx-diff {
+  /* :host 段（逐字，SPEC §7.2） */
+  color-scheme: dark;
+  color: #fcfcfc;
+  background-color: #111111;
+  --diffs-fg: #fcfcfc;
+  --diffs-bg: #111111;
+  /* 真机值（tokens.runtime.json）：Pierre 默认 #00a240/#e02e2a 被应用层 override 覆盖 */
+  --diffs-addition-color-override: #40c977;
+  --diffs-deletion-color-override: #fa423e;
+  --diffs-addition-color: var(--diffs-addition-color-override);
+  --diffs-deletion-color: var(--diffs-deletion-color-override);
+  /* 真机字体链（webview.css :root + tokens.runtime.json 取值） */
+  --diffs-font-family: var(--font-mono);
+  --diffs-font-size: 12px;
+  --diffs-line-height: calc(12px * 1.8);
+  --diffs-gap-block: 0;
+  --diffs-min-number-column-width: 4ch;
+
+  /* Codex 覆盖层注入变量（SPEC §7.3） */
+  --codex-diffs-surface: var(--color-surface);
+  --codex-diffs-context-surface: color-mix(in srgb, var(--codex-diffs-surface) 94%, var(--color-surface));
+  --codex-diffs-hover-surface: color-mix(in srgb, var(--codex-diffs-surface) 92%, var(--color-surface));
+  --codex-diffs-separator-surface: color-mix(in srgb, var(--codex-diffs-surface) 94%, var(--color-text-info));
+
+  /* ⚠️ 推断，未实测：Pierre 的 --diffs-bg-addition / -deletion（行底色）与 --diffs-addition-base
+     在 SPEC 里都没有给值。这里按 §7.3 中**唯一确证**的同构公式推：
+       --codex-diffs-addition-number = color-mix(in lab, <dark-bg> 85%, <addition-base>)
+     即行底 = dark-bg 与 addition 色做 85%/15% 混合。 */
+  --diffs-bg-addition: color-mix(in lab, var(--diffs-bg) 85%, var(--diffs-addition-color));
+  --diffs-bg-deletion: color-mix(in lab, var(--diffs-bg) 85%, var(--diffs-deletion-color));
+  /* ★ 2026-10-11 对齐（task-43）：列号列宽改为**官方派生值**，不再是自定的 3.5rem。
+     官方出处：captures/tokens.runtime.json —— 上面那条 --diffs-min-number-column-width 真机 = **4ch**
+     （它是兜底值，DiffLines() 会按同一规则覆盖成「最大行号位数 ch」）；
+     派生规则见 app-initial-25361a10f2bf.js@1157236（按最大行号位数给 ch）。
+     +8px = 本实现列号单元格的 padding-inline-end；官方那 8px 在 Pierre shadow DOM 内，**未实测**。 */
+  --diffs-column-number-width: calc(var(--diffs-min-number-column-width) + 8px);
+
+  margin: 0;
+  font-family: var(--diffs-font-family);
+  /* 真机值 21.6px（= calc(12px*1.8)）；改前这里写死 20px 是**没有出处的自定值** */
+  font-size: var(--diffs-font-size);
+  line-height: var(--diffs-line-height);
+  overflow: auto;
+}
+
+/* [SPEC §7.3] [data-code] { scrollbar-gutter: auto } */
+.cx-diff__code {
+  display: block;
+  scrollbar-gutter: auto;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.cx-diff__gutter {
+  display: block;
+}
+
+/* [SPEC §7.3] [data-column-number] { padding-inline-start: calc(var(--spacing) * 10) }（alignCommentGutter） */
+.cx-diff__line {
+  display: grid;
+  grid-template-columns: var(--diffs-column-number-width) minmax(0, 1fr);
+  padding-inline-start: calc(var(--spacing, 0.25rem) * 10); /* 40px */
+  background-color: var(--diffs-bg);
+}
+
+/* [SPEC §7.2] 列号 span（data-line-number-content） */
+.cx-diff__number {
+  padding-inline-end: 8px;
+  text-align: end;
+  color: color-mix(in srgb, var(--diffs-fg) 45%, transparent);
+  user-select: none;
+}
+
+.cx-diff__text {
+  white-space: pre;
+  padding-inline-end: 8px;
+}
+
+/* [SPEC §7.3] change 行的 --diffs-computed-diff-line-bg 落到行底与列号底 */
+.cx-diff__line[data-line-type="change-addition"] {
+  background-color: var(--diffs-bg-addition);
+}
+
+.cx-diff__line[data-line-type="change-deletion"] {
+  background-color: var(--diffs-bg-deletion);
+}
+
+.cx-diff__line[data-line-type="change-addition"] .cx-diff__number {
+  color: color-mix(in srgb, var(--diffs-fg) 70%, transparent);
+  background-color: var(--codex-diffs-addition-number, var(--diffs-bg-addition));
+}
+
+.cx-diff__line[data-line-type="change-deletion"] .cx-diff__number {
+  color: color-mix(in srgb, var(--diffs-fg) 70%, transparent);
+  background-color: var(--codex-diffs-deletion-number, var(--diffs-bg-deletion));
+}
+
+/* 「bars」指示条：[SPEC §7.2] 只确证 data-indicators="bars"，条本身的几何**推断**（未实测） */
+.cx-diff__line[data-line-type="change-addition"] .cx-diff__text,
+.cx-diff__line[data-line-type="change-deletion"] .cx-diff__text {
+  position: relative;
+}
+
+.cx-diff__line[data-line-type="change-addition"] .cx-diff__text::before,
+.cx-diff__line[data-line-type="change-deletion"] .cx-diff__text::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -4px;
+  width: 2px;
+}
+
+.cx-diff__line[data-line-type="change-addition"] .cx-diff__text::before {
+  background-color: var(--diffs-addition-color);
+}
+
+.cx-diff__line[data-line-type="change-deletion"] .cx-diff__text::before {
+  background-color: var(--diffs-deletion-color);
+}
+
+/* [SPEC §7.3] [data-separator]:empty 透明底，::after 画
+   border-top:1px solid color-mix(in srgb, var(--diffs-fg) 18%, transparent) */
+.cx-diff__separator {
+  position: relative;
+  background-color: transparent;
+  /* 行高与数据行一致（我们的行是自建 DOM，官方那行在 Pierre shadow 里）——
+     随 --diffs-line-height 走，别再写死 20px，否则与上面的 21.6px 不自洽 */
+  height: var(--diffs-line-height);
+}
+
+.cx-diff__separator::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  border-top: 1px solid color-mix(in srgb, var(--diffs-fg) 18%, transparent);
+}
+
+/* [SPEC §7.4] 失败 / 二进制 / 改名 / 过大 —— 实测类名与文案 */
+.cx-diff__failed {
+  display: flex;
+  align-items: center;
+  background-color: var(--cx-block-surface);
+  padding: 12px 16px; /* px-3 py-4 */
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.cx-diff__empty {
+  height: 100%;
+  background-color: var(--color-surface-tertiary);
+  padding-block: 16px;
+}
+
+.cx-diff__too-large {
+  color: color-mix(in srgb, var(--cx-block-desc) 80%, transparent);
+}
+
+@media (max-width: 720px) {
+  .cx-diff__too-large {
+    display: none; /* max-[720px]:hidden（[SPEC §7.4]） */
+  }
+}
+
+/* 单独的 diff 块外壳（[SPEC §7.1]：Codex 自己画文件头，Pierre 侧 disableFileHeader: true） */
+.cx-diffcard {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.cx-diffcard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: color-mix(in srgb, var(--color-background-primary-ghost-hover) 60%, transparent);
+  padding: 2px 10px;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--cx-block-desc) 80%, transparent);
+}
+
+/* ★ 2026-10-11 修正（task-50 反向扫描）：本包装层此前**没有任何规则**，而它是 flex 行
+   .cx-diffcard__head 的直接子项 —— 默认 min-width:auto 会让它按「不换行的整条路径」撑开，
+   于是子级 .cx-diffcard__path 的 text-overflow:ellipsis **永远不生效**，超长路径只能被
+   .cx-diffcard 的 overflow:hidden 硬切。写法与同目录既有同类一致
+   （.cx-activity-header__summary / .cx-activity-header__text 都是 min-width:0）。
+   ⚠️ 只在路径长到溢出时才可见 ⇒ **未实测**（本轮无实例）。 */
+.cx-diffcard__name {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cx-diffcard__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-diffcard__scroll {
+  background-color: var(--color-surface-tertiary);
+  max-height: 240px;
+  overflow: hidden auto;
+}
+
+/* ── 10. 代码块（[SPEC §11]，**完整实测**）───────────────────────────────── */
+/* [SPEC §11.2] 根：bg rgb(24,24,24)、radius 20px（--radius-3xl-base = 1.25rem）、
+   border 0.666667px rgba(255,255,255,.043)（border-subtle）。
+   ⚠️ 不要用 --radius-3xl：本工程 --corner-radius-scale = 1.25，会得到 25px ≠ 实测 20px；
+      官方类名用的就是 --radius-3xl-base。 */
+.cx-codefence {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: clip;
+  contain: inline-size;
+  /* [SPEC §11.2] _CodeBlock_176oq_2 { margin-block: calc(var(--markdown-space) * 5) }，
+     实测 margin 17.5px 0，这里按实测值钉住 */
+  margin-block: 17.5px;
+  border-radius: var(--radius-3xl-base, 1.25rem);
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--cx-block-surface);
+  color: var(--color-text);
+  /* [SPEC §11.2] _CodeSurface_snnl5_22, _StickyActionBar_snnl5_10
+     { background-color: var(--color-surface); background-image: linear-gradient(...) } */
+  background-image: linear-gradient(
+    var(--color-background-secondary-soft-alpha),
+    var(--color-background-secondary-soft-alpha)
+  );
+  /* [SPEC §11.2] _Surface_snnl5_1 { corner-shape: superellipse(1.1) }（仅支持该属性的 Chromium 生效） */
+  corner-shape: superellipse(1.1);
+}
+
+/* [SPEC §11.2] 工具条：实测 padding 6px 6px 6px 20px；高 48px（min-h-12）；
+   sticky z-10；top: calc(-1px - var(--thread-sticky-header-top, 0px)) */
+.cx-codefence__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* gap-2 */
+  min-height: 48px;
+  padding: 6px 6px 6px 20px; /* 实测（py-1.5 ps-4 pe-1.5 + md:ps-5 → 20px） */
+  font-family: var(--font-sans);
+  font-size: 13px; /* 实测 13px */
+  font-weight: 500; /* font-medium */
+  color: var(--color-text);
+  user-select: none;
+  position: sticky;
+  top: calc(-1px - var(--thread-sticky-header-top, 0px));
+  z-index: 10;
+  background-color: var(--cx-block-surface);
+  background-image: linear-gradient(
+    var(--color-background-secondary-soft-alpha),
+    var(--color-background-secondary-soft-alpha)
+  );
+}
+
+/* ⚠️ SPEC §13.6：工具条左侧 20×20 语言图标**未实测名称**，缺省不渲染（留插槽） */
+.cx-codefence__lang-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cx-codefence__lang {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-codefence__actions {
+  margin-inline-start: auto; /* ms-auto */
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cx-codefence__actions-inner {
+  display: flex;
+  align-items: center;
+  gap: 1px; /* gap-px */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* [SPEC §11.1] 两个动作按钮都是 **36×36**（h-9 aspect-square !px-0） */
+.cx-codefence__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: opacity var(--transition-duration-basic, 0.15s);
+}
+
+.cx-codefence__action:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+/* [SPEC §11.2] 正文：实测 padding 0 20px 12px；line-height 20px；white-space pre；font-size 13px；
+   focus-visible:ring-inset */
+.cx-codefence__body {
+  font-size: 14px; /* text-size-chat */
+  overflow: auto;
+  outline: none;
+  padding: 0 20px 12px;
+}
+
+.cx-codefence__body:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-style: inset;
+}
+
+/* [SPEC §11.2] _CodeContent_snnl5_6 { line-height: max(1.5em, calc(var(--spacing) * 5)) }（实测 20px） */
+.cx-codefence__code {
+  display: block;
+  white-space: pre;
+  font-family: var(--font-mono);
+  /* [SPEC §11.2] 代码字号 token 实测生效 13px（--codex-chat-code-font-size） */
+  font-size: 13px;
+  line-height: max(1.5em, calc(var(--spacing, 0.25rem) * 5));
+}
+
+/* [SPEC §11.3] 自动换行开：code 加 whitespace-pre-wrap */
+.cx-codefence__code[data-wrap="true"] {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── 11. 推理 / 思考（[SPEC §3]，包内确证）───────────────────────────────── */
+/* maxHeightByState：preview / expanded = 8.75rem = 140px；collapsed = 0px（[SPEC §3.2/§3.6]）
+   渐隐：内层滚动容器上的 [--edge-fade-distance:1rem] */
+.cx-thought {
+  max-height: 8.75rem;
+}
+
+.cx-thought__scroll {
+  overflow-y: auto;
+  max-height: 8.75rem;
+}
+
+/* 流式时官方用 flex flex-col-reverse 贴底（AutoHeightScroller.autoScrollToBottom） */
+.cx-thought__scroll[data-autoscroll="true"] {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+/* 内层 flex flex-col gap-1（contentClassName="gap-0" 覆写为 0） */
+.cx-thought__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* [SPEC §3.3] 正文包裹：text-text/60 [&_*]:text-text/50 break-words text-size-chat */
+.cx-thought__content {
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  overflow-wrap: break-word;
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.cx-thought__content * {
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  font-size: 14px;
+}
+
+/* [SPEC §3.4] _heading_ysnbw_1, _paragraph_ysnbw_2 { margin: 0 }；
+   _content > _paragraph + _paragraph { margin-top: var(--spacing) }（4px）；
+   > h1/h2/h3 { margin-top: calc(var(--spacing) * 2) }（8px），其后 + * { margin-top: var(--spacing) } */
+.cx-thought__p,
+.cx-thought__heading {
+  margin: 0;
+}
+
+.cx-thought__p + .cx-thought__p {
+  margin-top: var(--spacing, 0.25rem);
+}
+
+.cx-thought__heading {
+  margin-top: calc(var(--spacing, 0.25rem) * 2);
+  font-weight: 600; /* font-semibold（[SPEC §3.3]） */
+}
+
+.cx-thought__heading + * {
+  margin-top: var(--spacing, 0.25rem);
+}
+
+/* [SPEC §3.3] ul → _list_ysnbw_6 list-disc ps-4；ol → list-decimal + ps-8/10/12/14；li → m-0
+   [SPEC §3.4] _list_ysnbw_6 { margin-block: 0 } */
+.cx-thought__list {
+  margin-block: 0;
+  padding-inline-start: 16px; /* ps-4 */
+  list-style: disc;
+}
+
+.cx-thought__list--ordered {
+  list-style: decimal;
+  padding-inline-start: 32px; /* ps-8（序号 1 位时的档位） */
+}
+
+.cx-thought__li {
+  margin: 0;
+}
+
+/* [SPEC §11.2] _InlineCode_176oq_2：bg ghost-hover、radius 6px、padding 1px 6px、
+   font-mono、.92em、overflow-wrap anywhere、box-decoration-break clone */
+.cx-thought__inline-code {
+  display: inline;
+  background: var(--color-background-primary-ghost-hover);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  box-decoration-break: clone;
+}
+
+/* ── 12. 推断块（SPEC §8 / §9 / §10 / §12）—— 全部标「推断，未实测」─────────── */
+
+/* 12.1 审批（[SPEC §8.1] 组件源码确证；UI 未实测） */
+.cx-approval__summary {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px; /* gap-1.5（[SPEC §8.1] 的类名） */
+}
+
+/* ⚠️ 推断：官方 Tone 的实现未取到（[SPEC §8.1]/§13.3），这里用 6px 圆点表达 tone */
+.cx-approval__tone {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full, 9999px);
+  flex-shrink: 0;
+  background-color: currentColor;
+  opacity: 0.6;
+}
+
+.cx-approval__tone[data-tone="warning"] {
+  color: var(--color-text-warning, #ff9f0a);
+  opacity: 1;
+}
+
+.cx-approval__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-approval__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.cx-approval__status {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+.cx-approval__rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx-approval__row {
+  display: flex;
+  gap: 8px;
+}
+
+.cx-approval__row-label {
+  color: var(--color-text-tertiary);
+  min-width: 64px;
+}
+
+.cx-approval__row-value {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 12.2 计划 / todo（[SPEC §9] 文案与数据模型确证，UI 推断） */
+.cx-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx-plan__explanation {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+.cx-plan__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cx-plan__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* ⚠️ 推断：[SPEC §9.3] 明确项目里没有 todo 三态图标组件、assets 里的 list_todo 未还原成组件，
+   所以这里用 **CSS 自绘**的方框 / 半格 / 实心块，不用近似图标冒充官方图标。 */
+.cx-plan__marker {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  flex-shrink: 0;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 40%, transparent);
+  border-radius: 3px;
+}
+
+.cx-plan__marker[data-status="in_progress"] {
+  border-color: var(--color-text);
+  background: linear-gradient(to right, var(--color-text) 0 50%, transparent 50% 100%);
+}
+
+.cx-plan__marker[data-status="completed"] {
+  border-color: transparent;
+  background-color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+.cx-plan__step-text {
+  font-size: 14px;
+}
+
+.cx-plan__step[data-status="completed"] .cx-plan__step-text {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+}
+
+.cx-plan__content {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+/* 12.3 搜索（[SPEC §10] 文案确证；UI 推断，复用 §4 卡片外壳） */
+.cx-search__results {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 8px;
+  gap: 2px;
+}
+
+.cx-search__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--cx-block-desc);
+  min-width: 0;
+}
+
+.cx-search__path {
+  flex-shrink: 0;
+}
+
+.cx-search__line-number {
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.cx-search__line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 12.4 错误 / 失败态（[SPEC §12] 文案确证；容器未实测，只做「段落 + 正文」） */
+.cx-error {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.cx-error__title[data-tone="danger"] {
+  color: var(--color-text-danger, #fa423e);
+}
+
+.cx-error__title[data-tone="warning"] {
+  color: var(--color-text-warning, #ff9f0a);
+}
+
+.cx-error__inline-note {
+  color: var(--color-text-tertiary);
+}
+
+.cx-error__message {
+  margin: 0;
+}
+
+.cx-error__details {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+/* ── 13. 摘要 shimmer（流式 ActiveText active={true}，[SPEC §3.4]/§3.6）───────
+ * 官方 _activeCommentary_1685k_5 提供 --loading-shimmer-foreground / -base / -highlight / -duration。
+ * ⚠️ 推断：具体动画形态与 duration 未实测（SPEC §13.11），这里用背景位移 + 变量回退实现。 */
+.cx-activity-header__label[data-active="true"] {
+  background-image: linear-gradient(
+    90deg,
+    var(--loading-shimmer-base, color-mix(in srgb, currentColor 45%, transparent)) 0%,
+    var(--loading-shimmer-highlight, currentColor) 50%,
+    var(--loading-shimmer-base, color-mix(in srgb, currentColor 45%, transparent)) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: cx-activity-shimmer var(--loading-shimmer-duration, 2s) linear infinite;
+}
+
+@keyframes cx-activity-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * 15. task-21 收口：计划卡头部按钮 / 代码块 Preview-Code 与 Scroll to bottom /
+ *     增删数字逐位滚动
+ *
+ * 三条的官方出处（**渲染代码确证，无运行时实测** —— SPEC §13 未实测清单）：
+ *   · 计划卡按钮：plan-summary-item-content-4662a5050d5a.js @11814/@12025/@12258/@15076/@15145
+ *   · Preview/Code 与 Scroll to bottom：chatgpt-code-block-b5d561b77f27.js
+ *     @38750/@39036/@41200/@27080/@25716/@13504
+ *   · 数字滚动：shell-initial.css:3391-3412（CSS 原文）+ app-initial-25361a10f2bf.js
+ *     @7003142/@7006440/@7006958（类名映射与渲染代码）
+ * 逐条「实测 / 推导」标注见对应 tsx 的文件头。
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 15.1 块头动作组 ────────────────────────────────────────────────────────
+   官方：cn("relative z-20 flex items-center gap-1", hidden && "hidden")
+   relative z-20 = 压在块头那个 absolute inset-0 的整行点击区之上（官方原样）*/
+.cx-activity-header__actions {
+  position: relative;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px; /* gap-1 */
+  flex-shrink: 0;
+}
+
+/* ── 15.2 计划卡动作按钮 ────────────────────────────────────────────────────
+   官方：IconButton{ color:"ghost", size:"icon" }
+   尺寸（**推导**，无实测）：size:"icon" → electron:p-1 + [&>svg]:icon-sm；
+     .icon-sm{width:18px;height:18px}（shell-shared.css）⇒ 18 + 4×2 = 26×26
+   圆角：radius("icon") → rounded-full electron:rounded-md（app-shared @7885513/7885785）
+     ⇒ electron 档 10px（--radius-md）
+   其中 chevron 的 20×21 画布与 18px 渲染尺寸略有出入，官方按钮就是靠 svg 的
+   className 控尺寸；这里统一按 18px 渲染。 */
+.cx-plan__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 4px; /* electron:p-1 */
+  border: none;
+  border-radius: var(--radius-md, 10px);
+  background-color: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-duration-basic, 0.15s) var(--cubic-enter, ease),
+    color var(--transition-duration-basic, 0.15s) var(--cubic-enter, ease);
+}
+
+.cx-plan__action:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+.cx-plan__action:focus-visible {
+  outline: 2px solid var(--color-ring, #83c3ff);
+  outline-offset: -2px;
+}
+
+.cx-plan__action-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* 官方展开图标带 transition-transform + rotate-180（展开时朝上） */
+.cx-plan__action-icon--chevron {
+  transition: transform var(--transition-duration-relaxed, 0.3s) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cx-plan__action-icon--chevron[data-expanded="true"] {
+  transform: rotate(180deg);
+}
+
+/* ── 15.3 增删数字逐位滚动（官方原文，shell-initial.css:3391-3412）─────────── */
+.cx-rolling {
+  display: inline-flex;
+  height: 1lh; /* h-lh */
+  align-items: baseline;
+  line-height: inherit; /* leading-[inherit] */
+}
+
+/* 非数字字符（千分位逗号等）：inline-block h-lh self-start leading-[inherit] */
+.cx-rolling__sep {
+  display: inline-block;
+  height: 1lh;
+  align-self: flex-start;
+  line-height: inherit;
+}
+
+.cx-digitcol {
+  width: 1ch;
+  height: 1lh;
+  line-height: inherit;
+  contain: layout paint style;
+  display: inline-block;
+  position: relative;
+}
+
+/* 用不可见的 0 撑出宽度，保证 ch 宽度稳定（官方原文） */
+.cx-digitcol::before {
+  content: "0";
+  visibility: hidden;
+}
+
+/* 官方：span.absolute.inset-0.overflow-hidden（数码窗口） */
+.cx-digitcol__clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.cx-digitstack {
+  contain: layout size style;
+  height: 1lh;
+  transition: transform var(--transition-duration-relaxed, 0.3s) cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+  flex-direction: column;
+  display: flex;
+}
+
+.cx-digitstack > span {
+  flex: 0 0 1lh;
+  height: 1lh;
+}
+
+/* 官方 shell-initial.css 里这三条排在基础规则之前；本工程按「低特异性在前」重排，
+   声明逐字不变、计算值不变（inline 档靠特异性 0,2,1 覆盖基础的 0,1,0）。 */
+.cx-digitcol[data-variant="inline"] {
+  contain: none;
+}
+
+.cx-digitcol[data-variant="inline"] .cx-digitstack {
+  margin-top: var(--rolling-number-y-offset, 0);
+  display: block;
+}
+
+.cx-digitcol[data-variant="inline"] .cx-digitstack > span {
+  line-height: inherit;
+  display: block;
+}
+
+/* 官方 @media (prefers-reduced-motion: reduce) { transition: none } */
+@media (prefers-reduced-motion: reduce) {
+  .cx-digitstack {
+    transition: none;
+  }
+}
+
+:root[data-reduced-motion="true"] .cx-digitstack,
+:root[data-reduced-motion="true"] .cx-plan__action-icon--chevron {
+  transition: none;
+}
+
+/* ── 15.4 代码块 Preview / Code 切换 ────────────────────────────────────────
+   官方：color:"ghostActive", size:"imageToolbar", uniform:true；radius("imageToolbar")
+   = rounded-full（app-shared @7885785），size 表 = h-9（36px）⇒ 36×36 圆钮。
+   与同排的换行/复制按钮同为 36×36，只是圆角与激活色不同。 */
+.cx-codefence__action--toggle {
+  border-radius: var(--radius-full, 9999px);
+}
+
+.cx-codefence__action--toggle[data-active="true"] {
+  color: var(--color-text);
+}
+
+/* 预览窗格：官方 div[data-code-block-preview-pane=<lang>]
+   = cn("group pointer-events-auto flex w-full overflow-hidden",
+        lang==="svg" && "min-h-24", 其它 && "aspect-video") */
+.cx-codefence__preview {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+}
+
+.cx-codefence__preview[data-code-block-preview-pane="svg"] {
+  min-height: 6rem; /* min-h-24 */
+}
+
+.cx-codefence__preview:not([data-code-block-preview-pane="svg"]) {
+  aspect-ratio: var(--aspect-video, 16 / 9); /* aspect-video */
+}
+
+.cx-codefence__preview-inner {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px 12px; /* 与正文同 padding（[SPEC §11.2] 实测 0 20px 12px） */
+}
+
+/* ── 15.5 Scroll to bottom ──────────────────────────────────────────────────
+   ️ 推导：官方只给出 className="bottom-4" 与文案（chatgpt-code-block @13504），
+   **按钮自身的尺寸/配色/图标未取到** ⇒ 按同一工具条已实测的 36×36 圆钮规格落地，
+   位置 = bottom-4（16px）。分量见 tsx 的 data-evidence="derived"。 */
+.cx-codefence__to-bottom {
+  position: absolute;
+  inset-inline-end: 12px;
+  bottom: 1rem; /* bottom-4 */
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.084));
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-surface-elevated-secondary, #2d2d2d);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.cx-codefence__to-bottom:hover {
+  background-color: var(--color-background-primary-ghost-hover);
+}
+
+.cx-codefence__to-bottom:focus-visible {
+  outline: 2px solid var(--color-ring, #83c3ff);
+  outline-offset: -2px;
+}

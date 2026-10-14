@@ -1,0 +1,2611 @@
+/* ============================================================================
+ * 对话面（chat）：首页态 / Composer / 会话态 / Markdown / 代码块 / 产物面板
+ *
+ * 所有数值逐条来自参考端实测 @1280×816（dpr 1.5）：
+ *   C:\artex-ymh\evidence\codex-desktop\captures\blocks-chat-home.json
+ *   ...\blocks-conversation.json、SPEC.md §6/§7/§8、reference-shots/ref-01-chat-home.png
+ * 实现按**作者值**写（参考端 0.666667px 这类是 dpr=1.5 的设备像素取整，见 shell.css 顶部说明）。
+ * ========================================================================== */
+
+:root {
+  /* 首页组合器区域高度：官方由 flex 分配算法得出（标题区 basis0+grow1 → 371，组合器区 → 275）。
+     这里按下限钉住以保证 1280×816 下几何可复现：
+       标题区 371 = 646 − 275，标题底 = 166 + 371 − 96 = 441 → 标题顶 327 ✓（实测 327.4） */
+  --cx-home-composer-area: 275px;
+  /* 转录列宽（实测 --thread-body-max-width = 768）；SPEC §8 明确 shell 内 --thread-content-max-width: none */
+  --cx-thread-column: 768px;
+  /* 产物面板打开时整层内容的水平位移 = 官方 contentShift。
+     官方算法（app/webview/assets/thread-summary-panel-layout-488b931a4b80.js 的 r() 函数）：
+       contentShift = isPinned && displayMode === "shift" ? -(308 + panelWidth - 300) / 2 : 0
+     panelWidth = 面板卡片宽 **300**（实测卡片 300 = 容器 308 − pe-2 的 8）→ **-154px**。
+     施加点（thread-scroll-layout-fb0c6ee4cde8.js:488-490/516 与 501）：
+       转录列外层 motion.div 与 composer 浮层都是 `style: { x: contentX }` —— 即 translateX，
+       **不动列宽**。实测印证：参考端打开态转录列 [270.33,128 768×684]、
+       composer 列 [270.33,698 768×98]，中心都是 654.33 = 剩余区（340.67..968）的中心。 */
+  --cx-summary-panel-card-width: 300px;
+  --cx-content-shift: calc(-1 * (308px + var(--cx-summary-panel-card-width) - 300px) / 2);
+  /* 正文一档：14px / 22.75px / 430（--text-size-chat 实测） */
+  --cx-chat-body-size: 14px;
+  --cx-chat-body-leading: 22.75px;
+  /* ── 转录滚动区两侧的 scrollbar-gutter：**没有变量，直接写在滚动容器上** ──────────────
+     （2026-10-11 HUNT 组实测更正；原注释的「本机是 overlay 滚动条 ⇒ 写 scrollbar-gutter 复现不出
+       这 20px ⇒ 用变量模拟」这条推论**已被实测推翻**，见下。）
+
+     官方证据链（三处互相印证，全是官方采集）：
+       1) 官方 .thread-scroll-container 的类里有 `electron:[scrollbar-gutter:stable_both-edges]`
+          （captures/blocks-conversation.json block[13]）。CSS 出处：app-shared-f2d570e85ceb.css
+          @1121285 的 electron 档变体（:is([data-codex-window-type=electron] …) 祖先门控）
+          + @374438 的工具类原文：
+            .[scrollbar-gutter:stable]{scrollbar-gutter:stable}
+            .[scrollbar-gutter:stable_both-edges]{scrollbar-gutter:stable both-edges}
+            .scrollbar-stable{scrollbar-gutter:stable}
+       2) 会话：滚动容器 [340.667,96 **935.333**×716] → 其**内容盒子元素**（[container-type:inline-size]
+          那个转录包装层）实测 [350.667,128 **915.333**×684]（blocks-conversation block[13]/block[14]）
+          → 935.333 − 915.333 = **20px = 两侧各 10px**，正是 both-edges 各扣一条 10px 滚动条；
+          底部渐隐（block[45]）[350.667,780 **915.333**×32] 同宽，与推导一致
+          （#14 的 x 扣掉 contentShift 154：350.667 = 196.667 + 154）。
+       3) 首页 blocks-chat-home block[36]（类串含 `[scrollbar-gutter:stable_both-edges]`）
+          [340.667,142 935.333×670] → 子 block[37] [**350.667**,142 **915.333**×670]；
+          设置页 blocks-settings block[134] `.flex-1.scrollbar-stable.overflow-y-auto`
+          [340.667,90 935.333×722] → 子 block[135] **925.333**（只扣右侧 10 —— 那里是
+          .scrollbar-stable = scrollbar-gutter:stable，不是 both-edges）。
+       ⇒ 官方环境滚动条宽 **10 CSS px**，gutter 真的占位。
+
+     ⚠️ **推翻旧推论的三条实测（HUNT 组，同一台机器）**：
+       · 规范探针（overflow:scroll 的 div）实测 `offsetWidth − clientWidth = **10**`（不是 0）；
+       · 合成 div 上 `scrollbar-gutter: stable both-edges` → clientWidth 200→**180**、
+         `stable` → 200→**190** ⇒ **本机 scrollbar-gutter 真生效，根本不需要用变量模拟**；
+       · 旧结论「差 0 ⇒ overlay」的**前提本身就不成立**：那次那个容器**根本没有溢出**，
+         没有滚动条，差 0 说明不了 overlay。
+     ⚠️ **真实的偏差（变量模拟只在一种情形下成立）**：未溢出的会话看似已对齐，但**一旦转录溢出**
+        （实测 scrollH 1616 > 716）真实 10px 滚动条出现 ⇒ clientW **925**、
+        content 768@**419.333**（−5px）、end-fade **905.333**（−10px）；
+        而 margin-inline 模拟是**恒定**扣 10px，与「有没有真滚动条」无关 ⇒
+        **真会话（长转录）系统性偏 5/10px**。把官方声明（1)）注入同一实例后：
+        clientW 915、content 768@**424.333**、end-fade **915.333@350.667** —— 逐值回到官方。
+     ⇒ 做法：`.cx-thread` 直接写 `scrollbar-gutter: stable both-edges`（见该规则），
+        end-fade 上**删掉** margin-inline（两者同存会**双计** → fade 只剩 895.333）。
+     ⚠️ src/chat/ChatConversation.tsx 里那条旧注释（引用已删除的 `--cx-thread-scrollbar-gutter`）
+        已在 2026-10-11 的结构修复轮随 fade 一起搬进 .cx-thread__end-fade-anchor（内容未改）。 */
+
+  /* 窗口缩放档（官方 app-shared-f2d570e85ceb.css 的 `:root{--codex-window-zoom:1;…}`，
+     该声明在文件内 **byte 1237256**，同一条 `:root` 里还有 --max-app-overlay-z-index/--padding-row-y 等）。
+     参考端运行时实测 `info.zoom = "1"`（captures/tokens.runtime.json），且官方在 zoom===1 时
+     把 <html> 上的 inline 值 removeProperty —— 原文：
+       if (oh.dispatchMessage(`electron-window-zoom-changed`, { windowZoom: s10 }),
+           s10 === 1) { e11.style.removeProperty(EOs); return; }
+       e11.style.setProperty(EOs, String(s10))
+     （app-initial-25361a10f2bf.js byte 11979305，EOs = `--codex-window-zoom`，:11984542）
+     ⇒ 生效的**就是**这条 :root 默认值；本工程 token 层（src/styles/tokens.css）没带过来，
+     而 #50 的 `--composer-expanded-height` 里 `var(--codex-window-zoom)` **没有回退值**，
+     缺了它整条会在计算值阶段失效（CSS Variables §3「Invalid Variables」）⇒ 展开态高度恒为 auto。
+     ⚠️ 更合适的家是 src/styles/tokens.css（本轮不在写范围内），此处先放在唯一的消费者旁边。 */
+  --codex-window-zoom: 1;
+}
+
+/* ── 首页态 ─────────────────────────────────────────────────────────────── */
+.cx-home {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* [341,96 935×46]（h-toolbar）。实测该条无可见子元素 —— 按空条实现，不编造内容 */
+.cx-home__mode-bar {
+  flex: 0 0 auto;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 首页主内容 = 官方 "home-main-content"（**size 容器**，展开态 100cqh 的解析对象）。
+   出处（JSX 类串）：app-primary-2b28b2369958.js **byte 3163186**
+     ld(`[container-type:size] relative flex min-h-0 w-full flex-1 flex-col
+         [container-name:home-main-content]`, ni2, …, ri2, ii2)
+   其中 ni2 = `overflow-y-auto has-[[data-expanded-composer]]:overflow-y-hidden`（同函数上一行）、
+        ri2 = `[scrollbar-gutter:stable_both-edges]`。
+   实测（captures/blocks-chat-home.json block[36]，cls 全文）：
+     "[container-type:size] relative flex min-h-0 w-full flex-1 flex-col has-[[data-work-onboarding-carousel]]:overflow-x-hidden
+      [container-name:home-main-content] overflow-y-auto has-[[data-expanded-composer]]:overflow-y-hidden
+      [&:has([data-feature='game-surface'])_[data-feature='game-source']]:invisible [scrollbar-gutter:stable_both-edges]"
+     rect [340.667,142 **935.333×670**]（computed display flex / flexDirection column / overflow auto /
+     minHeight 0 / width 935.333px）
+   ⇒ 它是 group/home-composer-layout 的**直接父节点**（block[37] [350.667,142 915.333×670]，
+     20px = both-edges 各一条 10px gutter）。故本工程在 .cx-home 与 .cx-home__layout 之间补同构一层。
+   ⚠️ 不能把 container-type:size 直接挂到 .cx-home 上：那样 100cqh 会算上 46px 的 mode-bar（716 而非 670），
+      展开态高度会变成 642 而不是官方的 606。*/
+.cx-home__main {
+  container-type: size;
+  container-name: home-main-content;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  width: 100%;
+  min-height: 0;
+  /* 官方同一元素类串里就有 ri2 = `[scrollbar-gutter:stable_both-edges]`（见上面这条规则的出处置信）：
+     没有它本机量到的是 [340.667,142 935.333×670]、子布局也是 935.333；
+     官方 block[36]→block[37] 是 935.333 → **915.333@350.667**（两侧各 10 gutter）—— 差 20px 就出在这里。 */
+  scrollbar-gutter: stable both-edges;
+  overflow-y: auto;
+}
+
+/* ⚠️ 宿主属性现况：data-expanded-composer 不再由 Composer 产出（官方 Codex 线程无展开钮，
+   证据见本文件「展开态几何」一节与 src/chat/Composer.tsx 文件头），本规则当前**不可达**。 */
+.cx-home__main:has([data-expanded-composer]) {
+  overflow-y: hidden;
+}
+
+/* [351,142 915×670] padding 24px 0 0 */
+.cx-home__layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 24px;
+}
+
+/* [351,166 915×371] items-end justify-center + padding-bottom 96px
+ *
+ * ── 大窗口下的重心（用户反馈，2026-10-14）─────────────────────────────────
+ * 参考端实测只在 1280×816（主区 670）做过，官方那三条 grow/basis-0 的取值在**更高的窗口**里
+ * 官方到底怎么分配剩余高度，证据不足以复现（captures/blocks-chat-home.json block[38]/[48] 的
+ * 实测尺寸 371/275 与「两边等分」的读法互相矛盾，见 chat.css 里那段账）。
+ * 而按「块底距组合器区顶恒 96px」实现时，窗口越高块越往下沉：
+ *   816 → 块 327..441（40%..54% 屏高）  880 → 395..509（45%..58%）  1000 → 511..625（51%..63%）
+ * 用户在全屏（≈880）下反馈「位置偏下」。处置：**把超出参考高度的那部分对半分**——
+ *   · 参考高度（主区 670）下 pb 恒为 96px ⇒ 与实测逐像素一致，零偏差；
+ *   · 更高的窗口，多出来的高度一半留在块下方，块随之抬起（1000 高时块上移 92px，回到 42%..53%）。
+ */
+.cx-home__stage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex: 1 1 0;
+  min-height: fit-content;
+  /* 100cqh = .cx-home__main（container-type: size）的高度；参考端 670。 */
+  padding-bottom: calc(96px + max(0px, (100cqh - 670px) / 2));
+}
+
+/* [424,327 768×114] padding 0 20px；图标 56 + gap 24 + 标题 33.6 = 113.6 ✓ */
+.cx-home__column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  /* 列宽恒为 768（实测）：容器更窄时**对称外溢**，而不是被压窄
+     —— 参考端产物面板打开时正是这样（列 270..1038 在 341..968 的会话区里）。
+     负外边距（而不是 margin:auto）才能让「比容器宽」的盒子居中：
+     auto 外边距在过约束时会被解析成 0，负值才行。 */
+  --cx-col: min(var(--cx-thread-column), calc(100vw - 64px));
+  width: var(--cx-col);
+  margin-inline: calc((100% - var(--cx-col)) / 2);
+  padding: 0 20px;
+}
+
+/* 空态图标 [780,327 56×56]（size-14）opacity .3 */
+.cx-home__hero {
+  width: 56px;
+  height: 56px;
+  color: var(--color-text-emphasis);
+  opacity: 0.3;
+  transition: opacity var(--transition-duration-basic) var(--ease-enter-snappy);
+}
+
+.cx-home__hero:hover {
+  opacity: 0.4;
+}
+
+/* 标题 [696,407 224×33.6] 28px / 33.6px / 400 居中（--text-heading-app = 28px） */
+.cx-home__title {
+  margin: 0;
+  max-width: 100%;
+  color: var(--color-text-emphasis);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 33.6px;
+  text-align: center;
+  white-space: pre-wrap;
+  user-select: none;
+}
+
+/* ── 首页展开态：hero/标题区**整块隐藏**（audit #50 缺的第一块）────────────────────
+   官方三处（都是 Tailwind group-has，组名 home-composer-layout）：
+     · 组主：app-primary-2b28b2369958.js byte 3166232
+         className = ld(`group/home-composer-layout relative flex min-h-0 w-full flex-1 flex-col pt-6
+                         has-[[data-expanded-composer]]:justify-center`, …)
+       ⇒ 组主 = 本工程 .cx-home__layout；`has-…:justify-center` → justify-content:center（工具类 .justify-center）
+     · hero/标题区（实测 block[38] [350.667,166 915.333×371]，cls 含 group-has-…-hidden）：
+         app-primary-2b28b2369958.js byte 3050233
+         = ld(n10 == null ? ['relative flex group-has-[[data-expanded-composer]]/home-composer-layout:hidden', …])
+       ⇒ .cx-home__stage；`hidden` = .hidden{display:none}（app-shared-f2d570e85ceb.css byte 297493）
+     · 组合器区（实测 block[48] [350.667,537 915.333×275]，cls 含 group-has-…-flex-none）：
+         app-primary-2b28b2369958.js byte 3052595
+         = ld(n10 == null ? ['flex min-w-0 shrink-0 flex-col
+             group-has-[[data-expanded-composer]]/home-composer-layout:flex-none …])
+       ⇒ .cx-home__composer-area；`.flex-none{flex:none}`（app-shared byte 361172）
+   CSS 编译产物（组选择器的机器形态）在 app-shared-f2d570e85ceb.css **byte 752147**：
+     .group-has-\[\[data-expanded-composer\]\]\/home-composer-layout\:hidden:is(
+        :where(.group\/home-composer-layout):has([data-expanded-composer]) :where(…\:hidden)){display:none}
+     …\:flex-none{flex:none} —— 两条都在那一行。
+   ⇒ 纯 CSS 等价物就是下面三条（:has 的作用域 = 组主自己，与 :where(.group/home-composer-layout) 同一元素）。*/
+.cx-home__layout:has([data-expanded-composer]) {
+  justify-content: center;
+}
+
+.cx-home__layout:has([data-expanded-composer]) .cx-home__stage {
+  display: none;
+}
+
+.cx-home__layout:has([data-expanded-composer]) .cx-home__composer-area {
+  flex: none;
+}
+
+/* 组合器区：实测 [351,537 915×275]，内容贴底再上收 16px（--thread-composer-bottom-inset） */
+.cx-home__composer-area {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  min-height: var(--cx-home-composer-area);
+  padding-bottom: var(--thread-composer-bottom-inset, calc(0.25rem * 4));
+}
+
+/* [424,644 768×152] padding 0 16px gap 8px；8(padding) + 8(spacer) + 62(rail) − 24(负边距) + 98 = 152 ✓ */
+.cx-composer-column {
+  display: flex;
+  flex-direction: column;
+  --cx-col: min(var(--cx-thread-column), calc(100vw - 64px));
+  width: var(--cx-col);
+  margin-inline: calc((100% - var(--cx-col)) / 2);
+  padding: 8px 16px 0;
+}
+
+.cx-composer-column__spacer {
+  flex: 0 0 auto;
+  height: 8px;
+}
+
+/* 「选择项目」条 [453,660 710×62]，贴在输入面板上沿并咬进去 24px：
+   margin 0 13px −24px（--home-composer-inline-inset = 13px）
+   border-radius 20px 20px 0 0；底色实测 rgb(40,40,40) = --color-surface-tertiary
+   62 = 内容行 38 + padding-bottom 24；负边距后占位 38 → 下一兄弟（Composer）顶 = 660+38 = 698 ✓ */
+.cx-project-rail {
+  flex: 0 0 auto;
+  margin: 0 13px -24px;
+  padding-bottom: 24px;
+  border-start-start-radius: 20px;
+  border-start-end-radius: 20px;
+  corner-shape: superellipse(1.5);
+  background: var(--color-surface-tertiary);
+  overflow: clip;
+}
+
+/* 行 [457,660 702×38] padding 5px 0 */
+.cx-project-rail__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 38px;
+  margin-inline: 4px;
+  padding: 5px 0;
+}
+
+/* ── Composer ───────────────────────────────────────────────────────────── */
+/* body [440,698 736×98] bg rgb(54,54,54) r 22px cs SE1.5 + inset 0 0 1px 0 rgba(255,255,255,.2)
+ *
+ * ★ task-83（浅色自洽性）：`background: rgb(54 54 54)` 与下面那条 inset **都是硬编码的深色值**，
+ *   浅色档下它们**不跟随主题** —— 实测（task-83，同一页面同一元素）：
+ *     深色：页面 `--color-surface-elevated` = #363636f5，composer bg = rgb(54,54,54)（= 硬编码值 ✓ 恰好相等）
+ *     浅色：`--color-surface-elevated` 变成 `color-mix(in oklab, #fff 70%, transparent)`，
+ *           而 composer bg **仍然** = rgb(54,54,54) ⇒ 浅色页面里挂着一块深灰板；
+ *           同时 .cx-chip 的基础色是硬编码白 0.498、.cx-chip__value--model 却走 token 变成 rgb(26,28,31)
+ *           ⇒ **深字压深底**，像素实测对比度 **1.41:1**（远低于小字 AA 4.5）。
+ *   ⇒ 只加**浅色档覆盖**（深色档一个字节不改，保官方深色读数）：浅色下改用分主题的 token。
+ *   官方本构建**没有浅色开关**（task-69 已证）⇒ 这里只求**自洽**，不是"与官方一致"。 */
+.cx-composer {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: rgb(54 54 54);
+  border-radius: 22px;
+  corner-shape: superellipse(1.5);
+  box-shadow: inset 0 0 1px 0 rgb(255 255 255 / 0.2);
+}
+
+:root[data-theme="light"] .cx-composer {
+  /* 浅色：用官方那套分主题 token（light: #fff 70% 透明 / dark: #363636f5） */
+  background: var(--color-surface-elevated);
+  /* 深色那条 inset 是「白 0.2 高光」，浅色下等于看不见 ⇒ 换成边框 token（浅色 = 近黑低 alpha） */
+  box-shadow: inset 0 0 1px 0 var(--color-border);
+}
+
+/* attachments [440,698 736×14] padding 8px 8px 6px */
+.cx-composer__attachments {
+  flex: 0 0 auto;
+  height: 14px;
+  padding: 8px 8px 6px;
+}
+
+/* footer [440,712 736×76] padding 0 8px margin-bottom 8 列间距 5px；
+   44+4(输入行) + 28 = 76 ✓ */
+.cx-composer__footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 5px;
+  margin: 0 0 8px;
+  padding: 0 8px;
+}
+
+/* 输入行 [440,712 736×44]：输入面比 footer 内容盒宽 16px（官方用负边距跨出 padding）*/
+.cx-composer__input-row {
+  grid-column: 1 / -1;
+  margin-inline: -8px;
+}
+
+/* input [440,712 736×44]，文本 padding 0 12px（内层从 452 起 ✓）14px/20px/430
+   官方 _ComposerLayoutInput_ = flex-grow + overflow-y:auto，高度由内容撑（min 44 = --min-height-composer
+   = calc(var(--spacing)*11)），max-h = min(25dvh, --composer-editor-max-height,25dvh)（官方 CSS 原文）。 */
+.cx-composer__input {
+  min-height: 44px;
+  max-height: 25dvh;
+  margin: 0 0 4px;
+  padding: 0 12px;
+  overflow-y: auto;
+}
+
+/* 编辑区 = 官方 div.ProseMirror（blocks-chat-home block[74] [452.333,712 712×44]，
+   role=textbox / aria-label=占位符 / contenteditable）。
+   ⚠️ 官方文本**贴编辑区顶边**：同屏 block[75] p.placeholder 实测 [452.333,**712** 712×20]，
+      行盒从 712 起、**没有垂直内边距**。改前我们给 textarea 写 `padding: 12px 0`，
+      像素实测占位符字形落在 **728..740.7**，官方 **716..728.7** —— 整体低 12px。
+      改法：编辑区不做垂直内边距，靠 min-height 44px 撑出官方那个盒子。 */
+.cx-composer__editor {
+  position: relative;
+  min-height: 44px;
+  color: var(--color-text-emphasis);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 20px;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.cx-composer__editor p {
+  margin: 0;
+}
+
+/* 官方 ._RichTextInput_juri1_1 .ProseMirror:focus-visible{ outline:none }（css-pretty/shell-initial.css）
+   —— 这是未结项 #9「首页冷启动 composer 有蓝色焦点环、参考端没有」的**治本**：
+   官方全库没有裸的 `:focus-visible{outline:…}` 通配规则，且专门给编辑器关掉了环；
+   base.css 的通配 `:focus-visible` 会命中任何聚焦元素，所以这里按官方原文显式关掉。
+   （没有用「删掉 ChatHome 的 autoFocus」遮症状 —— 那会改行为，且点进去环照样出现。）*/
+.cx-composer__editor:focus-visible {
+  outline: none;
+}
+
+/* 官方 _ComposerLayoutBody_:has([data-composer-expand-toggle]) 时编辑层挂 pe-10
+   （blocks-chat-home block[73] class `in-[[data-composer-body]:has([data-composer-expand-toggle])]:pe-10`）：
+   padding-inline-end 由 12px 顶成 **40px** = calc(var(--spacing) * 10)。
+   ⚠️ 现况（2026-10-11 官方端实机采集，判决性）：**当前不可达**。
+      官方 **Codex 线程** composer 没有展开钮 —— captures/recon-official/official-composer-01-multiline-draft-long.json：
+      草稿 557 字符 / lineCount 39 → composer rect **702×400**（scrollHeight=clientHeight=400，内部滚动），
+      verdict.expandTogglePresent=**false**、expandedAttrPresent=**false**、candidateCount=**0**
+      （全页 aria-label/title 含 expand|collapse|展开|收起 的按钮 0 个）。
+      配套源码：该钮 i18n 属 chatgptConversations.composer.expand/.collapse，且 expansion context 为 null 时不渲染
+      ⇒ 它是 ChatGPT 会话输入框的能力，Codex 线程没挂这个 context。
+      Composer.tsx 已按此**不再渲染** [data-composer-expand-toggle]、也**不产出** [data-expanded-composer]。
+      本段是官方搬运件，按 RULINGS R13 **保留不删**；仅记录它现在打不到。
+   ⇒ 因此本工程编辑器 padding-inline-end 恒为 **12px**，与官方 block[73] 实测 `0px 12px` 一致。 */
+.cx-composer:has([data-composer-expand-toggle]) .cx-composer__input {
+  padding-inline-end: 40px;
+}
+
+/* ── 展开态几何（audit #50 的**后半**：点展开钮要真的把编辑区放大）────────────────
+   ⚠️ 现况（2026-10-11 官方端实机采集，判决性）：**当前不可达**。
+      官方 **Codex 线程** composer 没有展开钮 —— captures/recon-official/official-composer-01-multiline-draft-long.json：
+      草稿 557 字符 / lineCount 39 → composer rect **702×400**（scrollHeight=clientHeight=400，内部滚动），
+      verdict.expandTogglePresent=**false**、expandedAttrPresent=**false**、candidateCount=**0**
+      （全页 aria-label/title 含 expand|collapse|展开|收起 的按钮 0 个）。
+      配套源码：该钮 i18n 属 chatgptConversations.composer.expand/.collapse，且 expansion context 为 null 时不渲染
+      ⇒ 它是 ChatGPT 会话输入框的能力，Codex 线程没挂这个 context。
+      Composer.tsx 已按此**不再渲染** [data-composer-expand-toggle]、也**不产出** [data-expanded-composer]。
+      本段是官方搬运件，按 RULINGS R13 **保留不删**；仅记录它现在打不到。
+   官方 app-initial-c43288484373.css（源文件 byte 偏移在该文件内，规则按出现顺序）：
+     byte 10031  ._ComposerLayoutBody_15oep_2{z-index:10;flex-direction:column;flex:1;min-height:0;display:flex;position:relative}
+     byte 10146  ._ComposerLayoutBody_15oep_2:has([data-composer-expand-toggle]){
+                   --composer-expanded-height:min(calc(100svh / var(--codex-window-zoom) - var(--height-toolbar) - var(--spacing) * 32),
+                                                 calc(100cqh - var(--spacing) * 16), var(--container-3xl))}
+     byte 10449  ._ComposerLayoutBody_15oep_2:has([data-composer-expand-toggle]) ._ComposerLayoutAttachments_15oep_2{
+                   max-height:calc(var(--composer-expanded-height) / 2);flex-shrink:0;overflow-y:auto}
+     byte 10569  ._ComposerLayoutBody_15oep_2:has([data-expanded-composer]){height:var(--composer-expanded-height);flex:none}
+     byte 10735  .…:has([data-expanded-composer]) ._ComposerLayoutFooter_15oep_2{flex:1;grid-template-rows:minmax(0,1fr) auto;min-height:0}
+     byte 10883  .…:has([data-expanded-composer]) ._AdaptiveFooterInput_15oep_2{align-self:stretch;min-height:0;display:flex}
+     byte 11017  .…:has([data-expanded-composer]) ._ComposerLayoutInput_15oep_2{min-height:0}
+     byte 185044 [data-composer-body]:has([data-expanded-composer]) ._RichTextInput_juri1_1{
+                   overscroll-behavior:contain;scroll-padding-block:calc(var(--spacing) * 4)}
+   同一元素的 JS 类串（app-initial-25361a10f2bf.js byte 1842303，dTt/lTt 那支）：
+     in-[[data-composer-body]:has([data-expanded-composer])]:box-border / :h-full / :max-h-none
+     m10 分支再给子节点 *:box-border *:h-full! *:min-h-0! *:min-w-0 *:flex-1 *:overflow-hidden
+       （app-shared-f2d570e85ceb.css 工具类：.flex-1{flex:1} byte 360921、.min-h-0{min-height:0} byte 328471、
+         .overflow-y-auto{overflow-y:auto} byte 395577、.[container-type:size]{container-type:size} byte 261835）
+   触发条件：官方把 data-expanded-composer 挂在**展开钮自己**身上（app-primary-2b28b2369958.js byte 2502463）：
+     <IconButton data-composer-expand-toggle="" data-expanded-composer={r10 ? "" : void 0} …>
+   ⇒ 按钮是 _ComposerLayoutBody_ 的后代 ⇒ :has() 命中。本工程 .cx-composer__expand-toggle 逐字同构
+     （Composer.tsx），所以下面全部用 .cx-composer:has(...) 直译，不改结构。
+
+   本工程类↔官方类映射：.cx-composer=_ComposerLayoutBody_ / .cx-composer__attachments=_ComposerLayoutAttachments_
+     / .cx-composer__footer=_ComposerLayoutFooter_ / .cx-composer__input-row=_AdaptiveFooterInput_
+     / .cx-composer__input=_ComposerLayoutInput_ / .cx-composer__editor=_RichTextInput_+ProseMirror（本工程把
+     这两层并成了一层，故官方给 ProseMirror 的 *:flex-1 *:min-w-0 *:min-h-0! *:h-full *:overflow-hidden
+     落在 .cx-composer__editor 上、官方给 _AdaptiveFooterInput_ 的 display:flex 落在 .cx-composer__input 上）。
+
+   高度数值（实测口径，两态不同因为容器不同）：
+     --composer-expanded-height = min(100svh/zoom - --height-toolbar - 4px*32,  100cqh - 4px*16,  --container-3xl)
+                                = min(816/1 - 46 - 128,  100cqh - 64,  768)
+     · 会话页：100cqh = thread-scroll-layout 根 716 ⇒ min(642, 652, 768) = **642**
+     · 首页：  100cqh = home-main-content   670 ⇒ min(642, 606, 768) = **606**
+   （100cqh 需要 size 容器：首页 = .cx-home__main、会话 = .cx-conversation__main，见下面两处规则。）*/
+.cx-composer:has([data-composer-expand-toggle]) {
+  --composer-expanded-height: min(
+    calc(100svh / var(--codex-window-zoom) - var(--height-toolbar) - var(--spacing) * 32),
+    calc(100cqh - var(--spacing) * 16),
+    var(--container-3xl)
+  );
+}
+
+.cx-composer:has([data-composer-expand-toggle]) .cx-composer__attachments {
+  max-height: calc(var(--composer-expanded-height) / 2);
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.cx-composer:has([data-expanded-composer]) {
+  height: var(--composer-expanded-height);
+  flex: none;
+}
+
+.cx-composer:has([data-expanded-composer]) .cx-composer__footer {
+  flex: 1;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+.cx-composer:has([data-expanded-composer]) .cx-composer__input-row {
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+/* _ComposerLayoutInput_：官方基础类串里的 flex-grow（blocks-chat-home block[72].cls
+   = "_ComposerLayoutInput_15oep_2 flex-grow overflow-y-auto"）+ 展开态的 min-height:0。
+   max-height:none 是"在官方那里属于 RichTextInput 的 max-h-none"（本工程两层合一，故落这里）；
+   本文件给 .cx-composer__input 写的 max-height:25dvh 是编辑器的官方上限
+   （block[73] 的 max-h-[min(25dvh,var(--composer-editor-max-height,25dvh))]），展开态必须让位。 */
+.cx-composer:has([data-expanded-composer]) .cx-composer__input {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+}
+
+.cx-composer:has([data-expanded-composer]) .cx-composer__editor {
+  flex: 1 1 0;
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  scroll-padding-block: calc(var(--spacing) * 4);
+}
+
+/* ── 占位符：官方用 <p class="placeholder" data-placeholder="…"> + ::before ──────────
+   官方 CSS 原文（captures/css-pretty/shell-initial.css）：
+     .ProseMirror .placeholder        { pointer-events:none; user-select:none; position:relative }
+     .ProseMirror .placeholder:before { color:var(--color-text-tertiary);
+                                        content:attr(data-placeholder);
+                                        opacity:var(--composer-editor-placeholder-opacity,.5);
+                                        white-space:nowrap; text-overflow:ellipsis; max-width:100%;
+                                        position:absolute; inset:0 0 auto; overflow:hidden }
+   --color-text-tertiary = rgba(255,255,255,.498)（tokens.runtime.json）、
+   --opacity-composer-placeholder = .5 ⇒ 等效 alpha ≈ **.249**（本工程 token 层没有这一条，走官方默认 .5）。
+   像素验证（@1280×816、底色 rgb(54,54,54)）：
+     官方字形峰值 **104** = 54 + (255−54)×.498×.5 ✓
+     改前我们 ::placeholder 只有 color:.498 → 54 + (255−54)×.498 = **154** ✗（亮一倍，实测 154）。*/
+.cx-composer__editor .placeholder {
+  position: relative;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cx-composer__editor .placeholder::before {
+  position: absolute;
+  inset: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  content: attr(data-placeholder);
+  opacity: var(--opacity-composer-placeholder, 0.5);
+  pointer-events: none;
+  text-overflow: ellipsis;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* ── 展开钮（audit #50）───────────────────────────────────────────────────────
+    ⚠️ 现况：下面 .cx-composer__expand / .cx-composer__expand-toggle 三条规则**已无宿主元素**
+      （Composer.tsx 不再渲染该钮，理由见上一条与文件头「为什么这里没有展开钮」）。
+      保留仅为官方搬运对照（RULINGS R13 不删搬运件），当前**不可达**。
+   官方 app-primary-2b28b2369958.js 的 dTt()：外层 <motion.div className="absolute end-2.5 top-2.5 z-20"
+   layout="position">，里面是 IconButton：aria-label = 展开|折叠、aria-pressed、data-composer-expand-toggle=""、
+   data-expanded-composer（仅展开时存在）、color="ghostSecondary"、size="iconCircle"、
+   onPointerDown={e => e.preventDefault()}。
+   定位上下文 = ._ComposerLayoutBody_{ position:relative; display:flex; flex-direction:column }
+   （grid 里那条 background-color/... 规则之外的第三条同选择器规则，css-pretty/shell-initial.css）
+   ⇒ 我们的 .cx-composer 就是那个盒子 ✓
+   尺寸：Button 尺寸表 iconCircle = `flex size-8 items-center justify-center p-0`（size-8 = 2rem = **32×32**）
+         radius 表 iconCircle = `rounded-full`（均出自 app-shared-40678a67f0e3.js 的 Button 类表）
+   ⇒ 推导 rect = [440.333+736−10−32, 698+10] = **[1134.333, 708] 32×32**（参考端未采到该态，属推导值） */
+.cx-composer__expand {
+  position: absolute;
+  inset-inline-end: 10px;
+  top: 10px;
+  z-index: 20;
+}
+
+/* ghostSecondary = `text-secondary not-disabled:hover:bg-primary-ghost-hover border-transparent`
+   （app-shared-40678a67f0e3.js:7906616 的 Button color 表原文）→ 悬停只换底色、不改文字色。 */
+.cx-composer__expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-composer__expand-toggle:hover {
+  background: var(--color-background-primary-ghost-hover);
+}
+
+.cx-composer__expand-toggle:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+.cx-composer__group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* 左组 [448,760 118.33×28]：+ 28 + gap 5 + 权限芯片 85.33 = 118.33 ✓ */
+.cx-composer__group--start {
+  grid-column: 1;
+  justify-self: start;
+  gap: 5px;
+}
+
+/* 右组：模型芯片 107 + ms-2 8 + 发送 28 = 143，右端 = 440+736−8 = 1168 ✓（模型芯片落 1025 ✓） */
+.cx-composer__group--end {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.cx-composer__send-slot {
+  display: flex;
+  align-items: center;
+  margin-inline-start: 8px;
+}
+
+/* + 按钮 [448,760 28×28] r 9999px padding 0 */
+.cx-composer__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255 255 255 / 0.498);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-duration-basic) var(--cubic-enter),
+    color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-composer__icon-button:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-text-emphasis);
+}
+
+.cx-composer__icon-button:focus-visible,
+.cx-chip:focus-visible,
+.cx-composer__send:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+/**
+ * 选择器芯片（模式 / 项目 / 模型 / 权限）：28 高、字体 13px/18px/430。
+ *
+ * ⚠️ 2026-10-15 的最终口径（用户点名模式芯片：「必须是药丸按钮，且鼠标放上去才显示一点药丸，
+ *    否则透明」）：
+ *   · **药丸**：`--radius-full`（9999px）；
+ *   · **默认全透明**：无底色、无毛玻璃、无发丝边（边框保留 1px transparent 只占位，
+ *     这样 hover 换色时不会跳 1px）；
+ *   · **hover 才显示一点**：浅淡底（原实现 = 白 8%，与官方实拍的 ghost-hover 同档）。
+ *   中途试过"圆角矩形 + 毛玻璃常显"，按用户复核回退到本口径；设置页那个 Select 触发钮
+ *   （ui.css `.cx-select__trigger`）是**另一族**，仍保留圆角矩形 + 毛玻璃 + 贴边发丝边。
+ */
+.cx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255 255 255 / 0.498);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+/* ★ task-83：基础色 `rgba(255 255 255 / 0.498)` 是硬编码白 —— 深色下它**恰好等于**
+ *   `--color-text-tertiary`（实测 #ffffff7f），浅色下该 token 变成 `#1a1c1f 50%` 而这里不会变
+ *   ⇒ 浅色档里 chip 的文字/图标仍是白 0.498，压在浅色 composer 上≈看不见。
+ *   只加浅色档覆盖：深色档保持原字节（保官方读数），浅色档改用 token。 */
+:root[data-theme="light"] .cx-chip {
+  color: var(--color-text-tertiary);
+}
+
+.cx-chip:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+:root[data-theme="light"] .cx-chip:hover {
+  /* 同一条 hover 底是硬编码白 8%：浅色下等于没有反馈 ⇒ 换成文字色 8% */
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.cx-chip--model {
+  /* 模型芯片 [1025,760 107×28] padding 0 8px（与项目/模式芯片同档） */
+  padding: 0 8px;
+}
+
+.cx-chip__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-emphasis);
+}
+
+/* 权限高权限档实测色（SPEC §7「完全访问」= rgb(255,133,73)） */
+.cx-chip__value.is-warning {
+  color: rgb(255 133 73);
+}
+
+/* 模型芯片 [1025,760 107×28] padding 0 8px gap 4px；模型名 --color-text，effort 次要色 */
+.cx-chip__value--model {
+  color: var(--color-text-emphasis);
+}
+
+/* effort 视口（audit #125，P1）——官方 _ModelPickerTriggerEffortLabel / Viewport / Layers / Text
+   官方 CSS 原文 reconstruct/overlays/raw/b9jvu.css:8-15：
+     Label,Viewport { margin: calc(var(--blur-xs) * -1); padding: var(--blur-xs); overflow: hidden }
+     Label  { box-sizing: content-box; color: var(--daybreak-muted,var(--color-text-tertiary));
+              white-space: nowrap; mask-image: linear-gradient(to right, black calc(100% - 4px), transparent);
+              flex-shrink: 0; display: block; position: relative }
+     Viewport { mask-image: linear-gradient(to right, transparent, black 4px);
+                justify-content: center; display: flex }
+     Layers { flex-shrink: 0; grid-template-columns: max-content; width: max-content; display: grid }
+     Text   { opacity: 0; width: max-content; filter: blur(var(--blur-xs));
+              will-change: opacity, filter; grid-area: 1 / 1; justify-self: center }
+     Text[data-max-effort=true] { color: var(--color-chart-purple) }
+   实测（captures/blocks-chat-home.json）：外盒 **35.625×26**，内容盒 27.625×18，pad 4 / margin -4。
+   因为 margin -4 抵掉 padding，**芯片宽度不变**（8+38.07+4+27.625+4+16+8 = 105.7 ≈ 107.031 ✓）。
+   --blur-xs = **4px**（运行端 token 实测）。
+   保留 `.cx-chip__effort` 类名：audit 的 [C22]/[C23] 命令按该类名取值。 */
+.cx-chip__effort {
+  color: rgba(255 255 255 / 0.498);
+}
+
+.cx-effort,
+.cx-effort__viewport {
+  margin: calc(var(--blur-xs, 4px) * -1);
+  padding: var(--blur-xs, 4px);
+  overflow: hidden;
+  mask-repeat: no-repeat;
+}
+
+.cx-effort {
+  box-sizing: content-box;
+  display: block;
+  position: relative;
+  flex-shrink: 0;
+  white-space: nowrap;
+  mask-image: linear-gradient(to right, black calc(100% - var(--blur-xs, 4px)), transparent);
+}
+
+.cx-effort__viewport {
+  display: flex;
+  justify-content: center;
+  mask-image: linear-gradient(to right, transparent, black var(--blur-xs, 4px));
+}
+
+.cx-effort__layers {
+  display: grid;
+  grid-template-columns: max-content;
+  width: max-content;
+  flex-shrink: 0;
+}
+
+.cx-effort__text {
+  grid-area: 1 / 1;
+  justify-self: center;
+  width: max-content;
+  opacity: 0;
+  filter: blur(var(--blur-xs, 4px));
+  will-change: opacity, filter;
+}
+
+.cx-effort__text[data-active="true"] {
+  opacity: 1;
+  filter: none;
+}
+
+/* 最高档 = 紫色：官方 raw/b9jvu.css:15 + 运行端 --color-chart-purple = #ad7bf9
+   （截图 reference-shots/ref-06-model-picker.png 的「Ultra」呈紫色，互证） */
+.cx-effort__text[data-max-effort="true"] {
+  color: #ad7bf9;
+}
+
+/* 选择项目芯片 [457,665 91.33×28] padding 0 8px gap 6px */
+.cx-project-rail__chip {
+  gap: 6px;
+  padding: 0 8px;
+}
+
+/* 发送键 [1140,760 28×28] r 9999px bg rgb(223,223,223)；禁用 opacity .5 */
+.cx-composer__send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgb(223 223 223);
+  color: rgb(24 24 24);
+  cursor: pointer;
+  transition: opacity var(--transition-duration-basic) var(--ease-enter-snappy);
+}
+
+.cx-composer__send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cx-composer__send:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+/* ── 会话态 ─────────────────────────────────────────────────────────────── */
+.cx-conversation {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ⚠️ 面板打开时**主表面不缩**：官方把它做成浮层（见 .cx-artifact），
+   _MainContentViewport 实测面板开/关都是 [340.67,96 935.33×716]。
+   旧实现让它在 flex 里右让 308px（→ 实测 631.33），是两轮前的取舍，已按官方证据回退。 */
+.cx-conversation__main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ── 会话侧 size 容器（audit #50 缺的第二块）──────────────────────────────────
+   官方 thread-scroll-layout 根节点类串（thread-scroll-layout-fb0c6ee4cde8.js **byte 18150**）：
+     m(`group/thread-scroll-layout has-[[data-composer-expand-toggle]]:[container-type:size]`,
+       S === 'compact' ? 'relative flex min-h-0 flex-1 flex-col' : 'relative h-full flex-1')
+   实测（captures/blocks-conversation.json，path 见下）：rect [340.667,96 **935.333×716**]
+     div.relative.flex.h-full > div.flex.min-h-0.flex-1 > div.relative.mx-auto.flex > div.min-h-0.flex-1
+       > div.group/thread-scroll-layout.has-[[data-composer-expand-toggle]]:[container-type:size].relative
+   官方在这一层里有**两个**子节点：滚动容器 thread-scroll-container 与输入浮层
+   （pointer-events-none absolute inset-x-0，[186.667,698 935.333×114]）
+   ⇒ 100cqh = 716。本工程同构的一层是 .cx-conversation__main（它同时装着 .cx-thread 与
+   .cx-conversation__composer）—— 不能用 .cx-thread：输入浮层是它的**兄弟**。
+   展开态高度 = min(816/1−46−128, 716−64, 768) = **642**。
+   ⚠️ container-type:size ⇒ contain:size layout style；本层高度由父级 flex 行拉伸给出（定值），
+      不依赖内容，所以不会把 .cx-thread 压成 0 —— 收起态实测仍为 716（见本轮实测表）。*/
+/* ⚠️ 宿主属性现况：data-expanded-composer 不再由 Composer 产出（官方 Codex 线程无展开钮，
+   证据见本文件「展开态几何」一节与 src/chat/Composer.tsx 文件头），本规则当前**不可达**。 */
+.cx-conversation__main:has([data-composer-expand-toggle]) {
+  container-type: size;
+}
+
+/* 滚动容器（thread-scroll-container）在展开态停滚（官方同一节点类串，byte 18596）：
+     m(`thread-scroll-container … group-has-[[data-expanded-composer]]/thread-scroll-layout:overflow-y-hidden …`)
+   CSS 编译产物：app-shared-f2d570e85ceb.css byte 752411（同一行里 …\:overflow-y-hidden{overflow-y:hidden}）。*/
+.cx-conversation__main:has([data-expanded-composer]) .cx-thread {
+  overflow-y: hidden;
+}
+
+/* thread-scroll-container [·,96 935×716] padding 32px 0 0
+   ★ scrollbar-gutter: stable both-edges —— 官方 `electron:[scrollbar-gutter:stable_both-edges]`
+     的直译（类串见 blocks-conversation block[13]；CSS 原文 app-shared-f2d570e85ceb.css @1121285
+     electron 档 + @374438 工具类）。**本机实测真生效**（合成 div：200→180），
+     所以由滚动容器自己占位，不再用变量/margin 模拟 —— 于是无论内容是否溢出，
+     内容盒恒为 [350.667,· **915.333**]，与官方 block[13]→block[14]、block[36]→block[37] 逐值一致。
+     旧做法（end-fade 上 margin-inline:10px）只在**未溢出**时巧合对齐，溢出时少扣 5/10px：
+     详见 :root 顶部注释里的「改前/改后/官方」实测。 */
+.cx-thread {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 32px;
+  scrollbar-gutter: stable both-edges;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ── 转录包装层（官方 blocks-conversation.json **block[14]**；JS 出处
+   thread-scroll-layout-fb0c6ee4cde8.js **byte 19354** 那条 className = `[container-type:inline-size]
+   flex min-h-full shrink-0 flex-col justify-start overflow-x-clip [container-name:thread-content]`，
+   挂它的元素是 `p.div` 且带 `style: Xt` = 官方 contentShift 的施加点）──────────────
+   官方 cls 原文：`[container-type:inline-size] flex min-h-full shrink-0 flex-col justify-start
+   overflow-x-clip [container-name:thread-content]`、rect [196.667,128 **915.333**×684]
+   （面板开态；未位移时 x = 350.667 = 滚动容器内容盒左边界；官方 childCount=3 = 转录列
+   + 底部渐隐的 sticky 锚 + 1 个未被采集的节点）。它是**底部渐隐的父链上的那一层**
+   （官方 block[45] 的 path：…[container-type:inline-size].flex.min-h-full
+   > div.pointer-events-none.sticky.bottom-0 > div.pointer-events-none.absolute.inset-x-0）。
+   ★ 两条官方语义都必须保留，否则渐隐复现不出来：
+     · `min-h-full` → 短转录时本层仍 684（.cx-thread__content 靠 flex 拉伸拿满 684）；
+     · `shrink-0`  → 长转录时本层**随内容长到整个 scrollHeight**（不被压回一屏）——
+       这正是旧结构的根因：改前 fade 是滚动容器的直接子节点，sticky 的包含块只有一屏高
+       （实测长转录下 .cx-thread__content 恒 684），fade 的 y 恒 = 780 − scrollTop：
+       scrollH 9806 / scrollTop 9090 时 y = **−8310** ⇒ 一滚就跟着内容滚走、底部渐隐消失。
+       挪进本层后 y 在 scrollTop=0 与 max 两态都 = **780**（两态实测见提交报告的三方真值表）。
+   ⚠️ 刻意**不带**官方那条 `container-type:inline-size`：本工程没有消费 thread-content 的
+      @container 查询，而它隐含 `contain: inline-size layout style` —— 那是本修复之外的行为面
+      （未实测），不带过来。同理**不带** `overflow-x: clip`：水平裁切已由 .cx-thread 的
+      overflow-x:hidden 负责（位移档的裁切口径见下面 data-artifact 一节，改前改后一致）。 */
+.cx-thread__content-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto; /* 官方 shrink-0 */
+  min-height: 100%; /* 官方 min-h-full */
+}
+
+/* 转录列 [·,128 768×684] padding 0 16px 32px
+   ⚠️ min-height 移到包装层：官方 `_transcriptContent_`（block[15]）只有 flex-1，
+      `min-h-full` 在包装层（block[14]）上 ⇒ 本层短转录时由 flex 拉伸得 684、
+      长转录时撑到内容高（后者是修复的**必要**结果：包含块必须覆盖整个 scrollHeight）。 */
+.cx-thread__content {
+  flex: 1 1 auto;
+  /* 列宽恒为 768：会话区被产物面板挤窄时对称外溢，不被压窄 */
+  --cx-col: min(var(--cx-thread-column), calc(100vw - 64px));
+  width: var(--cx-col);
+  margin-inline: calc((100% - var(--cx-col)) / 2);
+  padding: 0 16px 32px;
+}
+
+/* 消息列表 gap 12px */
+.cx-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cx-turn {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-thread__empty {
+  margin: 0;
+  padding: 24px 0;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 21px;
+  text-align: center;
+}
+
+/* 日期分隔 [286,128 736×52] = padding 16px 0 + 行高 20；13px/20 次要色，「今天」500 */
+.cx-divider {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.cx-divider__text {
+  color: rgba(255 255 255 / 0.498);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  user-select: none;
+}
+
+.cx-divider__day {
+  font-weight: 500;
+}
+
+/* ── 工具活动折叠组（用户 2026-10-15 的官方截图口径）──────────────────────────
+   结构：组头 = 原生 ActivityDisclosure 行（16px 图标 + 动作词 + 20px 箭头），
+        正文 = 组内各条原生行，整体**右移一档**（截图里子行比组头缩进一点）。 */
+.cx-toolgroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-toolgroup__body {
+  padding-inline-start: 12px;
+}
+
+/* 「正在思考」：等待首字节时转录末尾的那一行灰字（官方截图最后一行）。
+   与消息同列左对齐，13px 次要色；不加动效 —— 官方那一行也是静态文本。 */
+.cx-thread__pending {
+  margin: 0;
+  padding: 0;
+  color: rgba(255 255 255 / 0.498);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+}
+
+/* 用户行：flex-col items-end gap 4px */
+.cx-message--user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: 100%;
+}
+
+.cx-usermsg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+}
+
+/* 气泡 [962,180 60×43] r 22px cs SE1.5 padding 10px 16px bg rgba(223,223,223,.05) max-width 70% */
+.cx-usermsg__bubble {
+  max-width: 70%;
+  padding: 10px 16px;
+  border-radius: 22px;
+  corner-shape: superellipse(1.5);
+  background: color-mix(in oklab, #dfdfdf 5%, transparent);
+  overflow: hidden;
+  overflow-wrap: break-word;
+  text-align: start;
+}
+
+/* 正文 14px/22.75px/430 */
+.cx-usermsg__body,
+.cx-message__body {
+  color: var(--color-text-emphasis);
+  font-size: var(--cx-chat-body-size);
+  font-weight: 430;
+  line-height: var(--cx-chat-body-leading);
+}
+
+.cx-message--assistant {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* 时间戳 / 动作条的排布与显隐。
+ *
+ * 实测出处 captures/blocks-conversation.json（参考端，同一刻）：
+ *   div.group/user-message > div.flex.flex-row-reverse.items-center
+ *     > div.isolate.me-1.ms-1（flex-row，两个子元素）
+ *       ① span.flex.opacity-0.group-focus-within/user-message:opacity-100
+ *          时间戳 [929.19,231.42 28.48×16]  **computed opacity = 0**
+ *       ② div.flex.turn-action-controls.items-center  gap 2px
+ *          操作条 [965.67,226.75 52.67×25.33]  **computed opacity = 1**
+ *          按钮 复制消息 [965.67] / 编辑消息 [993]
+ * → 视觉左→右 = **时间戳 → 复制 → 编辑**；且**只有时间戳**是 hover/focus-within 才显形，
+ *   操作条默认就是可见的（reference-shots/ref-08-conversation.png 没 hover 也能看到那两个图标，
+ *   而同一张图里看不到时间戳，两条证据互证）。
+ *   旧实现用了 row-reverse（动作条在左、时间戳在右）并把两者一起 opacity 0，与实测不符。 */
+.cx-message__meta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px;
+}
+
+.cx-message__meta--assistant {
+  flex-direction: row;
+}
+
+.cx-message__time {
+  color: rgba(255 255 255 / 0.498);
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0;
+  transition: opacity var(--transition-duration-basic) ease;
+}
+
+.cx-message__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-duration-basic) ease;
+}
+
+/* 用户消息：操作条默认可见（见上方实测） */
+.cx-message--user .cx-message__actions {
+  opacity: 1;
+}
+
+/* 时间戳一律 hover / focus-within 才显形；助手消息的操作条**未实测**，沿用同一套显隐 */
+.cx-message:hover .cx-message__time,
+.cx-message:focus-within .cx-message__time,
+.cx-message--assistant:hover .cx-message__actions,
+.cx-message--assistant:focus-within .cx-message__actions {
+  opacity: 1;
+}
+
+/* 动作按钮：16 图标 + 4×2 padding + 1×2 border = 26（参考端 25.33 同属 dpr 取整）r 10px gap 2px */
+.cx-message__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255 255 255 / 0.498);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-duration-basic) var(--cubic-enter),
+    color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-message__action:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-text-emphasis);
+}
+
+.cx-message__action:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 底部渐隐（audit #71，P2）——官方 block[45]（captures/blocks-conversation.json）逐项复刻：
+     path  …[container-type:inline-size].flex.min-h-full > div.pointer-events-none.sticky.bottom-0
+           > div.pointer-events-none.absolute.inset-x-0
+     cls   `pointer-events-none absolute inset-x-0 -top-8 z-0 … h-8 bg-gradient-to-t from-surface`
+     rect  **[196.667, 780 915.333×32]**  position absolute  z-index 0
+     bg    `linear-gradient(to top in oklab, rgb(24, 24, 24) 0%, rgba(0, 0, 0, 0) 100%)`
+     -top-8 = top:-32px 挂在 `sticky bottom-0`（高 0、贴在滚动口底 96+716 = 812）上 → 780 = 812−32 ✓
+     宽 915.333 = 滚动容器 935.333 − 20（两侧各 10 的 gutter，由 .cx-thread 的
+     `scrollbar-gutter: stable both-edges` 占位；出处见 :root 顶部注释）。
+   ⚠️ 原类名是 .cx-thread__fade；#70（P0）要求把 .cx-thread__fade 改成**顶部**渐隐，
+      这里按 audit #70 的建议「另建底部渐隐」改名。
+   改前我们：**935.33 @340.67**（没建模 gutter、没随内容位移）；现在两项都按官方补齐。 */
+/* ★ 父节点改过一轮（2026-10-11，audit #71 的结构修复）：改前这两个元素挂在
+   **.cx-thread（滚动容器）**上（fade 是 .cx-thread__content 的兄弟）⇒ position:sticky 的
+   包含块 = 滚动容器的一屏高（实测 .cx-thread__content 恒 684）⇒ 包含块随内容一起滚走：
+   fade 的 y 恒 = **780 − scrollTop**（scrollH 9806 / max scroll 9090 时 y = **−8310**，肉眼就是
+   「底部的渐隐不见了」）；只有 scrollTop=0 时才恰好落在 780 —— 这就是本缺陷一直没被发现的原因。
+   现按官方 path 拆成**锚 + 本体**两个节点，挂进包装层内部（.cx-thread__content-wrap）：
+     .cx-thread  > .cx-thread__content-wrap > .cx-thread__end-fade-anchor > .cx-thread__end-fade
+   包含块 = 包装层（≥ 整个 scrollHeight）⇒ **全程**贴底 812（两态 y 都 = 780）。
+   ⚠️ 别把这两条规则合回一条 sticky 元素：那是**另一个**结构（多占 32px 流内高度 ⇒ 短转录下
+      .cx-thread__content 会从 684 变 652），几何就不再等于官方 block[15]/block[45]。 */
+/* sticky 锚 —— 官方真源：thread-scroll-layout-fb0c6ee4cde8.js **byte 20036** 那个 div：
+     classList 原文 `pointer-events-none sticky bottom-0 z-10 mt-auto w-full shrink-0`
+     + 高度 `h-[calc(var(--thread-scroll-padding-bottom)-var(--spacing)*4)]`（compact 档是
+       `h-(--thread-scroll-padding-bottom)`）；它的 children 就是 `jsx(me,{part:"fade"})`
+       （同一段 JSX，紧随其后）⇒ **底部渐隐的直接父节点是它**，不是滚动容器。
+   工具类出处（app-shared-f2d570e85ceb.css）：.absolute@262358 / .pointer-events-none@261922 /
+   .sticky@262500 / .bottom-0@275394 / .z-10@279088 / .shrink-0@361226。
+   ⚠️ 官方未单独采集这个锚（blocks-conversation.json 里没有它的块）⇒ **它自己没有独立实测 rect**。
+   ★ 高 0 是**采集帧实测结论、不是猜**：block[45] y=780、h=32 且 `-top-8` ⇒ 锚的**顶边** = 812；
+     block[14]（包装层）[196.667,128 915.333×**684**] 的内容盒底边也是 **812** ⇒ 锚的**底边** = 812
+     ⇒ 高 = **0**。（另一条路也落在 0：若 --thread-scroll-padding-bottom 未定义，那条 calc() 成为
+     无效变量 ⇒ height 回落 auto ⇒ 空盒仍是 0。）
+   ⚠️ **有意偏差（已登记）**：官方那个高度公式（`padding-bottom − 32px`）**没有建模** ——
+      `--thread-scroll-padding-bottom` 在本工程 `src/**` 里 **0 命中**（我们用的是
+      --thread-composer-bottom-inset，见 .cx-conversation__composer）⇒ **非 0 的那一档未实测**。
+   ⚠️ `w-full` 由 flex 列的 align-items:stretch 满足（实测锚宽 915.333 = 官方）；
+      `mt-auto` 本工程是 no-op（.cx-thread__content 是 flex:1 1 auto，自由空间已被吃光，
+      实测锚 y 恒 = 812），保留只为与官方逐字对齐。 */
+.cx-thread__end-fade-anchor {
+  position: sticky;
+  bottom: 0;
+  z-index: 10; /* 官方 z-10（.z-10@279088）；本工程会话滚动层里没有 z 1..9 的同层兄弟 ⇒ 与 0 合成等价 */
+  flex: 0 0 auto; /* 官方 shrink-0（.shrink-0@361226） */
+  height: 0; /* 见上：采集帧实测（block[45] + block[14] 两条边都落在 812） */
+  margin-top: auto; /* 官方 mt-auto */
+  pointer-events: none;
+}
+
+.cx-thread__end-fade {
+  position: absolute;
+  inset-inline: 0;
+  top: -32px; /* 官方 -top-8（.-top-8@268374 = calc(var(--spacing) * -8)） */
+  height: 32px; /* 官方 h-8（.h-8@309806），= 32 */
+  z-index: 0; /* 官方 z-0（.z-0@279013） */
+  /* 宽度来自**包装层**（它铺满滚动容器内容盒 915.333@350.667，位移档 −154）：
+     .cx-thread 自己写了 scrollbar-gutter: stable both-edges，盒宽恒 915.333，
+     本元素 inset-inline:0 即与之同宽 —— 未溢出 / 溢出两态实测都是 915.333。
+     ⚠️ 这里**不能**再写 margin-inline（旧实现那 10px）—— 两者同存是**双计**：
+        915.333 − 20 = **895.333**，比官方（915.333）窄 20。 */
+  pointer-events: none;
+  background: linear-gradient(to top in oklab, var(--color-surface) 0%, transparent 100%);
+}
+
+/* 顶部渐隐（audit #70，P0）——官方 _MainContentTopFade_yl8z4_2
+   实测出处 captures/views-chat-conversation.json group=sidebar：
+     340.66669,**96**  935.33337×**40**  position absolute  z-index **20**
+     background-image（computed 原文）
+       linear-gradient(rgb(24,24,24), oklab(0.209035 0.00000952929 0.00000418723 / 0.82) 10%,
+                       oklab(… / 0.48) 30%, oklab(… / 0.12) 60%, rgba(0,0,0,0))
+     transition: opacity 0.15s；采集帧 opacity **0**（内容未滚动）
+   官方 CSS raw/1u6c1.css:1-2：
+     ._background_1u6c1_1,,._floatingHeader_1u6c1_2 { background-image: linear-gradient(to bottom,
+       var(--color-surface), color-mix(in oklab, var(--color-surface) 82%, transparent) 10%,
+       color-mix(in oklab, var(--color-surface) 48%, transparent) 30%,
+       color-mix(in oklab, var(--color-surface) 12%, transparent) 60%, transparent) }
+   oklab(0.209035 …) = rgb(24,24,24)，与 --color-surface 同值（见 sidebar-panel.css 顶部换算）。
+   挂点在「主内容面」上（不是滚动容器内）→ 宽度 = 整幅主表面 935.33 ✓ */
+.cx-thread__fade {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 20;
+  height: 40px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-duration-basic) ease;
+  background-image: linear-gradient(
+    to bottom,
+    var(--color-surface),
+    color-mix(in oklab, var(--color-surface) 82%, transparent) 10%,
+    color-mix(in oklab, var(--color-surface) 48%, transparent) 30%,
+    color-mix(in oklab, var(--color-surface) 12%, transparent) 60%,
+    transparent
+  );
+}
+
+.cx-thread__fade[data-visible="true"] {
+  opacity: 1;
+}
+
+/* 输入区浮层 [·,698 935×114] bg rgb(24,24,24) padding-bottom 16px */
+.cx-conversation__composer {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  padding-bottom: var(--thread-composer-bottom-inset, calc(0.25rem * 4));
+  background: var(--color-surface);
+}
+
+/* 输入区列（会话）[270,698 768×98] padding 0 16px */
+.cx-thread__column {
+  --cx-col: min(var(--cx-thread-column), calc(100vw - 64px));
+  width: var(--cx-col);
+  margin-inline: calc((100% - var(--cx-col)) / 2);
+  padding: 0 16px;
+}
+
+/* ── 「N 个文件已更改 +a −d」胶囊（用户 2026-10-15 给的官方截图）────────────────
+   实测（截图 1.5×，已换算 CSS px）：高 32 / 全圆角 / bg rgb(48,48,48)（输入卡 58 的下一档，
+   本仓对应 token = --color-surface-elevated-secondary #2d2d2d）/ 居中于输入列 /
+   文字 13px 白 72%（本仓 --color-text-secondary）、`+a` 绿、`−d` 红。
+   两个颜色用本仓既有 token：--color-text-success = #40c977、--color-codex-git-deleted = #fa423e
+   —— 与截图取样的 rgb(64,201,119) / rgb(250,66,62) **逐值相同**。 */
+.cx-thread__changes {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 12px;
+}
+
+.cx-changes-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-elevated-secondary);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: var(--cursor-interaction, pointer);
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-changes-pill:hover {
+  background: color-mix(in srgb, var(--color-surface-elevated-secondary) 82%, var(--color-text) 8%);
+}
+
+.cx-changes-pill:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.cx-changes-pill__added {
+  color: var(--color-text-success);
+}
+
+.cx-changes-pill__deleted {
+  color: var(--color-codex-git-deleted);
+}
+
+/* ── 「插入对话 / 排队」行（用户 2026-10-15 给的官方截图）──────────────────────
+   实测（1.5× 换算）：卡片比输入卡左右各窄 13.5px、高 32、圆角 10、bg rgb(48,48,48)，
+   与输入卡间距 ~2px（截图里两卡几乎贴合，只透出一线页面底色）。
+   左图标 16、距左缘 13；正文 13px 白；右侧动作（引导/删除/···）16~18 的图标按钮，白 62%。 */
+.cx-queued {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 27px);
+  min-height: 32px;
+  margin: 0 auto 2px;
+  padding: 0 12px 0 13px;
+  border-radius: var(--radius-md); /* 10px */
+  background: var(--color-surface-elevated-secondary);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18px;
+}
+
+.cx-queued__icon {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+}
+
+.cx-queued__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-queued__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  color: var(--color-text-secondary);
+}
+
+/* 「↵ 引导」：图标 + 文字的窄按钮 */
+.cx-queued__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm, 7.5px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: var(--cursor-interaction, pointer);
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+/* 纯图标按钮（删除 / 更多） */
+.cx-queued__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm, 7.5px);
+  background: transparent;
+  color: inherit;
+  cursor: var(--cursor-interaction, pointer);
+  transition: background-color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-queued__action:hover,
+.cx-queued__icon-button:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text);
+}
+
+.cx-queued__action:focus-visible,
+.cx-queued__icon-button:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 回到底部浮钮（audit #69，P0）——官方 button.group/scroll-to-bottom
+   实测出处 captures/blocks-conversation.json：
+     rect **638.333,642 32×32**；bg **rgb(24,24,24)**（--color-surface）；br **9999px**
+     border **0.666667px solid rgba(255,255,255,.082)**；图标 **20×20**（644.333,648）
+     class `absolute z-30 flex h-8 w-8 translate-x-1/2 items-center justify-center rounded-full
+            border border-default bg-surface bg-clip-padding text-secondary
+            transition-opacity duration-basic ease-in-out end-1/2
+            bottom-[calc(100%+6*var(--spacing))]`
+     隐藏态：opacity 0 + pointer-events none（**元素始终在 DOM 里**）
+   纵向：bottom = calc(100% + 24px) 相对「转录列锚盒」，底边 = 输入区顶 698 − 24 = 674 → 顶 642 ✓
+   横向：居中于转录列（中心 654.33 = 输入行 286.333 + 736/2）✓ */
+.cx-thread__to-bottom-anchor {
+  --cx-col: min(var(--cx-thread-column), calc(100vw - 64px));
+  position: relative;
+  height: 0;
+  width: var(--cx-col);
+  margin-inline: calc((100% - var(--cx-col)) / 2);
+  padding: 0 16px;
+}
+
+.cx-thread__to-bottom {
+  position: absolute;
+  inset-inline-start: 50%;
+  bottom: calc(100% + 6 * var(--spacing));
+  transform: translateX(-50%);
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0.666667px solid rgb(255 255 255 / 0.082);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  background-clip: padding-box;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-duration-basic) ease-in-out;
+}
+
+.cx-thread__to-bottom[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cx-thread__to-bottom:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+/* 右侧浮层打开时：转录列 / 输入列 / 回底钮锚盒**一起左移 contentShift（-154px）**，
+   列宽不变（仍 768 / 736）。
+   ⚠️ 旧实现这里写的是 `--cx-col: min(768px, 100% - 32px)`，把列**压窄**到可用宽：
+      实测面板开态 = 转录列 599.33、输入面板 567.33，而参考端是 **768 / 736**。
+      官方不是压窄而是位移 —— 见 :root 的 --cx-content-shift 注释（算法 + 施加点）。
+   参考端实测核对（captures/blocks-conversation.json，面板开态）：
+      转录列 [270.33,128 768×684]（中心 654.33 = 剩余区 340.67..968 的中心）
+      输入列 [270.33,698 768×98] / 内层输入面板 [286.33,698 **736**×98]
+      回底钮 [638.33,642 32×32]（中心 654.33）
+   ✅ 本工程实测（1284×817 窗口，面板开；本机窗口比参考端宽 4px → 所有 x 各 +2）：
+      主表面 .cx-conversation__main **939.33**（参考 935.33，两态一致、不再 631.33）
+      转录列 272.33×**768** / 输入列 272.33×768 / 输入面板 288.33×**736** / textarea 300.33×712
+      （参考端 270.33 / 270.33 / 286.33 / 298.33）
+   ✅ 「列没被压窄」的独立证据（算术来自采集帧本身，不必信任何二手结论）：
+      转录列的 auto 外边距实测 **73.6667** = (915.33 − 768) / 2，输入列 **83.6667**
+      = (935.33 − 768) / 2 —— auto 外边距按**未位移**的包含块宽度解出，说明包含块仍是
+      满幅 935.33（= 768 + 83.67×2），154 只是整体位移，不是把容器或列改小。
+   ⚠️ 位移的副作用（**实测，与参考端同形，不是缺陷**）：位移后 768 的列落在
+      272.33..1040.33，而滚动容器 .cx-thread（overflow-x: hidden）左边界 340.67
+      → 左侧约 68px 被裁掉；参考端同帧是列 270.33..1038.33、容器左边界 340.67，
+      即**参考端也裁同样的量**。剩余区 ≥ 768（本机窗口 ≥ 约 1421px）时不再溢出。
+      别把「裁切」当 bug 再用「把列压窄到可用宽」去修 —— 那正是本次回退掉的错误。
+   （另一读法备案：这 154 也可以解释成滚动容器被横向滚了 154px —— 与位移**画出的像素
+     完全相同**；选「位移」是因为官方 CSS 里 --thread-wide-block-inline-shift 只被消费、
+     由 JS 注入，且 .cx-artifact 那条 class 把面板定义为 pip-obstacle 覆盖层。） */
+/* ⚠️ 施加点按**官方真源**改过一轮（#71 之外的「composer 浮层底色位移」）：
+   官方 thread-scroll-layout-fb0c6ee4cde8.js 里，contentX 只施加在两处：
+     · 转录包装层 `[container-type:inline-size].flex.min-h-full`（motion style: {x: contentX}）
+     · **整个 composer 浮层** `<motion.div className="pointer-events-none absolute inset-x-0 z-20 …"
+        data-thread-scroll-footer="true" style={Xt}>…`（同一段 JSX，Xt = {x: contentX, …}）
+   实测印证（captures/blocks-conversation.json）：
+     转录包装层 [**196.667**,128 915.333×684]、composer 浮层 [**186.667**,698 **935.333**×114]
+     —— 两者都从 340.667 左移 154，**但浮层宽仍是 935.333、右边界到 1122**。
+   改前我们只位移了**列**（.cx-thread__column / .cx-thread__to-bottom-anchor），浮层底色仍铺到 1280，
+   浮层右边界是 1276 而不是 1122 —— 本次把位移点改成官方那两个。
+   连带：列与回底钮都在浮层**内部**，父层位移后**不能**再各自位移一次（会位移 308px）。*/
+/* ★ 第一个施加点改回**官方那个节点本身**（2026-10-11）：官方 motion 的 x 挂在转录包装层
+   （block[14]）上，而我们的转录包装层 = .cx-thread__content-wrap ⇒ 它**同时**带给下面的
+   转录列（block[15]）与底部渐隐（block[45]）同一个 −154，两个子节点都不用再各自位移。
+   改前是逐个子节点写（.cx-thread__content + .cx-thread__end-fade）：结果一样，
+   但结构一旦多一层就不成立了（fade 挪进包装层后若仍逐个位移 = **双计 −308**）。 */
+.cx-conversation[data-artifact="open"] .cx-thread__content-wrap,
+.cx-conversation[data-artifact="open"] .cx-conversation__composer {
+  translate: var(--cx-content-shift) 0;
+}
+
+/* ── 推理块 / 工具调用块（SPEC 未实测，token 层落地）───────────────────── */
+.cx-reasoning {
+  align-self: stretch;
+}
+
+.cx-reasoning__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.cx-reasoning__toggle:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-emphasis);
+}
+
+.cx-reasoning__chevron {
+  transition: transform var(--transition-duration-basic) var(--ease-enter-snappy);
+}
+
+.cx-reasoning[data-open="true"] .cx-reasoning__chevron {
+  transform: rotate(180deg);
+}
+
+.cx-reasoning__body {
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border-inline-start: 2px solid var(--color-border);
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 20px;
+  white-space: pre-wrap;
+}
+
+.cx-toolcalls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx-toolcall {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgb(255 255 255 / 0.02);
+  overflow: hidden;
+}
+
+.cx-toolcall__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.cx-toolcall__head:hover {
+  background: var(--color-background-primary-ghost-hover);
+}
+
+.cx-toolcall[data-status="error"] .cx-toolcall__status {
+  color: var(--color-text-danger, #ff8583);
+}
+
+.cx-toolcall[data-status="success"] .cx-toolcall__status {
+  color: var(--color-text-success, #5fd48a);
+}
+
+.cx-toolcall__name {
+  color: var(--color-text-emphasis);
+  font-family: var(--font-mono);
+}
+
+.cx-toolcall__summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-toolcall__chevron {
+  flex: 0 0 auto;
+  transition: transform var(--transition-duration-basic) var(--ease-enter-snappy);
+}
+
+.cx-toolcall__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.cx-toolcall__body {
+  border-block-start: 1px solid var(--color-border-subtle);
+}
+
+.cx-toolcall__pre {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* ── Markdown ───────────────────────────────────────────────────────────── */
+.cx-markdown > :first-child {
+  margin-top: 0;
+}
+.cx-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+/* 官方 markdown 段落 = `p._Paragraph_176oq_2`：**`margin: 20px 0px 0px`**
+ *   （首/末子元素的 margin 由上面 `.cx-markdown > :first-child/:last-child` 归零，与官方
+ *   `[&>*:first-child]:mt-0 [&>*:last-child]:mb-0` 同构）。
+ *   ★ task-75 实测更正：我们原先写的是 **12px**（无出处），逐值量测时发现主面两段间距只有 12px，
+ *     而官方同一处父级 p 的 computed margin 就是 **20px 0px 0px**（docs/RECON-TASK69-SELECTED-STATE.md §A2）
+ *     ⇒ 改回官方值。间距来自 markdown 规则本身，**调用方不要再自己加 gap**。 */
+.cx-markdown__paragraph {
+  margin: 20px 0 0;
+}
+
+.cx-markdown__heading {
+  margin: 20px 0 8px;
+  color: var(--color-text-emphasis);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.cx-markdown__heading[data-level="1"] {
+  font-size: 20px;
+}
+.cx-markdown__heading[data-level="2"] {
+  font-size: 17px;
+}
+.cx-markdown__heading[data-level="3"] {
+  font-size: 15px;
+}
+.cx-markdown__heading[data-level="4"],
+.cx-markdown__heading[data-level="5"],
+.cx-markdown__heading[data-level="6"] {
+  font-size: 14px;
+}
+
+.cx-markdown__list {
+  margin: 0 0 12px;
+  padding-inline-start: 24px;
+}
+.cx-markdown__list li {
+  margin: 2px 0;
+}
+
+.cx-markdown__quote {
+  margin: 0 0 12px;
+  padding: 2px 0 2px 12px;
+  border-inline-start: 2px solid var(--color-border-strong);
+  color: var(--color-text-secondary, rgba(255 255 255 / 0.65));
+}
+
+.cx-markdown__hr {
+  height: 1px;
+  margin: 16px 0;
+  border: 0;
+  background: var(--color-border);
+}
+
+.cx-markdown__code {
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: rgb(255 255 255 / 0.08);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.cx-markdown__link {
+  color: var(--link-primary-text-color, #83c3ff);
+  text-decoration: underline;
+  text-underline-offset: 0.1em;
+}
+
+/* ── 代码块（token 层：--codeblock-*，SPEC 未实测几何）──────────────────── */
+.cx-codeblock {
+  margin: 0 0 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--codeblock-background-color, var(--gray-25));
+  overflow: hidden;
+}
+
+.cx-codeblock__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border-block-end: 1px solid var(--color-border-subtle);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 16px;
+  user-select: none;
+}
+
+.cx-codeblock__lang {
+  font-family: var(--font-mono);
+  text-transform: lowercase;
+}
+
+.cx-codeblock__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 430;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-duration-basic) var(--cubic-enter),
+    color var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-codeblock__copy:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-text-emphasis);
+}
+
+.cx-codeblock__copy:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+.cx-codeblock__pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--color-text-emphasis);
+  tab-size: 2;
+}
+
+/* 语法 5 色（tokens.css --codeblock-syntax-1..5 原文） */
+.cx-codeblock__token--comment {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+.cx-codeblock__token--string {
+  color: var(--codeblock-syntax-3, #7fd8a0);
+}
+.cx-codeblock__token--keyword {
+  color: var(--codeblock-syntax-5, #c9a6ff);
+}
+.cx-codeblock__token--number {
+  color: var(--codeblock-syntax-1, #ffd166);
+}
+.cx-codeblock__token--function {
+  color: var(--codeblock-syntax-2, #83c3ff);
+}
+
+/* ── 流式光标与动效 ─────────────────────────────────────────────────────── */
+.cx-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-inline-start: 2px;
+  vertical-align: -0.15em;
+  background: var(--color-text-emphasis);
+  animation: cx-caret-blink var(--animation-duration-streaming-text, 0.7s) steps(2, start) infinite;
+}
+
+@keyframes cx-caret-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.cx-message--assistant[data-streaming="true"] .cx-message__body {
+  opacity: 0.98;
+}
+
+.cx-toolcall[data-status="running"] .cx-toolcall__status svg {
+  animation: spin 2s steps(60, end) infinite;
+}
+
+/* 新消息进入：轻微上浮 + 淡入（尊重 data-reduced-motion / prefers-reduced-motion） */
+.cx-message {
+  animation: cx-message-in var(--transition-duration-relaxed) var(--cubic-enter) both;
+}
+
+@keyframes cx-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:root[data-reduced-motion="true"] .cx-message,
+:root[data-reduced-motion="true"] .cx-caret {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-message {
+    animation: none;
+  }
+  .cx-caret {
+    animation: none;
+  }
+}
+
+/* ── 会话右侧浮层「输出内容 / 来源」（audit #67 #68，P0）────────────────────
+ * 逐项实测出处 captures/blocks-conversation.json（参考端采集时会话右侧就是这张卡）：
+ *   容器  [968,104 **308×700**]  `pointer-events-none z-40 absolute top-(--thread-floating-content-top-inset)
+ *          right-0 bottom-(--thread-floating-content-bottom-inset) max-w-full`
+ *          → 主内容面 96..812 上/下各内缩 **8px**（96+8 = 104 / 812−8 = 804）
+ *   卡片  [968,104 …**300×152**]  `rounded-2xl bg-surface-elevated-secondary electron:elevation-prominent
+ *          group/summary-panel relative flex max-h-full min-h-0 flex-col overflow-hidden`
+ *          bg **rgb(45,45,45)**  br **20px**  cs superellipse(1.5)  右侧 `pe-2` → 300 = 308 − 8
+ *          shadow 实测 computed `rgba(255,255,255,.157) 0 0 0 .5px, rgba(0,0,0,.04) 0 3px 7.5px 0,
+ *          rgba(0,0,0,.05) 0 0 20px 0`
+ *   内层  `flex flex-col gap-2 py-2.5` → gap **8px** / padding **10px 0**
+ *   section [968,114 300×**66**] `relative z-0 flex flex-col pb-2 … last:pb-0`
+ *          分隔线 `after:absolute after:bottom-0 after:h-[0.5px] after:bg-border
+ *          after:inset-x-5 last:after:hidden` → 0.5px、左右内缩 **20px**、末条隐藏
+ *   高度账  10 + 66 + 8 + 58 + 10 = **152** ✓（第二节 last 无 pb：28 + 2 + 28 = 58）
+ * ------------------------------------------------------------------------- */
+
+/* 容器 [968,104 308×700] —— **浮层，不占布局**。
+   ⚠️ 旧实现是 flex 项（`flex: 0 0 308px` + margin-block 8px），会把主表面挤窄
+      （实测面板开态 .cx-conversation__main = 631.33）；官方 class 原文是
+      `pointer-events-none z-40 absolute top-(--thread-floating-content-top-inset)
+        right-0 bottom-(--thread-floating-content-bottom-inset) max-w-full`
+      （captures/blocks-conversation.json 里该元素自己的 class），
+      两个 inset token = calc(--spacing * 2) = **8px**（css-pretty/shell-initial.css:3047-3048）
+      → 96+8 = 104 / 812−8 = 804 = 104+700 ✓。主表面因此**开关两态都是 935.33**。 */
+.cx-artifact {
+  position: absolute;
+  inset-block: 8px;
+  inset-inline-end: 0;
+  z-index: 40;
+  width: 308px;
+  max-width: 100%;
+  pointer-events: none;
+  padding-inline-end: 8px;
+}
+
+/* 卡片 [968,104 300×152…]
+   pointer-events: auto：容器是 pointer-events-none（官方同款），可交互的是卡片本体 */
+.cx-artifact__card {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  background: var(--color-surface-elevated-secondary);
+  box-shadow:
+    rgb(255 255 255 / 0.157) 0 0 0 0.5px,
+    rgb(0 0 0 / 0.04) 0 3px 7.5px 0,
+    rgb(0 0 0 / 0.05) 0 0 20px 0;
+}
+
+/* 内层 gap 8 / padding 10px 0（+ 滚动） */
+.cx-artifact__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* section：pb 8；末条 0 + 分隔线隐藏 */
+.cx-artifact__section {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  padding-block-end: 8px;
+}
+
+.cx-artifact__section::after {
+  position: absolute;
+  inset-inline: 20px;
+  bottom: 0;
+  height: 0.5px;
+  background: var(--color-border);
+  content: "";
+}
+
+.cx-artifact__section:last-child {
+  padding-block-end: 0;
+}
+
+.cx-artifact__section:last-child::after {
+  display: none;
+}
+
+/* header [968,114 300×28]：h-7 / gap-2 / pb-0.5 / ps-5 / pe-3.5
+   → padding 0 14px 2px 20px、gap 8px、13px / 18.5714px / 400、fg rgba(255,255,255,.65)
+   官方是 `sticky top-2`；实测采集帧 header 落在 y=**114** = 小节的**自然位置**，
+   说明参考端的滚动容器是 `h-fit`（高度贴合内容），sticky 不产生位移。
+   本工程把滚动容器放在 .cx-artifact__sections 上，照抄 sticky 会把 header 推到 122（+8px，
+   与 #67 期望 115.71875 差 8px）→ 这里用静态头，静止态几何与参考端一致
+   （卡片滚动时 header 不吸附，属已知降级）。 */
+.cx-artifact__head {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  height: 28px;
+  padding: 0 14px 2px 20px;
+  background: var(--color-surface-elevated-secondary);
+  color: rgb(255 255 255 / 0.65);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18.5714px;
+}
+
+/* 折叠钮（audit #67）[984.5,115.71875 **237.5×22.5625**]
+   `-ms-[3.5px] inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-xl py-0.5 ps-[3.5px] pe-1`
+   → margin-inline-start -3.5px / padding 2px 4px 2px 3.5px / gap 6px / br 15px / flex 1 */
+.cx-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-inline-start: -3.5px;
+  padding: 2px 4px 2px 3.5px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.cx-section-toggle:hover {
+  background: var(--color-background-primary-ghost-hover);
+}
+
+.cx-section-toggle:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.cx-section-toggle__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-section-toggle__chevron {
+  flex: 0 0 auto;
+  opacity: 0.75;
+  transition: transform var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-section-toggle__chevron[data-open="false"] {
+  transform: rotate(-90deg);
+}
+
+/* 头部动作 [1230,115 **24×24**]：padding 4px 0、br 10px */
+.cx-artifact__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.cx-artifact__head-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgb(255 255 255 / 0.498);
+  cursor: pointer;
+}
+
+.cx-artifact__head-action:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-emphasis);
+}
+
+.cx-artifact__head-action:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+/* 条目行容器：`relative z-0 overflow-hidden` margin-top 2px */
+.cx-artifact__rows {
+  position: relative;
+  z-index: 0;
+  margin-block-start: 2px;
+  overflow: hidden;
+}
+
+/* 行内层：`flex flex-col gap-0.5` padding 0 20px → 260 = 300 − 40 ✓ */
+.cx-artifact__rows-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 20px;
+}
+
+/* 条目行（audit #68）[988,144 **260×28**]
+   min-h 28 / padding 4px 0 / gap 4px / br 7.5px / 色 oklab(0.903646 … / 0.4) = rgb(223,223,223)@40% */
+.cx-artifact__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgb(223 223 223 / 0.4);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.cx-artifact__row:hover {
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-emphasis);
+}
+
+.cx-artifact__row:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.cx-artifact__row-icon {
+  flex: 0 0 auto;
+}
+
+.cx-artifact__row-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-reduced-motion="true"] .cx-conversation__main {
+  transition: none;
+}
+/* ── 加载骨架 / 无障碍文本 ───────────────────────────────────────────────── */
+.cx-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cx-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.cx-skeleton__row {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.06) 0%,
+    rgb(255 255 255 / 0.12) 50%,
+    rgb(255 255 255 / 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: cx-shimmer var(--animation-duration-streaming-text, 0.7s) linear infinite;
+}
+
+@keyframes cx-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+:root[data-reduced-motion="true"] .cx-skeleton__row {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-skeleton__row {
+    animation: none;
+  }
+}
+
+/* ══ 弹层：模型选择器 / 权限菜单（audit #123 #124 #126 #127，P0）══════════════
+ * 公共外观（两处实测值完全一致，逐条出处）：
+ *   SPEC-OVERLAYS §0.1  --menu-backdrop-filter 在 electron 下未定义 → 真正吃到模糊的
+ *                       这两个弹层用的是 Tailwind `backdrop-blur-sm` = --blur-sm = **8px**（不是 16px）
+ *   SPEC-OVERLAYS §0.3  --padding-row-y 在 electron `body` 上是 **5px**（不是 4px）
+ *   SPEC-OVERLAYS §1.3/§2.2  圆角 **20px**（rounded-2xl）；ring **.5px** rgba(255,255,255,.084)
+ *   computed boxShadow 实测（两处同值）：
+ *     rgba(255,255,255,.082) 0 0 0 .5px ×2 + rgba(0,0,0,.12) 0 8px 16px -4px
+ *   computed backgroundColor 实测：oklab(0.297161 0.0000135 0.0000059 / 0.9)
+ *     = color-mix(in oklab, var(--color-surface-elevated-secondary) 90%, transparent)
+ *   `m-px`：内容盒带 1px 外边距 → popper wrapper 比内容盒大 2px（256×86 ← 254×84 / 322×163.7 ← 320×161.7）
+ *   入场（官方 CSS raw/b9jvu.css:17-19）：0.32s cubic-bezier(.23,1,.32,1) 30ms both，scale(.98 → 1)
+ *   z-index **50**（SPEC-OVERLAYS §0.6）
+ * -------------------------------------------------------------------------- */
+
+.cx-overlay {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  margin: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  background: color-mix(in oklab, rgb(45 45 45) 90%, transparent);
+  box-shadow:
+    rgb(255 255 255 / 0.082) 0 0 0 0.5px,
+    rgb(255 255 255 / 0.082) 0 0 0 0.5px,
+    rgb(0 0 0 / 0.12) 0 8px 16px -4px;
+  backdrop-filter: blur(var(--blur-sm, 8px));
+  color: var(--color-text-emphasis);
+  font-size: 16px;
+  font-weight: 430;
+  line-height: 24px;
+  outline: none;
+  overflow: hidden;
+  animation: cx-overlay-in 0.32s cubic-bezier(0.23, 1, 0.32, 1) 30ms both;
+}
+
+@keyframes cx-overlay-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── 模型选择器（audit #123 #124）───────────────────────────────────────── */
+/* 内容盒宽度：官方 `._ModelPickerDropdownContent_b9jvu_2 { width: calc(var(--spacing) * 63.5) }`
+   = **254px**；padding **0**（`--app-menu-gutter: 0px`，官方 raw/b9jvu.css:16 原文） */
+.cx-mp {
+  width: calc(var(--spacing) * 63.5);
+  padding: 0;
+}
+
+/* _Menu_1d00n_1：`flex-shrink:0; position:relative`（官方 raw/1d00n.css:1）
+   折叠态高度账 = 4 + 36 + (4+32+4) + 4 = **84**（SPEC-OVERLAYS §1.5 逐行实测）
+   → 参考端采集帧 248.92×82.32 = 布局态 254×84 × 0.98 入场首帧 */
+.cx-mp__menu {
+  position: relative;
+  flex-shrink: 0;
+  height: 84px;
+  overflow: hidden;
+}
+
+/* 展开态：官方 `[data-transitions-ready=true] { transition: height .32s cubic-bezier(.19,1,.22,1) }`
+   —— 展开目标高度由列表内容决定，height:auto 无法做 transition，这里只保留终态（动效降级） */
+.cx-mp__menu[data-expanded="true"] {
+  height: auto;
+}
+
+/* _ViewPanel_1d00n_79：`width:100%; padding:var(--spacing); flex-direction:column; display:flex` */
+.cx-mp__panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 4px;
+}
+
+/* _ViewControls_1d00n_170：`justify-content:center; align-items:center; min-height:36px;
+   padding-inline:8px; display:flex; position:relative` + `::before { width:16px }` 前插占位
+   → 实测行 1 落在 x=81.27（= 8 + (238−16−107.469)/2 + 16），自证占位存在 */
+.cx-mp__controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding-inline: 8px;
+}
+
+.cx-mp__controls::before {
+  content: "";
+  flex-shrink: 0;
+  width: 16px;
+}
+
+/* _ViewToggle_1d00n_195：[role=menuitem] min-height 32 / padding 4 / br 8 / 14px 500 / lh 20 / flex-col */
+.cx-mp__toggle {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 32px;
+  margin: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: var(--color-text-emphasis);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.cx-mp__toggle:focus {
+  outline: none;
+}
+
+/* _ViewToggleContent_1d00n_195：gap 2（calc(--spacing/2)）/ padding 2px 4px / br 6 */
+.cx-mp__toggle-content {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.cx-mp__toggle:hover .cx-mp__toggle-content,
+.cx-mp__toggle:focus .cx-mp__toggle-content {
+  background: var(--color-background-primary-ghost-hover);
+}
+
+.cx-mp__toggle:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+.cx-mp__model-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* _ViewToggleEffortLabel_1d00n_213：色 --color-text-tertiary；与模型名之间 margin-inline-start 2px */
+.cx-mp__effort-label {
+  flex-shrink: 0;
+  margin-inline-start: 2px;
+  color: rgb(255 255 255 / 0.498);
+  white-space: nowrap;
+}
+
+.cx-mp__effort-label[data-maximum="true"] {
+  color: #ad7bf9;
+}
+
+.cx-mp__toggle-icon {
+  flex: 0 0 auto;
+  color: rgb(255 255 255 / 0.498);
+}
+
+/* _SimpleView_1d00n_118：min-height 36 / padding-block 4 → 滑杆槽 32 高、整体 40 */
+.cx-mp__simple {
+  min-height: 36px;
+  padding-block: 4px;
+}
+
+/* _SliderKeyboardControl_1d00n_123：[role=menuitem] aria-label「强度」
+   aria-keyshortcuts「ArrowLeft ArrowRight」246×32（= 254 − 4×2）
+   `outline:0; margin:0; padding:0; display:block` */
+.cx-mp__slider {
+  position: relative;
+  /* 官方声明是 `display:block`，但实测轨道在 32 高的行里是**竖向居中**的
+     （像素采样 ref-06：轨道 715.33..738.67，行 711..743 → 上留 4.3px）→ 这里用 flex 复现。 */
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+
+/* 轨道：像素采样自 reference-shots/ref-06-model-picker.png（该图 CSS x 955..1195，y 715.3..738.7）
+   → **高 24px**（行 32 内上下各留 4px），左端圆头；
+   轨道底色用运行端 token --slider-track-color = **#414141**（tokens.runtime.json 实测）。
+   填充：同图逐像素采样 x≈970 (47,82,193) → x≈1059 (163,134,254) → x≈1171 (118,98,219) */
+.cx-mp__slider-track {
+  position: relative;
+  /* flex + align-items:center：Radix 给 thumb 注入的是「绝对定位 + left/transform」，
+     不含 top/bottom，其竖向位置走**静态位置**。CSS Flexbox §4.1 规定绝对定位子元素的
+     静态位置按「容器里唯一的 flex 项」计算 → 这样 thumb 才会竖向居中于 24px 轨道
+     （实测确认：display:block 时 thumb 会掉到轨道下方 24px 处）。 */
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background-color: var(--slider-track-color, #414141);
+}
+
+.cx-mp__slider-range {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: var(--radius-full);
+  background-image: linear-gradient(
+    to right,
+    rgb(47 82 193),
+    rgb(138 126 242) 38%,
+    rgb(163 134 254) 52%,
+    rgb(118 98 219)
+  );
+}
+
+/* Radix 把无类名的滑块包装 span 渲染成 **Slider Root 的直接子元素**（与 Track 平级，
+   不是 Track 的子元素），并注入 inline `top: 24px` —— 实测滑块会整块掉到轨道下沿
+   （track 711..735、thumb 735..761）。这里用 `:has()` 精确命中那层包装并覆盖它的 inline top：
+   Root 高 32、滑块 26 → 居中 top = (32 − 26) / 2 = **3px**，与居中于 24px 轨道的官方外观一致。
+   （`!important` 只用于压过 Radix 的 inline style，别无他处。） */
+.cx-mp__slider > span:has(> .cx-mp__slider-thumb) {
+  top: calc((32px - 26px) / 2) !important;
+}
+
+/* 滑块：同图采样直径 **26px**、纯白（x 1168..1194），比轨道高 2px —— 与官方一致的外溢。 */
+.cx-mp__slider-thumb {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.cx-mp__slider-thumb:focus {
+  outline: none;
+}
+
+.cx-mp__slider-thumb:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* _ModelListMotion_1d00n_10：`margin-inline: calc(-1 * var(--spacing))`；
+   `[data-active=false] { opacity:0; translate: 0 -10px }`（官方 raw/1d00n.css:18,21,22）
+   → 折叠时列表仍在 DOM 里（参考端 innerText 同样包含全部列表文案），但不可见、不可交互。 */
+.cx-mp__list {
+  display: flex;
+  flex-direction: column;
+  margin-inline: -4px;
+  padding-inline: 4px;
+  opacity: 1;
+  translate: 0;
+  transition:
+    opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+    translate 0.32s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.cx-mp__list[data-active="false"] {
+  opacity: 0;
+  translate: 0 -10px;
+  pointer-events: none;
+}
+
+/* _DefaultDescription_1d00n_141：色 --color-text-tertiary / 12px */
+.cx-mp__hint {
+  margin: 0;
+  padding: 4px 8px;
+  color: rgb(255 255 255 / 0.498);
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 16px;
+}
+
+.cx-mp__list-title,
+.cx-mp__group {
+  margin: 0;
+  padding: 4px 8px;
+  color: rgb(255 255 255 / 0.498);
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 16px;
+}
+
+.cx-mp__group--sub {
+  padding-inline-start: 8px;
+}
+
+/* 「已锁定，打开访问权限」提示行：文案实测（views-model-picker.json），几何**未实测**，
+   沿用 SPEC-OVERLAYS §5.1 的 electron 菜单行档（padding 5px 8px / br 15px / gap 6px） */
+.cx-mp__notice {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: var(--radius-xl);
+  corner-shape: superellipse(1.5);
+  color: rgb(255 255 255 / 0.498);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+}
+
+/* [task-76] **事实更正**：官方 CSS module **在包内** —— `app/webview/assets/app-primary-c7f956fe5bad.css` 里有 **75 条** `_*_1d00n_*` 规则。
+ *   已确证：`_ModelList_1d00n_10` = max-height min(316px, calc(var(--radix-dropdown-menu-content-available-height) - var(--spacing)))
+ *   ／ padding-inline var(--spacing) ／ margin-block-end calc(-1 * var(--spacing)) ／ padding-block-end var(--spacing) ／ overflow-y auto；
+ *   `_Menu_1d00n_1[data-transitions-ready=true]` 高度过渡 = **.32s cubic-bezier(.19,1,.22,1)**、动效 = opacity .2s cubic-bezier(.23,1,.32,1) + translate .32s，
+ *   延迟 40 / 56 / 16ms；`[data-reduced-motion=true]` 全部 none。
+ *   ⚠️ 下面**条目自身**（min-height 28 ／ padding 5px 8px ／ gap 6px）仍是本工程取值：那 75 条里的 `_Item_*` 本轮未逐条比对 ⇒ **仍未实测**。 */
+.cx-mp__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: var(--color-text-emphasis);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.cx-mp__item:hover,
+.cx-mp__item:focus {
+  background: var(--color-background-primary-ghost-hover);
+  outline: none;
+}
+
+.cx-mp__item:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.cx-mp__item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-mp__item-check {
+  flex: 0 0 auto;
+  color: rgb(255 255 255 / 0.498);
+}
+
+/* ── 权限菜单（audit #126 #127）─────────────────────────────────────────── */
+/* 内容盒 [role=menu] 实测 **482.333,596.333 320×161.6875**、padding **4px** */
+.cx-pm {
+  width: 320px;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+/* 表头 [486.333,600.333 **312×26**]：`text-codex-description flex min-h-6 items-center truncate
+   px-row-x py-row-y text-sm leading-4` → min-height 24 / padding **5px 8px** / 13px / lh 16
+   （26 = 5 + 16 + 5；与 audit §2.3「表头高度 26.0px」一致） */
+.cx-pm__head {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 5px 8px;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.498);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.cx-pm__head-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cx-pm__learn {
+  margin-inline-start: auto;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 条目 [486.333,y **312×42.5625**]，步进 42.5625：
+   `outline-hidden flex min-h-[…] shrink-0 items-center justify-center
+     p-[var(--app-menu-item-padding,…)] text-sm leading-(…) rounded-xl … flex-col`
+   → padding **5px 8px** / br **15px** / 13px / 18.5714px / 430 / 色 rgb(223,223,223)
+   高度 = 5×2 + 内容 **32.5625**（= 标题 18.5714 + 描述 14）✓ */
+.cx-pm__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: rgb(223 223 223);
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.cx-pm__item:hover,
+.cx-pm__item:focus {
+  background: var(--color-background-primary-ghost-hover);
+  outline: none;
+}
+
+.cx-pm__item:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* 行内容盒 [494.333,y **296×32.5625**] gap 6px */
+.cx-pm__item-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.cx-pm__item-icon {
+  flex: 0 0 auto;
+  color: rgb(255 255 255 / 0.498);
+}
+
+.cx-pm__item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cx-pm__item-title {
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 18.5714px;
+}
+
+/* 描述行：参考端两行合计 32.5625 = 18.5714 + **14**（audit #127 内容盒 296×32.5625 反算） */
+.cx-pm__item-desc {
+  color: rgb(255 255 255 / 0.498);
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 14px;
+}
+
+.cx-pm__item-check {
+  flex: 0 0 auto;
+}
+
+/* 当前档「完全访问权限」：文字转橙 —— 运行端 token --color-text-warning = **#ff8549**，
+   与输入区胶囊 `.cx-chip__value.is-warning` 同源；截图 reference-shots/ref-07-permission-menu.png
+   可见第 3 条标题与描述均为橙色（描述更淡）。 */
+.cx-pm__item[data-tone="warning"] {
+  color: var(--color-text-warning, #ff8549);
+}
+
+.cx-pm__item[data-tone="warning"] .cx-pm__item-icon,
+.cx-pm__item[data-tone="warning"] .cx-pm__item-desc {
+  color: color-mix(in srgb, var(--color-text-warning, #ff8549) 70%, transparent);
+}

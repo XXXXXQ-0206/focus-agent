@@ -1,0 +1,736 @@
+/* ============================================================================
+ * 官方 token → 本工程主题机制的桥接层
+ *
+ * tokens.css 是 Codex 官方 design token 的原文搬运（@layer theme 全量 2077 条）；
+ * 本文件负责四件事：
+ *   1. 明暗双值开关：官方用 var(--lightningcss-light, L)var(--lightningcss-dark, D)
+ *      表达同一 token 的亮/暗两值 —— --lightningcss-* 取 initial 时触发回退、
+ *      取空值时整体消失，于是"亮色得到 L、暗色得到 D"。这里用 data-theme=dark / .dark
+ *      把同一语义翻出来（官方根元素同样用 [data-theme=dark]，见 tokens.css:37）。
+ *   2. 角形与半径倍率：官方 --codex-corner-shape = superellipse(1.5)，且支持超椭圆时
+ *      把 --corner-radius-scale 从 1 提到 1.25（半径实测 2.5/5/7.5/10/12.5/15/20/25/30px）。
+ *   3. Electron 窗口档补档：官方在启动时用 JS 往 <html> 注入一批 inline style
+ *      （调色板根层 --app-color-*、自引用占位的 --padding-* / --height-* 等）。
+ *      静态 CSS 里要么没有、要么是 8% / 5% / 16% 这类近似默认值。
+ *      这里按参考端 getComputedStyle 的实测生效值钉死。
+ *   4. Tailwind v4 出口 + 组件便捷类。
+ *
+ * ── 出处标注约定 ─────────────────────────────────────────────────────────
+ *   [rt]  = C:\artex-ymh\evidence\codex-desktop\captures\tokens.runtime.json
+ *           官方参考端（ChatGPT 1280×816 / devicePixelRatio 1.5 / colorScheme dark）
+ *           getComputedStyle(document.documentElement) 实测生效值，1525 条。
+ *   [css] = ./tokens.css 官方 @layer theme 原文（注释里的 tokens.css:NN 即该文件行号）。
+ *
+ * ── 复算方式（可重跑，输出确定） ─────────────────────────────────────────
+ *   cd codex-desktop-src
+ *   npm run dev
+ *   node tools/verify.mjs        # Lead 的数值化验收（几何 + token 一致率）
+ *   本文件的 [rt] 实测档即由该对照结果逐条补齐；改完请重跑，一致率应保持 100%。
+ *
+ * ⚠️ 不要在 @theme 里写与官方同名的变量（如 --color-surface: var(--color-surface)）：
+ *    那是 CSS 变量循环依赖，computed value 直接失效。出口名统一带 cx- 前缀。
+ * ========================================================================== */
+
+/* ── 1. 明暗双值开关 ─────────────────────────────────────────────────────── */
+:root {
+  --lightningcss-light: initial;
+  --lightningcss-dark: ;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"],
+:root.dark {
+  --lightningcss-light: ;
+  --lightningcss-dark: initial;
+  color-scheme: dark;
+}
+
+/* 官方对 Electron 窗口类型另有一档 token（--menu-* / --text-sm 等），
+   根元素由 src/main.tsx 打上 data-codex-window-type=electron。 */
+
+/* ── 2. 角形与半径倍率（官方原文）──────────────────────────────────────────
+ * ⚠️ 这是全站圆角的总开关。官方 CSS 里 --corner-radius-scale: 1 只是兜底值，
+ * 真正生效的在 @supports 块内：支持超椭圆时倍率提到 1.25，角形换成 superellipse(1.5)。
+ * 实测生效半径：2xs 2.5 / xs 5 / sm 7.5 / md 10 / lg 12.5 / xl 15 / 2xl 20 / 3xl 25 / 4xl 30 px。
+ * （该块只有 3 条声明，早期按"属性数≥5"过滤时被漏掉，导致全站圆角小一号 —— 已由
+ *   tools/verify.mjs 的几何断言抓出，见 docs/verify-report.json。） */
+:root {
+  --codex-corner-shape: round;
+}
+
+@supports (corner-shape: superellipse(1.5)) {
+  :root {
+    --codex-corner-radius-scale: 1.25;
+    --codex-corner-shape: superellipse(1.5);
+    --corner-radius-scale: var(--codex-corner-radius-scale);
+  }
+}
+
+/* ── 3. Electron 档 · 结构性 token（与明暗无关）──────────────────────────
+ * 官方在 <html> 上注入的布局/字号尺寸；亮暗两色下实测相同，故不限定 data-theme。
+ * 全部 [rt]。 */
+:root[data-codex-window-type="electron"] {
+  /* 3.1 窗口几何 */
+  --codex-sidebar-preferred-width: 340px; /* 侧栏总宽 = 52 导轨 + 288 面板 */
+  /* 窗口 / 外壳底色直接用官方 token --app-color-background-shell（暗色实测 rgb(40,40,40)，
+     由 tokens.css:64 提供，无需在此 pin）；base.css 的 body 就取它。
+     更外层还有 Electron 窗口底（[main] main-p91kJShj.js:75778 的 L9()：深色不透明窗口面 =
+     #000000，常量见同文件 75110 IQe="#000000" / LQe="#f9f9f9"，否则 #00000000 走 Windows mica），
+     外壳根不透明，正常路径下看不到那一层。 */
+
+  /* 3.2 字号阶 / 字重（官方 --text-xs..4xl 在 electron 档整体上移一档） */
+  --font-ui-size: 14px;
+  --font-code-size: 12px;
+  --font-ui-weight: 430;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 28px;
+  --text-2xl: 36px;
+  --text-3xl: 48px;
+  --text-4xl: 72px;
+  --text-heading-sm: 18px;
+  --text-heading-md: 20px;
+  --text-heading-lg: 24px;
+  --text-heading-app: 28px;
+  --control-font-size-md: 13px; /* 官方静态值 .875rem = 14px，实测 13px */
+  --control-font-size-lg: 14px; /* 官方静态值 1rem = 16px，实测 14px */
+  --tracking-tooltip: -0.15px;
+  --font-code-weight: normal;
+  --text-link-decoration: none;
+  --tooltip-compact-font-weight: 430; /* tokens.css:55 取 var(--font-weight-normal)=400；实测 430（= --font-ui-weight） */
+
+  /* 3.3 应用菜单（顶部 36px 那一条的下拉）；几何值来自 tokens.css:49 的 electron 块 */
+  --menu-radius: var(--radius-2xl);
+  --menu-gutter: var(--spacing);
+  --menu-item-radius: var(--radius-xl);
+  --menu-item-padding: calc(var(--spacing) * 1.25) calc(var(--spacing) * 2);
+  --menu-font-size: var(--text-sm);
+  --menu-line-height: calc(1.25 / 0.875);
+  --menu-corner-shape: var(--codex-corner-shape);
+
+  /* 3.4 行高 / 内边距：官方 CSS 里写成自引用占位（--x: var(--x)，见 tokens.css:19），
+     实测由 JS 注入生效值 */
+  --padding-row-y: calc(0.25rem * 1);
+  --padding-panel: calc(0.25rem * 3);
+  --padding-panel-base: calc(0.25rem * 3);
+  --padding-toolbar: calc(0.25rem * 4);
+  --height-token-nav-row: calc(14px * 1.5 + calc(0.25rem * 1) * 2); /* = 29px */
+  --height-token-row: calc(14px * 1.5 + calc(0.25rem * 1) * 2);
+  --radius-token-row: 9999px;
+
+  /* 3.5 输入区 / 会话列几何 */
+  --composer-radius: calc(0.25rem * 5.5); /* = 22px */
+  --composer-gutter: calc(0.25rem * 3);
+  --composer-adjacent-max-width: 100%;
+  --composer-inline-overhang: calc(0.25rem * 6);
+  /* [rt] --home-composer-inline-inset = calc(.25rem * 3.25)（官方 :root 亦声明，见 shell-shared.css:19334
+     同行的 :root 块）。本工程此前漏了这一条，于是 §3.7 body 档的 --composer-adjacent-max-width
+     在 computed-value 阶段整体失效（实测空串）—— 补上它这条才落到官方的 790px。 */
+  --home-composer-inline-inset: calc(0.25rem * 3.25);
+  --composer-suggestion-inline-inset: calc(calc(0.25rem * 4) + calc(0.25rem * 3.25));
+  --composer-surface-border-radius: 0px;
+  --composer-navigation-snake-angle: 0deg;
+  --padding-composer-input: 0 calc(0.25rem * 3);
+  --padding-composer-empty-attachments: calc(0.25rem * 2) calc(0.25rem * 2) calc(0.25rem * 1.5);
+  --padding-composer-single-line-footer-block: 0.25rem;
+  --spacing-composer-input-footer: 0.25rem;
+  --spacing-composer-footer-bottom: calc(0.25rem * 2);
+  --spacing-composer-single-line-controls: calc(0.25rem * 1.25);
+  --thread-gutter: calc(0.25rem * 4);
+
+  /* 3.6 `--menu-backdrop-filter`：官方 electron 档**没有这个 token**，这里显式落 none。
+   *
+   * 官方出处（本组逐条复核过，不是转述）：
+   *   · 该 token 在官方 4 份发行 CSS（shell-initial / shell-primary / shell-shared / webview）
+   *     里总共只出现 **1 处**，且在 browser 分支：
+   *       shell-shared.css:4068  `--menu-backdrop-filter:blur(var(--blur-lg))`
+   *       （选择器 :is(:where(:root),:where([data-theme])):where(:root[data-codex-window-type=browser],… *)，
+   *         本工程 tokens.css:61 已按原文搬运）
+   *   · 消费端官方写的是**带兜底**的形式：`backdrop-filter:var(--menu-backdrop-filter,none)`
+   *     （官方 _MenuList_12y2s_2，shell-initial.css）；
+   *   · 参考端实测 tokens.runtime.json（1525 条）里 —— **--menu-backdrop-filter 0 命中**，
+   *     于是 electron 下解析为 **none**。见 docs/SPEC-OVERLAYS.md §0.1。
+   * 真正可见的 8px 模糊来自弹层**自己**声明的 Tailwind `backdrop-blur-sm`（= --blur-sm = 8px），
+   *   与本 token 无关：模型选择器 ui.css:2281、权限菜单 ui.css:2413、输入区 chat.css:1433 都是显式的。
+   *   实机复核：改完这条后 .cx-model-picker__content / 权限菜单的 computed backdrop-filter 仍是 blur(8px)。
+   *
+   * ⚠️ 为什么不整条删掉、也不改上面的 :root：
+   *   · 断言口径 —— verify.mjs 的 924 条比的是 **:root 计算值**（tools/codex-token-page.js:67 只读
+   *     document.documentElement），"--menu-" 在比对前缀表里；本条虽不在参考端名单（故断言不比它），
+   *     但同块其它 --menu-* 都在，动 :root 是拿生命线冒险；
+   *   · 本文件 .codex-menu-surface（见 6.1）用的是**不带兜底**的 var(--menu-backdrop-filter)，
+   *     整条删掉会让该声明落成 invalid-at-computed-value-time；给显式 none 才是语义等价且可测的写法。 */
+  --menu-backdrop-filter: none;
+}
+
+/* ── 3.7 body 档：官方把 15 条 token **下沉到 body**（属性在 <html> 上，选择器再找后代 body）
+ *
+ * 官方出处（脚本按花括号配对逐条抄回，不是摘要转述）：
+ *   · 官方发行 CSS：app\webview\assets\app-shared-f2d570e85ceb.css —— 单行压缩，
+ *     该选择器起于文件第 1230397 字节（全文件只此 1 处 `…data-codex-window-type=electron]) body`）。
+ *   · 证据副本（同一文件的美化本）：captures/css-pretty/shell-shared.css:19334（该文件共 19335 行）。
+ *   同一条超长行里紧挨着的两个块：
+ *     :root { --padding-row-y: calc(var(--spacing) * 1); … }                     → :root 档 4px
+ *     :is([data-codex-window-type=browser],[data-codex-window-type=chrome-extension],
+ *         [data-codex-window-type=electron]) body { …以下 15 条… }                → 元件真正吃到的值
+ *   全仓扫描口径：对三份发行 CSS（app-shared / app-initial / app-primary）用
+ *   「选择器含 body 单词 + 声明体含 --* 变量」正则枚举，共命中 14 条规则；其中作用于 electron
+ *   窗口类型且声明 token 的**只有这一条**（其余属 browser / chrome-extension / extension 分支）。
+ *   另有 1 条 electron 条件块 `.electron-opaque body { --app-color-background-elevated-primary: …-opaque }`
+ *   —— 不在本轮 15 条名单内，未落地，已在汇报里登记待派。
+ *
+ * 为什么必须写在 body 上、而不能改上面的 :root 值（本组的生命线）：
+ *   · verify.mjs 的 924 条断言比的是 **:root 计算值**（tools/codex-token-page.js:118 只读
+ *     document.documentElement），参考端 :root 就是 4px —— 改 :root 直接掉 100%；
+ *   · 而菜单条目 / cmdk 行 / 权限菜单条目的 padding 官方写作
+ *     `var(--padding-row-y) var(--padding-row-x)`，它们继承的是 **body** 的值 → 只有 body 档能拿到 5px。
+ *
+ * ⚠️ 选择器形态照抄官方：属性打在 <html> 上、再找后代 body。写成 `body[data-codex-window-type=electron]`
+ *    匹配不到 —— 实机 cdp-eval 读到的 body 属性只有 `tabindex=0 style=outline: none`，属性在 <html> 上。
+ *
+ * ⚠️ --font-code-size 与本工程「设置 → 代码字号」的相互作用（本组唯一有连带影响的一条）：
+ *    官方注入字号时**同时写 <html> 与 <body>**（app-initial-25361a10f2bf.js：
+ *    `let e11 = document.documentElement, t11 = document.body, n11 = { "--font-code-size": … };
+ *     ac(e11, n11); { … ac(e11, s12), ac(t11, s12) … }`）—— 成对写的是字号表 s12
+ *    （`--font-ui-size` + 同文件顶部 SOs 的 `--text-*` 全表 + 字体族），而含 `--font-code-size`
+ *    的 n11 官方**只写 <html>**。所以官方 body 上这条 CSS 覆盖不到用户在 inline style 里选的
+ *    代码字号：参考端实测 html=12px / **body=13px**（captures/tokens.runtime.json:1583-1586）。
+ *    本工程的处理（Lead 裁决「采用官方机制」）：src/settings/store.ts 的受管 inline 变量照官方
+ *    **成对写到 `<html>` 与 `<body>`，其中 `--font-code-size` 也写 body** —— inline 压过本条的
+ *    `var(--text-sm)`，「设置 → 外观 → 代码字号」选的值才真的生效。原先那条非官方的补偿选择器
+ *    `:root[style*="--font-code-size"] body { --font-code-size: inherit }`（§3.7b）已随之整块删除。 */
+:is(
+  [data-codex-window-type="browser"],
+  [data-codex-window-type="chrome-extension"],
+  [data-codex-window-type="electron"]
+) body {
+  /* 以下 15 条 = 官方 shell-shared.css:19334 该块的全部声明（原文顺序、原文字面量）。
+     每行尾部注「本工程 body 生效值（:root 档旧值）」。 */
+  --padding-row-y: calc(var(--spacing) * 1.25); /* 5px（:root 4px） */
+  --height-token-nav-row: calc(
+    var(--text-base) *
+    1.5 +
+    var(--padding-row-y) *
+    2
+  ); /* 14×1.5+5×2 = 31px（:root 29px） */
+  --padding-panel-base: calc(var(--spacing) * 5); /* 20px（:root 12px） */
+  --padding-panel: var(--padding-panel-base); /* 20px（:root 12px） */
+  --thread-content-max-width: 48rem; /* 768px（:root none，SPEC §8 记的正是 :root 档） */
+  --composer-adjacent-max-width: calc(
+    var(--thread-content-max-width) +
+    var(--composer-inline-overhang) +
+    var(--composer-inline-overhang) -
+    var(--home-composer-inline-inset) -
+    var(--home-composer-inline-inset)
+  ); /* 768+24+24−13−13 = 790px（:root 100%） */
+  --markdown-wide-block-max-width: 56rem; /* 896px（:root 64rem = 1024px） */
+  --color-background-primary-soft-alpha: var(
+    --app-color-background-elevated-secondary
+  ); /* rgba(255,255,255,.032)，与 :root 同值 */
+  --font-code-family:
+    ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; /* 与 --font-mono-default 同栈 → --font-mono 取值不变 */
+  --font-ui-size: var(--text-base); /* 14px（与 :root 同值） */
+  --font-code-size: var(--text-sm); /* 13px（:root 12px） */
+  --codex-chat-font-size-override: var(--font-ui-size); /* 14px（:root 未声明） */
+  --codex-chat-code-font-size-override: var(--font-code-size); /* 13px（:root 未声明） */
+  --spacing-token-button-composer-sm: calc(var(--spacing) * 7); /* 28px（:root calc(spacing×5) = 20px） */
+  --text-heading-md: 18px; /* :root 20px */
+}
+
+/* ── 4. Electron + 暗色档 · 官方运行时注入的调色板与派生值 ─────────────────
+ * 参考端实测是 dark（tokens.runtime.json: info.colorScheme = "dark"）。
+ * 这里钉的是官方 JS 注入层的值：静态 CSS 的对应写法是 8% / 5% / 16% / 4% 这类
+ * 近似默认值，实测生效值是 8.4% / 5.2% / 15.6% / 4.2%……（误差 <1% alpha，但逐条可比）。
+ * 钉在"根层"上，语义 token（--color-border / --color-background-primary-ghost-hover …）
+ * 由 tokens.css 的 var() 引用自动派生，不需要逐个重复定义。
+ * 全部 [rt]。 */
+:root[data-codex-window-type="electron"][data-theme="dark"],
+:root[data-codex-window-type="electron"].dark {
+  /* 4.1 调色板根层（官方 --app-color-*，41 条） */
+  --app-color-background-surface-under: #141414;
+  --app-color-background-application-menu: #1f1f1f; /* tokens.css:64 派生为 var(--gray-fixed-800)=#212121，实测 #1f1f1f */
+  --app-color-foreground-application-menu: #e3e3e3;
+  --app-color-border-application-menu-separator: #5e5e5e;
+  --app-color-background-editor-opaque: rgb(40, 40, 40);
+  --app-color-background-elevated-primary: rgba(54, 54, 54, 0.96);
+  --app-color-background-elevated-primary-opaque: rgb(54, 54, 54);
+  --app-color-background-elevated-secondary: rgba(255, 255, 255, 0.032);
+  --app-color-background-elevated-secondary-opaque: #282828;
+  --app-color-background-button-primary-hover: rgba(255, 255, 255, 0.058);
+  --app-color-background-button-primary-active: rgba(255, 255, 255, 0.1);
+  --app-color-background-button-primary-inactive: rgba(255, 255, 255, 0.032);
+  --app-color-background-button-secondary: rgba(255, 255, 255, 0.052);
+  --app-color-background-button-secondary-hover: rgba(255, 255, 255, 0.078);
+  --app-color-background-button-secondary-active: rgba(255, 255, 255, 0.12);
+  --app-color-background-button-secondary-inactive: rgba(255, 255, 255, 0.038);
+  --app-color-background-button-tertiary: rgba(255, 255, 255, 0.029);
+  --app-color-background-button-tertiary-hover: rgba(255, 255, 255, 0.068);
+  --app-color-background-button-tertiary-active: rgba(255, 255, 255, 0.1);
+  --app-color-background-accent: #0d273f;
+  --app-color-background-accent-hover: #0e2a45;
+  --app-color-background-accent-active: #0f2e4a;
+  --app-color-text-foreground-secondary: rgba(255, 255, 255, 0.71);
+  --app-color-text-foreground-tertiary: rgba(255, 255, 255, 0.498);
+  --app-color-text-button-primary: rgb(13, 13, 13);
+  --app-color-text-button-secondary: #4f4f4f;
+  --app-color-text-button-tertiary: rgba(255, 255, 255, 0.51);
+  --app-color-text-accent: rgb(131, 195, 255);
+  --app-color-text-on-accent: rgb(255, 255, 255);
+  --app-color-icon-primary: rgba(255, 255, 255, 0.904);
+  --app-color-icon-secondary: rgba(255, 255, 255, 0.71);
+  --app-color-icon-tertiary: rgba(255, 255, 255, 0.51);
+  --app-color-icon-accent: rgb(131, 195, 255);
+  --app-color-border: rgba(255, 255, 255, 0.084);
+  --app-color-border-heavy: rgba(255, 255, 255, 0.156);
+  --app-color-border-light: rgba(255, 255, 255, 0.042);
+  --app-color-border-focus: rgba(131, 195, 255, 0.76);
+  --app-color-editor-added: rgba(64, 201, 119, 0.23);
+  --app-color-editor-deleted: rgba(250, 66, 62, 0.23);
+  --app-color-simple-scrim: rgba(255, 255, 255, 0.104);
+  --app-color-background-control: rgba(45, 45, 45, 0.96);
+  --app-color-text-unread-badge: rgb(255, 255, 255);
+
+  /* 4.2 语义 / 组件色：静态 CSS 派生不出实测值的部分（16 条） */
+  --color-surface-canvas: color-mix(
+    in srgb,
+    #181818 98%,
+    #000
+  ); /* tokens.css:40 被 @supports 分支覆盖，实测为 98% 混黑 */
+  --color-background-panel: #232323;
+  --color-background-control-opaque: rgb(45, 45, 45);
+  --color-background-primary-soft-alpha: rgba(255, 255, 255, 0.032);
+  --color-text-primary-solid: rgb(45, 45, 45);
+  --color-text-composer-primary: rgb(45, 45, 45);
+  --color-text-header-upgrade: #63a8f8;
+  --color-background-header-upgrade-hover: color-mix(in srgb, #a4cdfb 20%, transparent);
+  --color-background-mode-toggle-track: rgba(255, 255, 255, 0.068);
+  --color-background-mode-toggle-selected: rgb(45, 45, 45);
+  --color-border-mode-toggle-selected: rgba(255, 255, 255, 0.084);
+  --color-border-button-outline: rgba(255, 255, 255, 0.084);
+  --color-border-overlay: rgba(255, 255, 255, 0.084);
+  --color-border: rgba(255, 255, 255, 0.084);
+  --color-border-subtle: rgba(255, 255, 255, 0.042);
+  --color-border-strong: rgba(255, 255, 255, 0.156);
+
+  /* 4.3 阴影 / 发丝线 / 弹层（官方 tokens.css:37 的 .2/.2/.36/.3 与 .5px/#ffffff1f 才是生效值，
+     静态 --shadow-hairline-width 写的是 1px）
+   *
+   * ⚠️ 序列化说明：官方 tokens.runtime.json 里写的是 `.5px` / `-.15px`，但 biome 的 CSS
+   *    格式化器会自动补前导零（`.5px` → `0.5px`、`-.15px` → `-0.15px`），所以本文件里是补零后的写法。
+   *    两者渲染完全等价；tools/verify.mjs 的 `S|` 分支已按"任何非数字非点的前导都归零"归一化，不会再报假阳性。
+   *    请不要为了逐字符对齐 capture 而手动改回 `.5px` —— 下次 `lint:fix` 又会被改掉。 */
+  --shadow-alpha-100: 0.2;
+  --shadow-alpha-200: 0.2;
+  --shadow-alpha-300: 0.36;
+  --shadow-alpha-400: 0.3;
+  --shadow-hairline-width: 0.5px;
+  --shadow-hairline-color: #ffffff1f;
+  --shadow-100: 0 1px 2px -1px rgb(0 0 0 / 0.2);
+  --shadow-200: 0 2px 4px -1px rgb(0 0 0 / 0.2);
+  --shadow-300: 0 4px 8px -2px rgb(0 0 0 / 0.36);
+  --shadow-400: 0 8px 16px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl-spread: 0px 0px 0px 0.5px rgba(255, 255, 255, 0.084), 0px 8px 16px -4px #0000001f;
+  --shadow-dropdown-overlay: 0px 0px 0px 0.5px rgba(255, 255, 255, 0.084), 0px 8px 16px -4px #0000001f;
+  --shadow-viewer-surface: 0 0 0 1px rgba(255, 255, 255, 0.042), 0px 4px 16px 0px #0000000d;
+  --shadow-tooltip: 0 8px 18px #0f172a33; /* tokens.css 未声明，官方 JS 注入 */
+  --menu-box-shadow: 0px 0px 0px 0.5px rgba(255, 255, 255, 0.084), 0px 8px 16px -4px #0000001f;
+  --menu-separator-background-color: rgba(255, 255, 255, 0.084);
+  --dialog-backdrop-fade-shadow:
+    0 8px 16px 0 #00000059, 0 2px 8px 0 #0003, inset 0 0 0 1px rgba(255, 255, 255, 0.042);
+  --modal-backdrop-fade-shadow:
+    0 8px 16px 0 #00000059, 0 2px 8px 0 #0003, inset 0 0 0 1px rgba(255, 255, 255, 0.042);
+  --modal-sheet-fade-shadow: 0 -8px 16px 0 #00000059, 0 -2px 8px 0 #0003, 0 0 0 1px #0006;
+}
+
+/* ── 5. Tailwind v4 出口 ─────────────────────────────────────────────────
+ * ⚠️ 名字统一带 cx- 前缀。原因：官方 token 已经叫 --color-surface / --text-sm，
+ * 而 Tailwind 的 @theme 变量名就是产出的 CSS 变量名 —— 如果这里写
+ * --color-surface: var(--color-surface) 会构成 CSS 变量循环依赖，
+ * computed value 直接失效（这个坑我们在 ARTEX 上真踩过）。
+ * 前缀化以后既拿到原子类，又不与官方 token 打架。
+ *
+ * 产出示例：bg-cx-surface / text-cx-secondary / text-cx-md / rounded-cx-lg /
+ *           shadow-cx-menu / blur-cx-lg / ease-cx-enter / font-cx-ui …
+ * ─────────────────────────────────────────────────────────────────────── */
+@theme inline static {
+  /* 5.1 表面 */
+  --color-cx-surface: var(--color-surface);
+  --color-cx-surface-card: var(--color-surface-card, var(--color-surface));
+  --color-cx-surface-secondary: var(--color-surface-secondary);
+  --color-cx-surface-tertiary: var(--color-surface-tertiary);
+  --color-cx-surface-elevated: var(--color-surface-elevated);
+  --color-cx-elevated-secondary: var(--color-surface-elevated-secondary);
+  --color-cx-surface-canvas: var(--color-surface-canvas, var(--color-surface));
+  --color-cx-panel: var(--color-background-panel, var(--color-surface));
+  --color-cx-overlay: var(--color-background-control-opaque, var(--color-surface-elevated));
+
+  /* 5.2 文本 */
+  --color-cx-text: var(--color-text);
+  --color-cx-text-emphasis: var(--color-text-emphasis, var(--color-text));
+  --color-cx-secondary: var(--color-text-secondary);
+  --color-cx-tertiary: var(--color-text-tertiary);
+  --color-cx-disabled: var(--color-text-disabled, var(--color-text-tertiary));
+  --color-cx-inverse: var(--color-text-inverse, var(--color-text-primary-solid));
+  --color-cx-danger: var(--color-text-danger, var(--red-300));
+  --color-cx-success: var(--color-text-success, var(--green-300));
+  --color-cx-warning: var(--color-text-warning, var(--orange-300));
+  --color-cx-info: var(--color-text-info, var(--blue-300));
+  --color-cx-accent: var(--blue-400);
+
+  /* 5.3 边框 / 焦点 */
+  --color-cx-border: var(--color-border);
+  --color-cx-border-subtle: var(--color-border-subtle);
+  --color-cx-border-strong: var(--color-border-strong);
+  --color-cx-border-overlay: var(--color-border-overlay, var(--color-border));
+  --color-cx-ring: var(--color-ring, var(--blue-300));
+
+  /* 5.4 交互态填充 */
+  --color-cx-hover: var(--color-background-primary-ghost-hover);
+  --color-cx-active: var(
+    --color-background-primary-ghost-active,
+    var(--color-background-primary-ghost-hover)
+  );
+  --color-cx-soft: var(--color-background-primary-soft, var(--color-surface-elevated));
+  --color-cx-soft-hover: var(
+    --color-background-primary-soft-hover,
+    var(--color-background-primary-ghost-hover)
+  );
+  --color-cx-selected: var(--color-background-secondary-solid, var(--color-background-primary-ghost-hover));
+
+  /* 5.5 浮层 */
+  --color-cx-menu: var(--menu-background-color, var(--color-surface-elevated-secondary));
+  --color-cx-menu-item-hover: var(--menu-item-background-color, var(--color-background-primary-ghost-hover));
+  --color-cx-tooltip: var(--tooltip-background-color, var(--color-surface-elevated));
+  --color-cx-tooltip-text: var(--tooltip-text-color, var(--color-text));
+  --color-cx-tooltip-compact: var(--tooltip-compact-background-color, var(--color-text));
+  --color-cx-tooltip-compact-text: var(--tooltip-compact-text-color, var(--color-text-inverse));
+  --color-cx-dialog-backdrop: var(--modal-backdrop-background, #00000080);
+  --color-cx-scrim: var(--app-color-simple-scrim, #ffffff1a);
+
+  /* 5.6 字号阶（官方 --font-text-* 自带 size / line-height）
+     需要同时要字重或字距时显式加 font-cx-* / tracking-cx-* */
+  --text-cx-2xs: var(--font-text-2xs-size);
+  --text-cx-2xs--line-height: var(--font-text-2xs-line-height);
+  --text-cx-xs: var(--font-text-xs-size);
+  --text-cx-xs--line-height: var(--font-text-xs-line-height);
+  --text-cx-sm: var(--font-text-sm-size);
+  --text-cx-sm--line-height: var(--font-text-sm-line-height);
+  --text-cx-md: var(--font-text-md-size);
+  --text-cx-md--line-height: var(--font-text-md-line-height);
+  --text-cx-lg: var(--font-text-lg-size);
+  --text-cx-lg--line-height: var(--font-text-lg-line-height);
+  --text-cx-base: var(--text-base);
+  --text-cx-base--line-height: var(--text-base--line-height);
+
+  /* 5.7 字体与字重（官方 --font-sans/--font-mono 本身即"可被 UI 变量覆盖"的写法，不会成环） */
+  --font-cx-sans: var(--font-sans);
+  --font-cx-mono: var(--font-mono);
+  --font-weight-cx-ui: var(--font-ui-weight, 430);
+  --font-weight-cx-normal: 400;
+  --font-weight-cx-medium: 500;
+  --font-weight-cx-semibold: 590;
+  --tracking-cx-tooltip: var(--tracking-tooltip, -0.15px);
+  --tracking-cx-tight: -0.01125rem;
+
+  /* 5.8 圆角（官方 --radius-* 已经乘过 --corner-radius-scale） */
+  --radius-cx-2xs: var(--radius-2xs);
+  --radius-cx-xs: var(--radius-xs);
+  --radius-cx-sm: var(--radius-sm);
+  --radius-cx-md: var(--radius-md);
+  --radius-cx-lg: var(--radius-lg);
+  --radius-cx-xl: var(--radius-xl);
+  --radius-cx-2xl: var(--radius-2xl);
+  --radius-cx-3xl: var(--radius-3xl);
+  --radius-cx-4xl: var(--radius-4xl);
+  --radius-cx-full: var(--radius-full);
+  --radius-cx-menu: var(--menu-radius);
+  --radius-cx-menu-item: var(--menu-item-radius);
+  --radius-cx-dialog: var(--dialog-radius);
+  --radius-cx-modal: var(--modal-radius);
+  --radius-cx-popover: var(--popover-radius);
+  --radius-cx-tooltip: var(--tooltip-border-radius);
+  --radius-cx-composer: var(--composer-radius);
+
+  /* 5.9 阴影 */
+  --shadow-cx-100: var(--shadow-100);
+  --shadow-cx-200: var(--shadow-200);
+  --shadow-cx-300: var(--shadow-300);
+  --shadow-cx-400: var(--shadow-400);
+  --shadow-cx-sm: var(--shadow-sm);
+  --shadow-cx-md: var(--shadow-md);
+  --shadow-cx-lg: var(--shadow-lg);
+  --shadow-cx-xl: var(--shadow-xl);
+  --shadow-cx-2xl: var(--shadow-2xl);
+  --shadow-cx-hairline: var(--shadow-hairline);
+  --shadow-cx-spread: var(--shadow-xl-spread);
+  --shadow-cx-menu: var(--menu-box-shadow);
+  --shadow-cx-dropdown: var(--shadow-dropdown-overlay);
+  --shadow-cx-tooltip: var(--tooltip-box-shadow);
+  --shadow-cx-dialog: var(--dialog-backdrop-fade-shadow);
+  --shadow-cx-viewer: var(--shadow-viewer-surface);
+
+  /* 5.10 模糊 */
+  --blur-cx-xs: var(--blur-xs);
+  --blur-cx-sm: var(--blur-sm);
+  --blur-cx-md: var(--blur-md);
+  --blur-cx-lg: var(--blur-lg);
+  --blur-cx-xl: var(--blur-xl);
+
+  /* 5.11 动效曲线与时长 */
+  --ease-cx-enter: var(--cubic-enter);
+  --ease-cx-exit: var(--cubic-exit);
+  --ease-cx-exit-snappy: var(--cubic-exit-snappy);
+  --ease-cx-move: var(--cubic-move);
+  --ease-cx-basic: var(--ease-basic);
+
+  /* 5.12 外壳几何（W4/W5 常用，来源见本文件 §3） */
+  --spacing-cx-menubar: 36px;
+  --spacing-cx-rail: 52px;
+  --spacing-cx-panel: 288px;
+  --spacing-cx-shell-gutter: 4px;
+  --spacing-cx-row: var(--height-token-row);
+  --spacing-cx-nav-row: var(--height-token-nav-row);
+}
+
+/* ── 5.13 出口白名单：强制生成 §5 里承诺的原子类 ─────────────────────────
+ * Tailwind v4 只生成"在源码里静态出现过"的类；本文件对外承诺的是一套组件库 API，
+ * 不能因为当前没人用就消失。这里用 @source inline() 把这些名字钉进产物。
+ * 新增出口时请同步在本块登记。 */
+@source inline("{bg,text,border,ring}-cx-{surface,surface-card,surface-secondary,surface-tertiary,surface-elevated,elevated-secondary,surface-canvas,panel,overlay}");
+@source inline("text-cx-{text,text-emphasis,secondary,tertiary,disabled,inverse,danger,success,warning,info,accent}");
+@source inline("border-cx-{border,border-subtle,border-strong,border-overlay}");
+@source inline("bg-cx-{hover,active,soft,soft-hover,selected,menu,menu-item-hover,tooltip,tooltip-text,tooltip-compact,tooltip-compact-text,dialog-backdrop,scrim,accent}");
+@source inline("text-cx-{2xs,xs,sm,md,lg,base}");
+@source inline("font-cx-{sans,mono,ui,normal,medium,semibold}");
+@source inline("tracking-cx-{tooltip,tight}");
+@source inline("rounded-cx-{2xs,xs,sm,md,lg,xl,2xl,3xl,4xl,full,menu,menu-item,dialog,modal,popover,tooltip,composer}");
+@source inline("shadow-cx-{100,200,300,400,sm,md,lg,xl,2xl,hairline,spread,menu,dropdown,tooltip,dialog,viewer}");
+@source inline("blur-cx-{xs,sm,md,lg,xl}");
+@source inline("ease-cx-{enter,exit,exit-snappy,move,basic}");
+
+/* ── 6. 组件便捷类 ───────────────────────────────────────────────────────
+ * W4 / W5 直接用；放在 @layer components，Tailwind 原子类仍可覆盖。
+ * 取值一律引用官方 token，不写魔数。 */
+@layer components {
+  /* 6.1 应用菜单 / 下拉 / 右键菜单 */
+  .codex-menu-surface {
+    min-width: 0;
+    padding: var(--menu-gutter);
+    color: var(--color-text);
+    background-color: var(--menu-background-color);
+    border-radius: var(--menu-radius);
+    box-shadow: var(--menu-box-shadow);
+    backdrop-filter: var(--menu-backdrop-filter);
+    font-size: var(--menu-font-size);
+    line-height: var(--menu-line-height);
+    corner-shape: var(--menu-corner-shape);
+  }
+
+  .codex-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--menu-item-gap, calc(var(--spacing) * 1.5));
+    width: 100%;
+    padding: var(--menu-item-padding);
+    color: inherit;
+    background-color: transparent;
+    border: 0;
+    border-radius: var(--menu-item-radius);
+    font: inherit;
+    text-align: start;
+    cursor: var(--cursor-interaction, pointer);
+    user-select: none;
+    transition: background-color var(--transition-duration-basic) var(--ease-basic);
+  }
+
+  .codex-menu-item:hover,
+  .codex-menu-item[data-highlighted],
+  .codex-menu-item:focus-visible {
+    background-color: var(--menu-item-background-color);
+    outline: none;
+  }
+
+  .codex-menu-item[data-disabled],
+  .codex-menu-item:disabled {
+    color: var(--color-text-tertiary);
+    pointer-events: none;
+  }
+
+  .codex-menu-item-shortcut {
+    margin-inline-start: auto;
+    color: var(--color-text-tertiary);
+    font-size: var(--menu-font-size);
+    letter-spacing: -0.02em;
+  }
+
+  .codex-menu-separator {
+    height: 1px;
+    margin: var(--menu-separator-gutter);
+    background-color: var(--menu-separator-background-color);
+  }
+
+  .codex-menu-label {
+    padding: var(--menu-item-content-padding, calc(var(--spacing) * 1) calc(var(--spacing) * 2));
+    color: var(--color-text-tertiary);
+    font-size: var(--menu-font-size);
+    font-weight: var(--font-ui-weight, 430);
+  }
+
+  /* 6.1b 应用菜单（顶部 36px 那一条的下拉）—— **不是**通用 --menu-* 弹层
+   * 出处：docs 证据 SPEC.md §5（参考端实测全量结构）。两者是不同组件，别混：
+   *   应用菜单：底 #1f1f1f、圆角 7.5px(= --radius-sm)、阴影 rgba(0,0,0,.42) 0 4px 12px、
+   *             条目 28px 高 / padding 5px 16px / 字体 12px:18px:400 / 步进 28px
+   *   通用弹层：走 §6.1 的 --menu-*（底色 rgb(45,45,45)、圆角 20px、字体 13px）
+   * 色值同时对应 [rt] --app-color-background-application-menu = #1f1f1f。 */
+  .codex-app-menu-surface {
+    padding: 4px 0;
+    color: var(--color-text);
+    background-color: var(--app-color-background-application-menu, var(--color-surface-elevated-secondary));
+    border: 0;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.42);
+    corner-shape: round;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .codex-app-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    min-height: 28px;
+    padding: 5px 16px;
+    color: var(--color-text);
+    background-color: transparent;
+    border: 0;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    text-align: start;
+    cursor: var(--cursor-interaction, pointer);
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .codex-app-menu-item:hover,
+  .codex-app-menu-item[data-highlighted],
+  .codex-app-menu-item:focus-visible {
+    background-color: var(--color-background-primary-ghost-hover);
+    outline: none;
+  }
+
+  .codex-app-menu-item[data-disabled],
+  .codex-app-menu-item:disabled {
+    color: var(--color-text-tertiary);
+    pointer-events: none;
+  }
+
+  .codex-app-menu-item-shortcut {
+    margin-inline-start: auto;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .codex-app-menu-separator {
+    height: 0.5px;
+    margin: 8px 0;
+    background-color: var(--app-color-border-application-menu-separator, var(--color-border-strong));
+  }
+
+  /* 6.1c 菜单栏按钮（SPEC §4 实测：r 10px / padding 4px 10px / 14px:14px:400 / 色 rgba(255,255,255,.498)） */
+  .codex-menu-bar-trigger {
+    padding: 4px 10px;
+    color: var(--color-text-tertiary);
+    background-color: transparent;
+    border: 0;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    line-height: 14px;
+    font-weight: 400;
+    cursor: var(--cursor-interaction, pointer);
+    transition:
+      background-color var(--transition-duration-basic) var(--ease-basic),
+      color var(--transition-duration-basic) var(--ease-basic);
+  }
+
+  .codex-menu-bar-trigger:hover,
+  .codex-menu-bar-trigger[data-state="open"] {
+    color: var(--color-text);
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+
+  /* 6.2 对话框 / 模态 / 浮层容器 */
+  .codex-modal-surface,
+  .codex-dialog-surface {
+    color: var(--color-text);
+    background-color: var(--color-surface-elevated);
+    border-radius: var(--modal-radius);
+    box-shadow: var(--modal-backdrop-dim-shadow);
+  }
+
+  .codex-dialog-surface {
+    min-width: var(--dialog-min-width, 250px);
+    max-width: var(--dialog-max-width, 450px);
+    border-radius: var(--dialog-radius);
+  }
+
+  .codex-popover-surface {
+    color: var(--color-text);
+    background-color: var(--color-surface-elevated);
+    border-radius: var(--popover-radius);
+    box-shadow: var(--shadow-dropdown-overlay);
+    outline: var(--popover-overlay-ring-width, 0.5px) solid var(--color-border-subtle);
+    outline-offset: calc(-1 * var(--popover-overlay-ring-width, 0.5px));
+  }
+
+  .codex-tooltip-surface {
+    max-width: 20rem;
+    padding: var(--tooltip-padding-sm);
+    color: var(--tooltip-text-color);
+    background-color: var(--tooltip-background-color);
+    border-radius: var(--tooltip-border-radius);
+    box-shadow: var(--tooltip-box-shadow);
+    font-size: var(--tooltip-font-size);
+    font-weight: var(--tooltip-font-weight);
+    line-height: var(--tooltip-line-height);
+    letter-spacing: var(--tracking-tooltip, -0.15px);
+  }
+
+  .codex-tooltip-surface[data-compact] {
+    padding: var(--tooltip-compact-padding);
+    color: var(--tooltip-compact-text-color);
+    background-color: var(--tooltip-compact-background-color);
+    font-weight: var(--tooltip-compact-font-weight);
+  }
+
+  /* 6.3 遮罩 */
+  .codex-scrim {
+    position: fixed;
+    inset: 0;
+    background-color: var(--modal-backdrop-background);
+  }
+
+  /* 6.4 输入区外壳
+   * SPEC §7 实测：bg rgb(54,54,54)（不透明）、border-radius 22px、corner-shape SE1.5、
+   * box-shadow: rgba(255,255,255,0.2) 0 0 1px 0 inset（= --elevation-composer-dark）。 */
+  .codex-composer-surface {
+    background-color: var(--composer-background-color);
+    border-radius: var(--composer-radius);
+    corner-shape: var(--composer-corner-shape, var(--codex-corner-shape));
+    box-shadow: var(--elevation-composer-dark, inset 0 0 1px 0 #fff3);
+  }
+
+  /* 6.5 焦点环（官方 :focus-visible 用 --color-ring） */
+  .codex-focus-ring:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /* 6.6 发丝线边框（0.5px 半像素描边，官方 ELEVATION 体系里的基础单元） */
+  .codex-hairline {
+    box-shadow: 0 0 0 var(--shadow-hairline-width) var(--shadow-hairline-color);
+  }
+}

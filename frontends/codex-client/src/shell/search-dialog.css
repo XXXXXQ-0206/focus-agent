@@ -1,0 +1,144 @@
+/* 搜索对话层 —— 几何取自 dsh-codex-ui 的 CodexSidebar 搜索层（见 SearchDialog.tsx 注释；
+   SPEC §13/§15 明确 command palette 未实测，故不作为参考端实测值） */
+
+.codex-search-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: color-mix(in srgb, #000 48%, transparent);
+  animation: codex-search-scrim-in 140ms var(--cubic-enter) both;
+}
+
+@keyframes codex-search-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.codex-search-dialog {
+  width: min(560px, 100%);
+  margin-block-start: 72px;
+  padding: 10px;
+  border-radius: 16px;
+  corner-shape: round;
+  background: var(--color-surface-elevated-secondary);
+  box-shadow: var(--shadow-xl-spread, 0 8px 16px -4px #0000001f);
+  color: var(--color-text-emphasis);
+  animation: codex-search-dialog-in 140ms var(--cubic-enter) both;
+}
+
+@keyframes codex-search-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.codex-search-dialog__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+  color: var(--color-text-tertiary);
+}
+
+.codex-search-dialog__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-emphasis);
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 20px;
+  outline: none;
+}
+
+.codex-search-dialog__input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.codex-search-dialog__kbd {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.codex-search-dialog__results {
+  max-height: 52vh;
+  margin-block-start: 6px;
+  overflow-y: auto;
+}
+
+.codex-search-dialog__group {
+  padding: 8px 10px 4px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.codex-search-dialog__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-emphasis);
+  font-size: 14px;
+  font-weight: 430;
+  line-height: 20px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.codex-search-dialog__item[data-active="true"],
+.codex-search-dialog__item:hover {
+  background: var(--color-background-primary-ghost-hover);
+}
+
+.codex-search-dialog__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-search-dialog__hint {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.codex-search-dialog__empty {
+  padding: 16px 10px;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+}
+
+:root[data-reduced-motion="true"] .codex-search-scrim,
+:root[data-reduced-motion="true"] .codex-search-dialog {
+  animation: none;
+}

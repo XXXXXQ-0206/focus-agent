@@ -6,8 +6,11 @@
 # 不再模拟 Next/Go 编译，速度快得多。
 #
 # 本地手动构建镜像时，先自行准备二进制：
-#   cd web && npm run build:static && cd ..
-#   cp -r web/out server/webui/dist
+#   cd frontends/codex-client && npm ci && npm run build && cd ../..
+#   cd frontends/artex-web && npm ci && NEXT_EXPORT=1 npm run build && cd ../..
+#   mkdir -p server/webui/dist/codex server/webui/dist/artex
+#   cp -r frontends/codex-client/dist/. server/webui/dist/codex/
+#   cp -r frontends/artex-web/out/. server/webui/dist/artex/
 #   CGO_ENABLED=0 GOARCH=amd64 go build -tags embedui -o dist/amd64/artex ./cmd/artex
 #   docker build -t artex:local .
 FROM python:3.12-slim-bookworm

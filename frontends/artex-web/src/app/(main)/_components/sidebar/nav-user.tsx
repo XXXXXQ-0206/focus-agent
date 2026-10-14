@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import { appPath } from "@/lib/app-path";
 import { api } from "@/lib/api";
 import { getInitials } from "@/lib/utils";
 
@@ -43,7 +44,7 @@ export function NavUser({
         auth.clearToken();
         // 硬跳转：让浏览器用已清除的 cookie 发起全新请求，
         // middleware 才能正确读到空标记并放行 /login
-        window.location.href = "/login";
+        window.location.href = appPath("/login");
       });
   }
 

@@ -1,4 +1,4 @@
-// intranet.go 是「内网作战页」的人工操作 API(期 1-3 能力的 Web 暴露面):
+// intranet.go 是「内网会话页」的人工操作 API(期 1-3 能力的 Web 暴露面):
 // 会话台账/人工 exec/文件列读写删、隧道台账/teardown、凭据脱敏列表、拓扑组装。
 // 全部挂在 /api 下 requireAuth 之后(JWT),与 agent host 工具(session.go/
 // tunnel.go/credentials.go)完全隔离——那边是模型经 guard 审批的通道,这边是

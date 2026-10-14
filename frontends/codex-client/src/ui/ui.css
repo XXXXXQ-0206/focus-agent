@@ -1,0 +1,2759 @@
+/* ============================================================================
+ * 基础件样式层（ui）
+ *
+ * 数值来源（每条都能复算）：
+ *   · 官方 CSS   —— evidence/codex-desktop/captures/css-pretty/<label>.css:<line>
+ *   · token 层   —— tokens.css（官方 @layer theme 原文）+ styles/theme.css（Electron 档实测覆盖）
+ *   · SPEC 实测  —— C:\artex-ymh\evidence\codex-desktop\SPEC.md §2/§9/§10
+ *
+ * 约定：
+ *   1) 组件一律用 data-* 属性表达状态（官方同款），不从 className 猜测状态：
+ *      data-variant / data-size / data-color / data-disabled / data-pill …
+ *   2) 颜色、圆角、阴影、动效全部走官方 token，不写死十六进制。
+ *   3) 每个交互件都提供 hover / active / focus-visible / disabled 四态。
+ *   4) 本文件不带 @layer：官方 token（@layer theme）与 Tailwind 出口（@layer utilities）
+ *      都不能反过来压住组件的交互态；需要覆盖时由使用方传 data-* 或 CSS 变量。
+ *
+ * R3 取证（docs/SPEC-OVERLAYS.md §0 / docs/SPEC-INTERACTION-STATES.md）纠正的三条：
+ *   a) `--menu-backdrop-filter` 官方只在 `:root[data-codex-window-type=browser]` 分支定义
+ *      （官方CSS shell-shared.css 该分支：--menu-backdrop-filter:blur(var(--blur-lg))），
+ *      electron 运行端查无此项 → _MenuList_ 的 backdrop-filter 落为 none。
+ *      本工程 theme.css 把它当全局 token 定义了（blur(16px)），所以这里**不能**再取它：
+ *      通用菜单写死 none；真正吃到模糊的弹层（模型选择器 / 权限菜单）用 backdrop-blur-sm
+ *      = --blur-sm = 8px（SPEC-OVERLAYS §0.1）。
+ *   b) --popover-radius / --modal-radius / --dialog-radius / --alert-border-radius 在 electron
+ *      下 = var(--radius-xl) = 15px；20px 是 browser 分支（tokens.css 基档 + shell-shared 的
+ *      browser 覆盖块，SPEC-OVERLAYS §0.2）。
+ *   c) 弹层条目的行内边距 --padding-row-y 在 electron 下由 body 改成
+ *      calc(var(--spacing) * 1.25) = **5px**（官方CSS shell-shared.css electron body 块），
+ *      :root 上的 4px 不是元件生效值。本工程 theme.css 把 4px 钉在了 :root[data-codex-window-type=electron]
+ *      上，所以 ui 层的菜单条目**直接写 calc(var(--spacing) * 1.25)**，不取 --padding-row-y。
+ *
+ * reduced-motion（SPEC-INTERACTION §11.1–11.2）：官方对 Button / Switch / MenuItem / Checkbox /
+ *   Modal / cmdk / Input / Tooltip **都没有** reduced-motion 分支，所以本文件也不再自带降级
+ *   （base.css 的全局降级属 W3 范围，见汇报）。
+ *
+ * --scale（SPEC-INTERACTION §1.5 / SPEC-OVERLAYS §15 第 13 条）：全仓库没有任何 --scale 定义，
+ *   Button 的 transform:scale(var(--scale)) 在 computed 层落为 none → **按钮按压不缩放**；
+ *   只有菜单条目写了兜底 scale(var(--scale,.98))。
+ * ========================================================================== */
+
+/* ── 0. 公共 ──────────────────────────────────────────────────────────────
+ * .cx-anim 保留为动效标记类，但**不再自带 reduced-motion 降级**：
+ *   官方对 Button / Switch / MenuItem / Checkbox / Modal / cmdk / Input / Tooltip
+ *   都没有 reduced-motion 分支（SPEC-INTERACTION §11.2 逐项表 + §11.1 双分支写法），
+ *   即参考端在系统「减少动态效果」下这些仍然会动。要 1:1 就不能自己加全局降级。
+ *   本工程 base.css 里有一条全局降级（:root[data-reduced-motion=true] * 与
+ *   @media (prefers-reduced-motion:reduce)），那是 W3 的文件，不属 ui 写范围 —— 见汇报。
+ * 例外：.cx-skeleton 是本工程自有件（非官方组件），保留一个窄分支，写法照官方双分支。 */
+
+:root[data-reduced-motion="true"] .cx-skeleton {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion]) .cx-skeleton {
+    animation: none;
+  }
+}
+
+/* ── 1. Button（官方 _Button_eg66f_2，shell-shared:43-284 / 712-732）────────
+ * 尺寸阶来自 --control-size-4xs(1.25rem) … --control-size-3xl(3rem)，shell-shared:3754-3763
+ * 主按钮底 --color-background-primary-solid（dark 实测 #dfdfdf，SPEC §11）
+ * 圆形按钮 --radius-full（官方 [data-pill]，shell-shared:269-272）
+ * focus-visible: outline 2px var(--color-ring)，offset 2px（shell-shared:91-94）
+ * disabled: [disabled] pointer-events:none；[data-disabled] cursor:not-allowed；
+ *           ghost/transparent/dimmed → opacity .4（shell-shared:712-732）
+ * ------------------------------------------------------------------------ */
+
+.cx-btn {
+  --cx-btn-size: var(--control-size-2xs);
+  --cx-btn-gutter: var(--control-gutter-sm);
+  --cx-btn-font-size: var(--control-font-size-md);
+  --cx-btn-icon-size: var(--control-icon-size-sm);
+  --cx-btn-gap: var(--button-gap-sm, 3px);
+  --cx-btn-radius: var(--control-radius-sm);
+  --cx-btn-ring-offset: 2px;
+  --cx-btn-ring-color: var(--color-ring);
+  --cx-btn-text: var(--color-text);
+  --cx-btn-bg: transparent;
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-btn-gap);
+  height: var(--cx-btn-size);
+  padding: 0 var(--cx-btn-gutter);
+  border: 0;
+  border-radius: var(--cx-btn-radius);
+  background: transparent;
+  color: var(--cx-btn-text);
+  font-family: var(--font-sans);
+  font-size: var(--cx-btn-font-size);
+  font-weight: var(--font-weight-normal);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: var(--cursor-interaction, pointer);
+  user-select: none;
+  -webkit-app-region: no-drag;
+  transition-duration: var(--transition-duration-basic);
+  transition-property: opacity, color;
+  transition-timing-function: var(--transition-ease-basic);
+}
+
+/* 底色画在 ::before 上：官方同款，便于 hover/active 只切背景不动布局 */
+.cx-btn::before,
+.cx-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
+  corner-shape: inherit;
+  transition-duration: var(--transition-duration-basic);
+  transition-timing-function: var(--transition-ease-basic);
+}
+
+.cx-btn::before {
+  background-color: var(--cx-btn-bg);
+  opacity: 0;
+  transition-property: opacity, background-color, transform, box-shadow, border-color;
+}
+
+.cx-btn::after {
+  pointer-events: none;
+  transition-property: transform;
+}
+
+.cx-btn:focus {
+  outline: none;
+}
+
+.cx-btn:focus-visible::after {
+  outline: 2px solid var(--cx-btn-ring-color);
+  outline-offset: var(--cx-btn-ring-offset);
+}
+
+.cx-btn > svg:not([data-no-autosize]) {
+  width: var(--cx-btn-icon-size);
+  height: var(--cx-btn-icon-size);
+}
+
+.cx-btn:disabled {
+  pointer-events: none;
+}
+
+.cx-btn[data-disabled] {
+  cursor: not-allowed;
+}
+
+/* 官方CSS shell-shared.css 712-732：disabled 分三档
+ *   [disabled]                          → pointer-events: none（已在上方）
+ *   [data-disabled][data-variant]       → cursor: not-allowed; **pointer-events: auto**（保留 tooltip 等交互）
+ *   [data-disabled-tone=dimmed|ghost|transparent] → opacity: .4（在下方）
+ *   [data-disabled-tone=relaxed]        → cursor: default */
+.cx-btn[data-disabled][data-variant] {
+  pointer-events: auto;
+}
+
+.cx-btn[data-disabled-tone="relaxed"] {
+  cursor: default;
+}
+
+.cx-btn[data-disabled]:is(
+  [data-disabled-tone="dimmed"],
+  [data-variant="ghost"],
+  [data-variant="transparent"]
+) {
+  opacity: 0.4;
+}
+
+/* 尺寸阶（官方CSS eg66f.css 逐档原文 ._Button_eg66f_2:where([data-size=…]){…}
+ * 列序：--button-size / --button-gutter / --button-font-size / --button-icon-size /
+ * --button-gap / --button-radius / --button-icon-offset / --indicator-size（SPEC-INTERACTION §1.2）
+ *   3xs 20 6 12 14 3   7.5 -1 11 ｜ 2xs 22 6 12 14 3   7.5 -1 11
+ *   xs  24 8 13 16 4   7.5 -1 12 ｜ sm  26 8 13 16 4   7.5 -1 13
+ *   md  28 10 13 18 4  7.5 -1 15 ｜ lg  32 12 14 18 6  10  -1 16
+ *   xl  36 12 13 18 6  10  -1 16 ｜ 2xl 40 14 13 18 6  12.5 -1 18
+ *   3xl 44 14 13 20 6  15  -2 18 ｜ 4xl 48 16 14 20 6  15  -2 20
+ * 之前实现少了每档的 --button-gap / --indicator-size / --button-icon-offset，
+ * 且 md 图标 16≠18、lg 字号 13≠14、2xl 图标 20≠18、2xl/3xl/4xl 圆角偏小一档 —— 一并纠正。 */
+.cx-btn[data-size="3xs"] {
+  --cx-btn-size: var(--control-size-4xs);
+  --cx-btn-gutter: var(--control-gutter-2xs);
+  --cx-btn-font-size: var(--control-font-size-sm);
+  --cx-btn-icon-size: var(--control-icon-size-xs);
+  --cx-btn-gap: var(--button-gap-sm, 3px);
+  --cx-btn-radius: var(--control-radius-sm);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 11px;
+}
+.cx-btn[data-size="2xs"] {
+  --cx-btn-size: var(--control-size-3xs);
+  --cx-btn-gutter: var(--control-gutter-2xs);
+  --cx-btn-font-size: var(--control-font-size-sm);
+  --cx-btn-icon-size: var(--control-icon-size-xs);
+  --cx-btn-gap: var(--button-gap-sm, 3px);
+  --cx-btn-radius: var(--control-radius-sm);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 11px;
+}
+.cx-btn[data-size="xs"] {
+  --cx-btn-size: var(--control-size-2xs);
+  --cx-btn-gutter: var(--control-gutter-xs);
+  --cx-btn-font-size: var(--control-font-size-md);
+  --cx-btn-icon-size: var(--control-icon-size-sm);
+  --cx-btn-gap: var(--button-gap-md, 4px);
+  --cx-btn-radius: var(--control-radius-sm);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 12px;
+}
+.cx-btn[data-size="sm"] {
+  --cx-btn-size: var(--control-size-xs);
+  --cx-btn-gutter: var(--control-gutter-xs);
+  --cx-btn-font-size: var(--control-font-size-md);
+  --cx-btn-icon-size: var(--control-icon-size-sm);
+  --cx-btn-gap: var(--button-gap-md, 4px);
+  --cx-btn-radius: var(--control-radius-sm);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 13px;
+}
+.cx-btn[data-size="md"] {
+  --cx-btn-size: var(--control-size-sm);
+  --cx-btn-gutter: var(--control-gutter-sm);
+  --cx-btn-font-size: var(--control-font-size-md);
+  --cx-btn-icon-size: var(--control-icon-size-md);
+  --cx-btn-gap: var(--button-gap-md, 4px);
+  --cx-btn-radius: var(--control-radius-sm);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 15px;
+}
+.cx-btn[data-size="lg"] {
+  --cx-btn-size: var(--control-size-md);
+  --cx-btn-gutter: var(--control-gutter-md);
+  --cx-btn-font-size: var(--control-font-size-lg);
+  --cx-btn-icon-size: var(--control-icon-size-md);
+  --cx-btn-gap: var(--button-gap-lg, 6px);
+  --cx-btn-radius: var(--control-radius-md);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 16px;
+}
+.cx-btn[data-size="xl"] {
+  --cx-btn-size: var(--control-size-lg);
+  --cx-btn-gutter: var(--control-gutter-md);
+  --cx-btn-font-size: var(--control-font-size-md);
+  --cx-btn-icon-size: var(--control-icon-size-md);
+  --cx-btn-gap: var(--button-gap-lg, 6px);
+  --cx-btn-radius: var(--control-radius-md);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 16px;
+}
+.cx-btn[data-size="2xl"] {
+  --cx-btn-size: var(--control-size-xl);
+  --cx-btn-gutter: var(--control-gutter-lg);
+  --cx-btn-font-size: var(--control-font-size-md);
+  --cx-btn-icon-size: var(--control-icon-size-md);
+  --cx-btn-gap: var(--button-gap-lg, 6px);
+  --cx-btn-radius: var(--control-radius-lg);
+  --cx-btn-icon-offset: -1px;
+  --indicator-size: 18px;
+}
+.cx-btn[data-size="3xl"] {
+  --cx-btn-size: var(--control-size-2xl);
+  --cx-btn-gutter: var(--control-gutter-lg);
+  --cx-btn-font-size: var(--control-font-size-md);
+  --cx-btn-icon-size: var(--control-icon-size-lg);
+  --cx-btn-gap: var(--button-gap-lg, 6px);
+  --cx-btn-radius: var(--control-radius-xl);
+  --cx-btn-icon-offset: -2px;
+  --indicator-size: 18px;
+}
+.cx-btn[data-size="4xl"] {
+  --cx-btn-size: var(--control-size-3xl);
+  --cx-btn-gutter: var(--control-gutter-xl);
+  --cx-btn-font-size: var(--control-font-size-lg);
+  --cx-btn-icon-size: var(--control-icon-size-lg);
+  --cx-btn-gap: var(--button-gap-lg, 6px);
+  --cx-btn-radius: var(--control-radius-xl);
+  --cx-btn-icon-offset: -2px;
+  --indicator-size: 20px;
+}
+
+/* 首/末个图标内缩：官方 :where(._Button_ svg:not([data-no-autosize]):first-child:not(:only-child))
+ * { margin-left: var(--button-icon-offset, -1px) }（末位同理，eg66f.css） */
+.cx-btn > svg:not([data-no-autosize]):first-child:not(:only-child) {
+  margin-left: var(--cx-btn-icon-offset, -1px);
+}
+
+.cx-btn > svg:not([data-no-autosize]):last-child:not(:only-child) {
+  margin-right: var(--cx-btn-icon-offset, -1px);
+}
+
+/* [data-gutter-size]：只覆盖 --button-gutter（2xs/xs/sm/md/lg/xl → 6/8/10/12/14/16px）
+ * 官方CSS eg66f.css；SPEC-INTERACTION §1.2「其它修饰」 */
+.cx-btn[data-gutter-size="2xs"] {
+  --cx-btn-gutter: var(--control-gutter-2xs);
+}
+.cx-btn[data-gutter-size="xs"] {
+  --cx-btn-gutter: var(--control-gutter-xs);
+}
+.cx-btn[data-gutter-size="sm"] {
+  --cx-btn-gutter: var(--control-gutter-sm);
+}
+.cx-btn[data-gutter-size="md"] {
+  --cx-btn-gutter: var(--control-gutter-md);
+}
+.cx-btn[data-gutter-size="lg"] {
+  --cx-btn-gutter: var(--control-gutter-lg);
+}
+.cx-btn[data-gutter-size="xl"] {
+  --cx-btn-gutter: var(--control-gutter-xl);
+}
+
+/* [data-icon-size]：只覆盖 --button-icon-size（xs/sm/md/lg/xl/2xl → 14/16/18/20/22/24px） */
+.cx-btn[data-icon-size="xs"] {
+  --cx-btn-icon-size: var(--control-icon-size-xs);
+}
+.cx-btn[data-icon-size="sm"] {
+  --cx-btn-icon-size: var(--control-icon-size-sm);
+}
+.cx-btn[data-icon-size="md"] {
+  --cx-btn-icon-size: var(--control-icon-size-md);
+}
+.cx-btn[data-icon-size="lg"] {
+  --cx-btn-icon-size: var(--control-icon-size-lg);
+}
+.cx-btn[data-icon-size="xl"] {
+  --cx-btn-icon-size: var(--control-icon-size-xl);
+}
+.cx-btn[data-icon-size="2xl"] {
+  --cx-btn-icon-size: var(--control-icon-size-2xl);
+}
+
+.cx-btn > svg:not([data-no-autosize]) {
+  width: var(--cx-btn-icon-size);
+  height: var(--cx-btn-icon-size);
+}
+
+/* [data-optically-align]：负外边距做视觉对齐（官方 eg66f.css；pill 再乘 1.33） */
+.cx-btn[data-optically-align="start"] {
+  margin-inline-start: calc(var(--cx-btn-gutter) * -1);
+}
+.cx-btn[data-optically-align="start"][data-pill] {
+  margin-inline-start: calc(var(--cx-btn-gutter) * var(--control-gutter-pill-scaling, 1.33) * -1);
+}
+.cx-btn[data-optically-align="end"] {
+  margin-inline-end: calc(var(--cx-btn-gutter) * -1);
+}
+.cx-btn[data-optically-align="end"][data-pill] {
+  margin-inline-end: calc(var(--cx-btn-gutter) * var(--control-gutter-pill-scaling, 1.33) * -1);
+}
+
+/* 药丸 / 无菌方角 / 满宽 / 正方 */
+.cx-btn[data-pill] {
+  --cx-btn-radius: var(--radius-full);
+  padding: 0 calc(var(--cx-btn-gutter) * var(--control-gutter-pill-scaling, 1.25));
+}
+
+.cx-btn[data-squircle] {
+  border-radius: calc(var(--cx-btn-radius) * 1.25);
+  corner-shape: superellipse(1.5);
+}
+
+.cx-btn[data-block] {
+  width: 100%;
+}
+
+.cx-btn[data-uniform] {
+  --cx-btn-gutter: 0;
+  width: var(--cx-btn-size);
+}
+
+/* variant: ghost / transparent —— 底色默认透明，hover 出现
+ * 官方CSS eg66f.css：._Button_[data-variant=ghost|transparent] {
+ *   --button-background-color: rgba(255,255,255,.078)（运行端 --color-background-primary-ghost-hover）
+ *   --button-background-color-active: color-mix(... 16%)（= --color-background-primary-ghost-active）}
+ *   ::before { opacity: 0; transform: scale(var(--scale)) } —— --scale 无定义 → 不缩放（§1.5）
+ * 开态：官方CSS eg66f.css 的 [aria-expanded=true]（未加 data-suppress-active-style）/ [data-state=open]
+ *   → 文字转 hover 色 + ::before { opacity: .6 }；[data-selected] → opacity 1（SPEC-INTERACTION §1.3）
+ * focus 环偏移：基础档 2px；只有 outline 变体是 -1px（同上）。 */
+.cx-btn[data-variant="ghost"],
+.cx-btn[data-variant="transparent"] {
+  --cx-btn-bg: var(--color-background-primary-ghost-hover);
+  --cx-btn-bg-active: var(--color-background-primary-ghost-active);
+}
+
+.cx-btn[data-variant="ghost"]:not([data-disabled]):hover,
+.cx-btn[data-variant="transparent"]:not([data-disabled]):hover,
+.cx-btn[data-variant="ghost"][aria-expanded="true"]:not([data-suppress-active-style]),
+.cx-btn[data-variant="transparent"][aria-expanded="true"]:not([data-suppress-active-style]),
+.cx-btn[data-variant="ghost"][data-state="open"]:not([data-suppress-active-style]),
+.cx-btn[data-variant="transparent"][data-state="open"]:not([data-suppress-active-style]),
+.cx-btn[data-variant="ghost"][data-selected],
+.cx-btn[data-variant="transparent"][data-selected] {
+  color: var(--color-text);
+}
+
+.cx-btn[data-variant="ghost"]:not([data-disabled]):hover::before,
+.cx-btn[data-variant="transparent"]:not([data-disabled]):hover::before,
+.cx-btn[data-variant="ghost"][aria-expanded="true"]:not([data-suppress-active-style])::before,
+.cx-btn[data-variant="transparent"][aria-expanded="true"]:not([data-suppress-active-style])::before,
+.cx-btn[data-variant="ghost"][data-state="open"]:not([data-suppress-active-style])::before,
+.cx-btn[data-variant="transparent"][data-state="open"]:not([data-suppress-active-style])::before,
+.cx-btn[data-variant="ghost"][data-selected]::before,
+.cx-btn[data-variant="transparent"][data-selected]::before {
+  opacity: 1;
+}
+
+/* 开态比选中态淡：官方给 [data-state=open] / [aria-expanded=true] 的是 .6 */
+.cx-btn[data-variant="ghost"]:is([aria-expanded="true"], [data-state="open"]):not(
+  [data-suppress-active-style]
+):not([data-selected])::before,
+.cx-btn[data-variant="transparent"]:is([aria-expanded="true"], [data-state="open"]):not(
+  [data-suppress-active-style]
+):not([data-selected])::before {
+  opacity: 0.6;
+}
+
+/* transparent 完全不画底：官方是 ::before { content: none }（不是 background: transparent） */
+.cx-btn[data-variant="transparent"]::before {
+  content: none;
+}
+
+.cx-btn[data-variant="ghost"]:not([data-disabled]):active::before {
+  background-color: var(--cx-btn-bg-active, var(--color-background-primary-ghost-active));
+  opacity: 1;
+}
+
+/* variant: solid —— 底色常显；primary 底 = --color-background-primary-solid（dark #dfdfdf） */
+.cx-btn[data-variant="solid"] {
+  --cx-btn-bg: var(--color-background-primary-solid);
+  --cx-btn-text: var(--color-text-primary-solid);
+}
+
+.cx-btn[data-variant="solid"]::before {
+  opacity: 1;
+}
+
+.cx-btn[data-variant="solid"]:not([data-disabled]):hover::before,
+.cx-btn[data-variant="solid"][aria-expanded="true"]::before,
+.cx-btn[data-variant="solid"][data-state="open"]::before,
+.cx-btn[data-variant="solid"][data-selected]::before {
+  background-color: var(--color-background-primary-solid-hover);
+}
+
+.cx-btn[data-variant="solid"]:not([data-disabled]):active::before {
+  background-color: var(--color-background-primary-solid-active);
+}
+
+.cx-btn[data-variant="solid"][data-color="secondary"] {
+  --cx-btn-bg: var(--color-background-secondary-solid);
+  --cx-btn-text: var(--color-text-secondary-solid);
+}
+.cx-btn[data-variant="solid"][data-color="secondary"]:not([data-disabled]):hover::before {
+  background-color: var(--color-background-secondary-solid-hover);
+}
+.cx-btn[data-variant="solid"][data-color="danger"] {
+  --cx-btn-bg: var(--color-background-danger-solid);
+  --cx-btn-text: var(--color-text-danger-solid);
+}
+.cx-btn[data-variant="solid"][data-color="danger"]:not([data-disabled]):hover::before {
+  background-color: var(--color-background-danger-solid-hover);
+}
+.cx-btn[data-variant="solid"][data-color="success"] {
+  --cx-btn-bg: var(--color-background-success-solid);
+  --cx-btn-text: var(--color-text-success-solid);
+}
+.cx-btn[data-variant="solid"][data-color="success"]:not([data-disabled]):hover::before {
+  background-color: var(--color-background-success-solid-hover);
+}
+.cx-btn[data-variant="solid"][data-color="warning"] {
+  --cx-btn-bg: var(--color-background-warning-solid);
+  --cx-btn-text: var(--color-text-warning-solid);
+}
+.cx-btn[data-variant="solid"][data-color="warning"]:not([data-disabled]):hover::before {
+  background-color: var(--color-background-warning-solid-hover);
+}
+
+/* variant: soft / surface / outline
+ * 官方CSS eg66f.css：soft/surface 共用底色（--color-background-primary-soft-alpha =
+ * rgba(255,255,255,.032)），hover 一律换 ghost-hover；dark 下 surface 另加
+ * box-shadow: 0 0 0 1px var(--button-border-color) inset（SPEC-INTERACTION §1.3）。
+ * outline：描边画在 ::before 上（box-shadow inset），hover 换 --button-border-color-hover，
+ * 且 --button-ring-offset: -1px（焦点环贴边）。 */
+.cx-btn[data-variant="soft"],
+.cx-btn[data-variant="surface"] {
+  --cx-btn-bg: var(--color-background-primary-soft-alpha);
+}
+
+.cx-btn[data-variant="soft"]::before,
+.cx-btn[data-variant="surface"]::before {
+  opacity: 1;
+}
+
+/* 2026-10-15（用户：「很多地方的 border 也得有线条颜色」）：soft / surface 按钮此前
+ * 描边色取 `var(--button-border-color, transparent)`，而 `--button-border-color` 在官方
+ * 运行时的 token 转储里**并不存在** ⇒ 解析成 transparent，按钮只剩底色、没有线。
+ * 这里把兜底换成 --color-border-strong（= rgba(255,255,255,.156)，官方
+ * --color-border-primary-outline 实测同值），线宽仍 1px 且画在 ::before 上，几何不变。 */
+.cx-btn[data-variant="soft"]::before,
+.cx-btn[data-variant="surface"]::before {
+  box-shadow: 0 0 0 1px var(--button-border-color, var(--color-border-strong)) inset;
+}
+
+.cx-btn[data-variant="soft"]:not([data-disabled]):hover::before,
+.cx-btn[data-variant="surface"]:not([data-disabled]):hover::before {
+  background-color: var(--color-background-primary-ghost-hover);
+}
+
+.cx-btn[data-variant="outline"] {
+  --cx-btn-ring-offset: -1px;
+  --cx-btn-bg: transparent;
+}
+
+.cx-btn[data-variant="outline"]::before {
+  opacity: 1;
+  background-color: transparent;
+  box-shadow: 0 0 0 1px var(--button-border-color, var(--color-border-primary-outline)) inset;
+}
+
+.cx-btn[data-variant="outline"]:not([data-disabled]):hover::before {
+  background-color: var(
+    --color-background-primary-outline-hover,
+    var(--color-background-primary-ghost-hover)
+  );
+  box-shadow: 0 0 0 1px var(--button-border-color-hover, var(--color-border-primary-outline-hover)) inset;
+}
+
+.cx-btn[data-color="danger"][data-variant="ghost"] {
+  --cx-btn-text: var(--color-text-danger);
+}
+.cx-btn[data-color="danger"][data-variant="ghost"]:not([data-disabled]):hover {
+  color: var(--color-text-danger-ghost);
+}
+
+.cx-btn__inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.15s 0.1s;
+}
+
+/* 载入态：内容淡出（官方 [data-loading] ._ButtonInner_ opacity:0，shell-shared:744-747） */
+.cx-btn[data-loading] .cx-btn__inner {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.cx-btn__loader {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* 载入指示器尺寸走按钮档位：官方每档给 --indicator-size（11/12/13/15/16/18/20px），
+ * 转圈本体 ._LoadingIndicator_mlrw0_1 { width/height: var(--indicator-size, 1em) }
+ * （官方CSS shell-shared.css 转圈段；档位表见 eg66f.css）。 */
+.cx-btn .cx-btn__loader .cx-spinner > svg {
+  width: var(--indicator-size, 1em);
+  height: var(--indicator-size, 1em);
+}
+
+/* ── 2. Input / Textarea（官方 _Container_1pj83_2，shell-initial:4476-4600）──
+ * 尺寸阶 → --input-size / --input-radius / --input-gutter / --input-font-size
+ * outline 变体：inset 1px 描边（默认 --color-border-primary-outline）
+ * soft 变体：--input-soft-background-color，focus 时 1px --alpha-20 内描边
+ * placeholder：--input-placeholder-text-color
+ * ------------------------------------------------------------------------ */
+
+.cx-input {
+  --cx-input-size: var(--control-size-2xs);
+  --cx-input-gutter: var(--control-gutter-xs);
+  --cx-input-font-size: var(--control-font-size-md);
+  --cx-input-radius: var(--control-radius-sm);
+  --cx-input-gap: var(--input-gap-sm, 6px);
+  display: flex;
+  align-items: center;
+  gap: var(--cx-input-gap);
+  width: 100%;
+  height: var(--cx-input-size);
+  padding-inline: var(--cx-input-gutter);
+  border-radius: var(--cx-input-radius);
+  color: var(--input-text-color, var(--color-text));
+  font-size: var(--cx-input-font-size);
+  font-weight: var(--font-weight-normal);
+  transition-duration: var(--transition-duration-basic);
+  transition-property: color, box-shadow, background-color, outline-color;
+  transition-timing-function: var(--transition-ease-basic);
+}
+
+.cx-input[data-variant="outline"] {
+  box-shadow: 0 0 0 1px
+    var(--input-outline-border-color, var(--color-border-primary-outline, var(--color-border))) inset;
+}
+
+.cx-input[data-variant="outline"]:not([data-disabled]):hover {
+  box-shadow: 0 0 0 1px var(--input-outline-border-color-hover) inset;
+}
+
+.cx-input[data-variant="outline"]:not([data-disabled]):focus-within {
+  box-shadow: 0 0 0 1px var(--input-outline-border-color-focus) inset;
+}
+
+.cx-input[data-variant="soft"] {
+  background-color: var(--input-soft-background-color);
+  /* 2026-10-15（用户：「很多地方的 border 也得有线条颜色」）：soft 输入框此前只有底色、
+     没有线（官方只在 focus 时加 inset 环）。这里补一条贴边发丝线；focus 的
+     inset 环画在 border 之内，两者互不覆盖。 */
+  border: 1px solid var(--input-soft-border-color, var(--color-border-strong));
+}
+
+/* 焦点态（官方CSS shell-initial.css:4505-4516）：官方容器**不加外描边环**，只用 inset 描边换色
+ *   outline: [data-focused=true] → 0 0 0 1px --input-outline-border-color-focus
+ *   soft:    [data-focused=true] → 0 0 0 1px --input-soft-border-color-focus
+ * 这里同时认 :focus-within（本工程用受控 DOM，不注入 data-focused）与官方的 data-focused 属性。
+ * 之前自加了一条 2px --color-ring 外环 —— 官方没有，删掉（差异见汇报）。 */
+.cx-input[data-variant="outline"]:is([data-focused="true"], :focus-within):not([data-disabled]) {
+  box-shadow: 0 0 0 1px var(--input-outline-border-color-focus) inset;
+}
+
+.cx-input[data-variant="soft"]:is([data-focused="true"], :focus-within):not([data-disabled]) {
+  box-shadow: 0 0 0 1px var(--input-soft-border-color-focus) inset;
+}
+
+.cx-input:has([data-invalid]),
+.cx-input[data-invalid] {
+  box-shadow: 0 0 0 1px var(--input-border-color-invalid) inset;
+}
+
+/* [data-invalid] ::selection 用官方红（官方CSS shell-initial.css:4520-4522） */
+.cx-input[data-invalid] ::selection,
+.cx-input:has([data-invalid]) ::selection {
+  background-color: var(--red-a50);
+}
+
+.cx-input[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 尺寸阶（官方CSS shell-initial.css:4523-4591 的 _Container_1pj83_2[data-size] 逐档；
+ * 列序：--input-size / --input-font-size / --input-radius / --input-gutter / --input-gap，
+ * SPEC-INTERACTION §2.2；--input-gap-xs/sm/md/lg = 4/6/8/10px）
+ *   3xs 22 12 7.5 8  4 ｜ 2xs 24 12 7.5 8  4 ｜ xs 26 13 7.5 8  6
+ *   sm  28 13 10  10 8 ｜ md  32 13 10  12 8 ｜ lg 36 13 10  12 8
+ *   xl  40 14 12.5 14 10｜ 2xl 44 14 15 16 10 ｜ 3xl 48 14 15 16 10
+ * 之前缺 3xs / 3xl 两档，且逐档的 --input-gap 没有跟档（全部吃基础档）。 */
+.cx-input[data-size="3xs"] {
+  --cx-input-size: var(--control-size-3xs);
+  --cx-input-radius: var(--control-radius-sm);
+  --cx-input-gutter: var(--control-gutter-xs);
+  --cx-input-font-size: var(--control-font-size-sm);
+  --cx-input-gap: var(--input-gap-xs, 4px);
+}
+.cx-input[data-size="2xs"] {
+  --cx-input-size: var(--control-size-2xs);
+  --cx-input-radius: var(--control-radius-sm);
+  --cx-input-gutter: var(--control-gutter-xs);
+  --cx-input-font-size: var(--control-font-size-sm);
+  --cx-input-gap: var(--input-gap-xs, 4px);
+}
+.cx-input[data-size="xs"] {
+  --cx-input-size: var(--control-size-xs);
+  --cx-input-radius: var(--control-radius-sm);
+  --cx-input-font-size: var(--control-font-size-md);
+  --cx-input-gap: var(--input-gap-sm, 6px);
+}
+.cx-input[data-size="sm"] {
+  --cx-input-size: var(--control-size-sm);
+  --cx-input-radius: var(--control-radius-md);
+  --cx-input-gutter: var(--control-gutter-sm);
+  --cx-input-font-size: var(--control-font-size-md);
+  --cx-input-gap: var(--input-gap-md, 8px);
+}
+.cx-input[data-size="md"] {
+  --cx-input-size: var(--control-size-md);
+  --cx-input-radius: var(--control-radius-md);
+  --cx-input-gutter: var(--control-gutter-md);
+  --cx-input-font-size: var(--control-font-size-md);
+  --cx-input-gap: var(--input-gap-md, 8px);
+}
+.cx-input[data-size="lg"] {
+  --cx-input-size: var(--control-size-lg);
+  --cx-input-radius: var(--control-radius-md);
+  --cx-input-gutter: var(--control-gutter-md);
+  --cx-input-font-size: var(--control-font-size-md);
+  --cx-input-gap: var(--input-gap-md, 8px);
+}
+.cx-input[data-size="xl"] {
+  --cx-input-size: var(--control-size-xl);
+  --cx-input-radius: var(--control-radius-lg);
+  --cx-input-gutter: var(--control-gutter-lg);
+  --cx-input-font-size: var(--control-font-size-lg);
+  --cx-input-gap: var(--input-gap-lg, 10px);
+}
+.cx-input[data-size="2xl"] {
+  --cx-input-size: var(--control-size-2xl);
+  --cx-input-radius: var(--control-radius-xl);
+  --cx-input-gutter: var(--control-gutter-xl);
+  --cx-input-font-size: var(--control-font-size-lg);
+  --cx-input-gap: var(--input-gap-lg, 10px);
+}
+.cx-input[data-size="3xl"] {
+  --cx-input-size: var(--control-size-3xl);
+  --cx-input-radius: var(--control-radius-xl);
+  --cx-input-gutter: var(--control-gutter-xl);
+  --cx-input-font-size: var(--control-font-size-lg);
+  --cx-input-gap: var(--input-gap-lg, 10px);
+}
+
+.cx-input[data-pill] {
+  --cx-input-radius: var(--radius-full);
+  padding-inline: calc(var(--cx-input-gutter) * var(--control-gutter-pill-scaling, 1.25));
+}
+
+.cx-input__control {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  appearance: none;
+}
+
+.cx-input__control::placeholder {
+  color: var(--input-placeholder-text-color);
+}
+
+.cx-input__control:disabled {
+  cursor: not-allowed;
+}
+
+.cx-input__adornment {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  color: var(--color-text-tertiary);
+}
+
+.cx-textarea {
+  --cx-textarea-font-size: var(--font-text-sm-size);
+  --cx-textarea-radius: var(--control-radius-md);
+  --cx-textarea-gutter: var(--control-gutter-sm);
+  display: block;
+  width: 100%;
+  min-height: calc(var(--control-size-2xl) * 2);
+  padding: var(--cx-textarea-gutter);
+  border: 0;
+  border-radius: var(--cx-textarea-radius);
+  background: transparent;
+  color: var(--input-text-color, var(--color-text));
+  font-family: var(--font-sans);
+  font-size: var(--cx-textarea-font-size);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--font-text-sm-line-height);
+  resize: vertical;
+  transition-duration: var(--transition-duration-basic);
+  transition-property: color, box-shadow, background-color;
+  transition-timing-function: var(--transition-ease-basic);
+}
+
+.cx-textarea[data-variant="outline"] {
+  box-shadow: 0 0 0 1px var(--input-outline-border-color, var(--color-border)) inset;
+}
+
+.cx-textarea[data-variant="outline"]:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px var(--input-outline-border-color-hover) inset;
+}
+
+.cx-textarea[data-variant="soft"] {
+  background-color: var(--input-soft-background-color);
+  /* 同 .cx-input[data-variant="soft"]：补一条贴边发丝线 */
+  border: 1px solid var(--color-border-strong);
+}
+
+.cx-textarea:focus {
+  outline: none;
+}
+
+.cx-textarea:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 1px;
+}
+
+.cx-textarea::placeholder {
+  color: var(--input-placeholder-text-color);
+}
+
+.cx-textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ── 3. Switch（官方 token：--switch-track-width 32px / height 19px / thumb offset 3px，
+ *      shell-shared:4011-4031）──────────────────────────────────────────── */
+
+/* 官方两套开关（**尺寸不同，不要统一**，SPEC-INTERACTION §3.1/§3.2）：
+ *   菜单内 _SwitchIndicator_12y2s_2（官方CSS raw/12y2s.css:52-62）
+ *     轨道 32×19（--switch-track-width/height）、thumb 13px（= 19 − 2×3）、内缩 3px、
+ *     inset-inline-start 位移：关 3px / 开 16px、thumb 过渡 inset-inline-start .25s var(--cubic-move)、
+ *     轨道过渡 background-color .175s linear 50ms；**没有** reduced-motion 分支。
+ *   设置页/独立档（实测 32×20、thumb 16px、translate-x 2px→14px、duration-basic + ease-out）
+ *     —— 用 [data-size="settings"] 表达（设置页原本只覆盖了轨道 token，thumb 会停在 13px）。 */
+
+.cx-switch {
+  --switch-thumb-size: calc(var(--switch-track-height) - 2 * var(--switch-thumb-offset));
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: var(--switch-track-width);
+  height: var(--switch-track-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background-color: var(--switch-track-color);
+  cursor: var(--cursor-interaction, pointer);
+  transition: background-color 0.175s linear 50ms;
+}
+
+.cx-switch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color var(--transition-duration-basic) var(--transition-ease-basic);
+}
+
+/* 菜单里的开关由 [data-highlighted] 表达高亮（官方 raw/12y2s.css:52 的 hover 档）。
+ *
+ * ★ 2026-10-15（用户报告：「切换按钮的颜色应该在按的时候就改变，而不是按完后鼠标挪开的时候再改变」）：
+ *   悬停换色**只在未选中时生效**，与复选框同一口径（见本文件 954 行的
+ *   `.cx-checkbox:hover:not(:disabled):not([data-state="checked"])…`）。
+ *   改前选择器是 `.cx-switch:hover:not(:disabled)` —— 特异性 (0,3,0) 压过选中态
+ *   `.cx-switch[data-state="checked"]` 的 (0,2,0)，两条又都写 background-color ⇒
+ *   指针停在开关上时**永远画 hover 色**：点成勾选后轨道仍是灰的，要移开鼠标才露出蓝底。
+ *   实测（Playwright · 设置→常规→提示音）：rest `rgb(51,156,255)` →
+ *   hover `oklab(0.903646 0.0000412762 0.0000180602 / 0.1)` → 点击后**仍是** hover 色 →
+ *   鼠标移开才回到 `rgb(51,156,255)`（当时的状态行见提交说明）。
+ *   修复后同一次点击在指针不动的情况下即变蓝（verify-switch-click.mjs 复跑为准）。 */
+.cx-switch:hover:not(:disabled):not([data-state="checked"]),
+.cx-switch[data-highlighted]:not(:disabled):not([data-state="checked"]) {
+  background-color: var(--switch-track-color-hover);
+}
+
+.cx-switch[data-state="checked"] {
+  background-color: var(--switch-track-color-checked);
+}
+
+.cx-switch:focus-visible {
+  outline: none;
+}
+
+.cx-switch:focus-visible::before {
+  outline-color: var(--color-ring);
+}
+
+.cx-switch:disabled {
+  cursor: not-allowed;
+  background-color: var(--switch-track-color-disabled);
+}
+
+.cx-switch[data-state="checked"]:disabled {
+  background-color: var(--switch-track-color-checked-disabled);
+}
+
+.cx-switch__thumb {
+  display: block;
+  width: var(--switch-thumb-size);
+  height: var(--switch-thumb-size);
+  border-radius: var(--radius-full);
+  background-color: var(--switch-thumb-color);
+  box-shadow: var(--switch-thumb-shadow);
+  transform: translateX(var(--switch-thumb-offset));
+  transition: transform 0.25s var(--cubic-move);
+  will-change: transform;
+}
+
+.cx-switch[data-state="checked"] .cx-switch__thumb {
+  transform: translateX(
+    calc(var(--switch-track-width) - var(--switch-thumb-size) - var(--switch-thumb-offset))
+  );
+}
+
+.cx-switch[data-disabled] .cx-switch__thumb {
+  background-color: var(--switch-thumb-color-disabled);
+  box-shadow: none;
+}
+
+/* 设置页 / 独立档：轨道 32×20、thumb 16、内缩 2px（关 2px → 开 14px）、
+ * 过渡 duration-basic + ease-out（SPEC-INTERACTION §3.1 实测类名 transition-colors/transform） */
+.cx-switch[data-size="settings"] {
+  --switch-track-width: 32px;
+  --switch-track-height: 20px;
+  --switch-thumb-offset: 2px;
+  --switch-thumb-size: 16px;
+  transition: background-color var(--transition-duration-basic) cubic-bezier(0, 0, 0.2, 1);
+}
+
+.cx-switch[data-size="settings"] .cx-switch__thumb {
+  transition: transform var(--transition-duration-basic) cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* 设置页焦点环是 Tailwind ring-2（box-shadow，无偏移），不是 outline（SPEC-INTERACTION §3.1） */
+.cx-switch[data-size="settings"]:focus-visible::before {
+  outline: none;
+}
+
+.cx-switch[data-size="settings"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-ring);
+}
+
+.cx-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--switch-label-gap);
+}
+
+/* ── 4. Checkbox / Radio ─────────────────────────────────────────────────────
+ * radio 尺寸：--radio-group-indicator-size = 1rem，孔 --radio-group-indicator-hole-size
+ * = .375rem（shell-shared:3992-3997）；选中底 = --color-background-primary-solid
+ * ---------------------------------------------------------------------------- */
+
+/* 复选框：官方 _Checkbox_1mw3n_2（官方CSS raw/1mw3n.css:5-21，SPEC-INTERACTION §4）
+ *   方框 18×18、border 1px solid --gray-500(#5d5d5d)、border-radius: --radius-xs = 5px（×1.25 后）
+ *   hover（非 checked）→ --gray-600；checked/indeterminate → 边与底都换 --gray-900(#ededed)
+ *   focus-visible → outline 2px --color-ring, offset 2px；disabled → 边 --gray-300 底 --gray-200
+ *   勾是 _CheckMark_ 的两笔伪元素（不是图标）：rotate(-45deg) translate(-10%,100%)，
+ *   竖笔 2px 宽 + 横笔 2px 高，色 --gray-0（disabled 时 --gray-100）。
+ * 之前用的是 --radio-group-indicator-* 一档（16px 方框 / 7.5px 圆角 / #dfdfdf 底）—— 已纠正。 */
+.cx-checkbox {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  max-width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--gray-500);
+  border-radius: var(--radius-xs);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, pointer);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.cx-checkbox:hover:not(:disabled):not([data-state="checked"]):not([data-state="indeterminate"]) {
+  border-color: var(--gray-600);
+}
+
+.cx-checkbox[data-state="checked"],
+.cx-checkbox[data-state="indeterminate"] {
+  border-color: var(--gray-900);
+  background-color: var(--gray-900);
+}
+
+.cx-checkbox:focus {
+  outline: none;
+}
+
+.cx-checkbox:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.cx-checkbox:disabled {
+  border-color: var(--gray-300);
+  background: var(--gray-200);
+  cursor: not-allowed;
+}
+
+.cx-checkbox[data-state="checked"]:disabled,
+.cx-checkbox[data-state="indeterminate"]:disabled {
+  border-color: var(--gray-200);
+  background-color: var(--gray-200);
+}
+
+.cx-checkbox__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 64%;
+  height: 32%;
+  transform: rotate(-45deg) translate(-10%, 100%);
+  transform-origin: 50%;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
+}
+
+.cx-checkbox__indicator::before,
+.cx-checkbox__indicator::after {
+  content: "";
+  position: absolute;
+  display: block;
+  background: var(--gray-0);
+  will-change: transform;
+}
+
+.cx-checkbox__indicator::before {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  transform-origin: 0 0;
+  transition:
+    transform 0.1s 80ms,
+    opacity 0.2s;
+}
+
+.cx-checkbox__indicator::after {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform-origin: 0 100%;
+  transition: transform 0.1s 0.16s;
+}
+
+.cx-checkbox[data-state="indeterminate"] .cx-checkbox__indicator {
+  transform: translate(30%, 80%);
+}
+
+.cx-checkbox[data-state="indeterminate"] .cx-checkbox__indicator::before {
+  opacity: 0;
+}
+
+.cx-checkbox[data-disabled] .cx-checkbox__indicator::before,
+.cx-checkbox[data-disabled] .cx-checkbox__indicator::after,
+.cx-checkbox:disabled .cx-checkbox__indicator::before,
+.cx-checkbox:disabled .cx-checkbox__indicator::after {
+  background: var(--gray-100);
+}
+
+.cx-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--radio-group-row-gap);
+}
+
+.cx-radio-group[data-orientation="horizontal"] {
+  flex-direction: row;
+  align-items: center;
+}
+
+.cx-radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--radio-group-item-gap);
+  color: var(--color-text);
+  font-size: var(--radio-group-item-font-size);
+  line-height: var(--radio-group-item-line-height);
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.cx-radio-item__indicator {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--radio-group-indicator-size);
+  height: var(--radio-group-indicator-size);
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  box-shadow: 0 0 0 1px var(--radio-group-indicator-border-color) inset;
+  transition-duration: var(--transition-duration-basic);
+  transition-property: background-color, box-shadow;
+  transition-timing-function: var(--transition-ease-basic);
+}
+
+.cx-radio-item:hover .cx-radio-item__indicator {
+  box-shadow: 0 0 0 1px var(--radio-group-indicator-border-color-hover) inset;
+}
+
+.cx-radio-item[data-state="checked"] .cx-radio-item__indicator {
+  background-color: var(--radio-group-indicator-background-color);
+  box-shadow: none;
+}
+
+.cx-radio-item:focus-visible {
+  outline: none;
+}
+
+.cx-radio-item:focus-visible .cx-radio-item__indicator {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 1px;
+}
+
+.cx-radio-item[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cx-radio-item__hole {
+  display: block;
+  width: var(--radio-group-indicator-hole-size);
+  height: var(--radio-group-indicator-hole-size);
+  border-radius: var(--radius-full);
+  background-color: var(--radio-group-indicator-hole-background-color);
+}
+
+/* ✅ [task-82] **组件同一性已定**（task-76 留的「未定」在这里收口）：
+ *   本块对应官方 **`_Slider_pudb7_*`**（`app/webview/assets/SegmentedControl-c7b6717dfc2d.css`），
+ *   **不是** `_xwb5v_`（那是模型选择器的 power slider，带 tick / 粒子动画，另一个组件）。判据：
+ *   只有 `_Slider_pudb7_*` 消费本块用的这两个 token —— `_Track_pudb7_32{background:var(--slider-track-color)}`、
+ *   `_Range_pudb7_41{background:var(--slider-range-color)}`（全包内 `var(--slider-track-color)` 只有 1 处消费点）。
+ *   官方原值（同文件，逐条）：
+ *     `_Slider_pudb7_1`  touch-action:none / user-select:none / align-items:center / width:100% / **padding-bottom:6px** / flex;
+ *     `_Track_pudb7_32`  radius **--radius-2xs** / background --slider-track-color / flex-grow:1 / width:100% / **height:4px**;
+ *     `_Range_pudb7_41`  radius **--radius-2xs** / background --slider-range-color / height:100% / position:absolute;
+ *     `_Thumb_pudb7_49`  **background:var(--gray-0)** / **width:14px / height:14px** /
+ *                        **box-shadow: inset 0 0 0 2px var(--slider-range-color)** / cursor:grab / border-radius:50% / position:relative。
+ *   ⇒ 本轮据此改正：thumb 12px→**14px**、底 →**--gray-0**、描边 →**inset 2px 的 --slider-range-color 环**（原为
+ *      `--switch-thumb-shadow + 1px --color-border` 内描边，**无出处**）；轨道/范围圆角 → **--radius-2xs**（4px 高下与 --radius-full 同渲染，仅为声明值对齐）。
+ *   ⚠️ 仍存的**有意偏差**：`_Slider_pudb7_1` 用 `padding-bottom:6px` 撑高，我们用 `height: var(--control-size-2xs)`
+ *      （跟随设置页行高骨架，未量过官方行内布局 ⇒ 不动）。thumb 的 transition 官方模块**未声明**，本工程保留 box-shadow 过渡（已去掉失效的 transform）。
+ *   未实测：官方该组件的**像素级 rect**（本轮只有 CSS 声明，没有量测）。
+ *
+ * ★ [task-94]「官方到底有几套滑块、我们该对哪一套」已定案（docs/RECON-TASK91-BATCH4.md A/B 两节，
+ *   证据 captures/recon-official/official-task91-contrast-slider.json）：**至少三套，互不同源** ——
+ *     ① 本块对齐的 `_Slider_pudb7_*`（webview bundle，CSS Modules 风格；task-81/82 判据见上）；
+ *     ② 官方**设置页**的「对比度」滑杆 = **native `input[type=range]` + Tailwind 工具类**，
+ *        **没有任何 hashed 类**：轨道 `h-0.5` = **2px**、外层盒 `h-9` = **36px**、thumb 走
+ *        `[&::-moz-range-thumb]:h-5/w-5` = **20×20**（伪元素，DOM 无 rect）；**无 Track/Range/Marks 子节点**；
+ *        行容器 `py-2` 8px + 36 = **52**（官方 row 440,600.92 726.67×52，input 958.67,625.92 146×2）；
+ *     ③ `src/renderer/assets/register-*.js` 的 `Slider--zvdb7/Track--ezSs1/Thumb--e1YhI/MarksContainer`
+ *        —— 该 bundle 在本构建**从未加载**（task-87 实测 script/styleSheets 均 0）⇒ **不能当基准**。
+ *   ⇒ 判定：**我们该对①**（本块已经对的是①，值不动）；② 只在实现「对比度」那一行时才用得上，
+ *     届时必须换成 native range + 2px/20px/36px 这套，**不要**把 `.cx-slider` 硬套上去。
+ *   ⇒ 另：`_Slider_pudb7_1` 的 `padding-bottom:6px` **确认不抄** —— 官方设置页那行 `padding: 0`、
+ *     没有 marks 容器，「给 marks 留位」的前提在官方那一行根本不成立（task-91 A 节读数）。 */
+
+.cx-slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--control-size-2xs);
+  touch-action: none;
+  user-select: none;
+}
+
+.cx-slider__track {
+  position: relative;
+  flex-grow: 1;
+  height: 4px;
+  /* 官方 _Track_pudb7_32：height 4px（证实）/ border-radius var(--radius-2xs) */
+  border-radius: var(--radius-2xs);
+  background-color: var(--slider-track-color);
+}
+
+.cx-slider__range {
+  position: absolute;
+  height: 100%;
+  /* 官方 _Range_pudb7_41：border-radius var(--radius-2xs) / background var(--slider-range-color) */
+  border-radius: var(--radius-2xs);
+  background-color: var(--slider-range-color);
+}
+
+.cx-slider__thumb {
+  display: block;
+  /* 官方 _Thumb_pudb7_49（SegmentedControl-c7b6717dfc2d.css）：14×14 / 底 --gray-0 /
+     box-shadow inset 0 0 0 2px var(--slider-range-color) / radius 50% / cursor grab。
+     改正前我们写的是 12px + --color-background-primary-solid + switch-thumb-shadow + 1px --color-border 内描边（无出处）。 */
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gray-0);
+  box-shadow: inset 0 0 0 2px var(--slider-range-color);
+  cursor: grab;
+  /* 官方模块对 thumb **未声明** transition；本工程保留 box-shadow 过渡，并去掉已失效的 transform（那来自已删除的无出处 scale）。 */
+  transition-duration: var(--transition-duration-basic);
+  transition-property: box-shadow;
+  transition-timing-function: var(--transition-ease-basic);
+}
+
+/* 三条伪类逐字对官方 _Thumb_pudb7_49（:focus / :focus-visible / :active / :disabled）：
+   :focus-visible 用 --green-600 内环、:focus 回到 range 色、:active grabbing、:disabled pointer-events:none。
+   改正前我们写的是 outline 2px --color-ring + offset 2px（无出处）。 */
+.cx-slider__thumb:focus {
+  box-shadow: inset 0 0 0 2px var(--slider-range-color);
+  outline: none;
+}
+
+.cx-slider__thumb:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--green-600);
+  outline: none;
+}
+
+.cx-slider__thumb:active {
+  cursor: grabbing;
+}
+
+.cx-slider__thumb:disabled {
+  /* ⚠️ 本工程附加（官方模块对 :disabled 只声明 pointer-events:none，未给外观；不打折会看不出禁用） */
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ── 6. Kbd（官方 ShortcutKeys，app-shared-40678a67f0e3.js：
+ *      inline-flex !border-0 !font-sans !shadow-none !rounded-md !bg-current/10
+ *      !text-xs !text-current px-1.5 py-0.5 !leading-none
+ *      实测量：Ctrl+C 档 48×16，圆角 10px（--radius-md ×1.25），白 10% 底，
+ *      12px / 行高 12（text-xs + leading-none），padding 2px 6px）────────────── */
+
+.cx-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--spacing) * 4);
+  height: calc(var(--spacing) * 4);
+  padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1.5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
+  color: currentColor;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 12px);
+  font-weight: var(--font-ui-weight, 430);
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cx-kbd[data-size="button"] {
+  min-width: calc(var(--spacing) * 4);
+  height: calc(var(--spacing) * 4);
+  padding: 0 calc(var(--spacing) * 1.5);
+  line-height: calc(var(--spacing) * 4);
+}
+
+.cx-kbd[data-size="tooltip"] {
+  height: calc(var(--spacing) * 4.5);
+  min-width: calc(var(--spacing) * 4);
+  padding: 0 calc(var(--spacing) * 1.5);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-background-tooltip-shortcut, var(--color-surface-elevated));
+  color: var(--color-text-tooltip-shortcut, var(--color-text));
+  font-size: var(--font-text-sm-size);
+  line-height: calc(var(--spacing) * 4.5);
+}
+
+.cx-kbd[data-variant="primary"] {
+  color: var(--color-text-primary-solid);
+}
+
+/* ── 7. 弹层公共：遮罩（官方 _ModalBackdrop_ovjjw_2，官方CSS raw/ovjjw.css:3-8；SPEC-OVERLAYS §13.1/§13.3）
+ *   默认档：background-color: var(--modal-backdrop-background)（light #0000004d / dark #00000080），**没有** backdrop-filter
+ *   fade 档 [data-backdrop=fade]：backdrop-filter: var(--modal-backdrop-fade-filter)（blur(1px)）
+ *                              + background-color: var(--modal-backdrop-fade-background)（#00000080）
+ *   时长：遮罩入场 .6s / 出场 .4s 是**硬编码**的（面板才是 .6s/.3s 两个变量）—— 两者不一致是官方行为，
+ *         SPEC-OVERLAYS §13.3 明确“不要统一”。
+ *
+ * ⚠️ P1 修复（2026-10-10）：**类名撞车** —— chat.css 把同名类定义成了菜单面板
+ *   src/chat/chat.css:1442 的 .cx-overlay 是 ModelPicker / PermissionMenu 的**面板**
+ *   （position:relative; z-index:50; margin:1px; border-radius:20px; backdrop-filter:blur(8px) 等），
+ *   打包顺序里 chat.css 靠后（dist-overlay/assets/index-*.css：ui.css 命中在偏移 26067，
+ *   chat.css 命中在偏移 136344），同权重（0-1-0）后者胜 →
+ *   遮罩 computed 成 position:relative / z-index:50 / margin:1px / border-radius:20px /
+ *   backdrop-filter:blur(8px) / background:oklab(...)，rect = 1282×0 @y818.33，**完全不铺屏**。
+ *   同一撞车还发生在 @keyframes：两个文件都定义 cx-overlay-in，同名关键帧全文档只留一份
+ *   （后者覆盖前者），于是遮罩入场实际吃的是**菜单**那套 scale(.98 → 1)。
+ *   本文件的遮罩规则因此这样写（只改本文件，不动 src/chat/**）：
+ *     ① 选择器提到 0-2-0（.cx-overlay.cx-dialog__overlay；两个调用点 ui/dialog.tsx:101、
+ *        ui/alert-dialog.tsx:18 本来就带 cx-dialog__overlay），无论 chat.css 的 0-1-0 规则多晚都盖不住；
+ *     ② 把遮罩自己需要的属性**全部显式声明**（position/inset/z-index/display/margin/padding/border/
+ *        border-radius/corner-shape/background/box-shadow/backdrop-filter/outline/overflow/animation 等），
+ *        不依赖“没人覆盖我”这个前提 —— 覆盖写在与 chat.css 面板同一批属性上，逐条把遮罩的值给回去；
+ *     ③ 关键帧改名 cx-dialog-overlay-in/out，与 chat.css 的 cx-overlay-in 不再撞名。
+ *   通用 .cx-overlay 规则**保留原样**：它仍是“弹层公共遮罩”的兜底声明，chat.css 里那两条菜单面板规则
+ *   照旧靠“同权重 + 靠后”覆盖它（那是 chat.css 自己的既定做法，不在本次修复范围内）。 */
+
+.cx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background-color: var(--modal-backdrop-background);
+  backdrop-filter: none;
+}
+
+/* 对话框遮罩：0-2-0 且逐条显式声明，chat.css 的 0-1-0 面板规则永远盖不住它。
+   z-index 45 = 本文件 §11 的 .cx-dialog__overlay { z-index: 45 }（对话框面板是 46）；
+   那条 0-1-0 规则会被 chat.css 的 50 盖掉，所以在这里显式复述。 */
+.cx-overlay.cx-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  corner-shape: round;
+  /* 兜底值 = 官方 dark 档 #00000080：token 万一缺失也不会 IACVT 成透明（那样遮罩会彻底看不见） */
+  background-color: var(--modal-backdrop-background, rgba(0, 0, 0, 0.5));
+  background-image: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  outline: none;
+  overflow: visible;
+  /* 下面四条 chat.css 也声明在面板上；遮罩是无子元素的空 div，显式给回继承值只为“不依赖对方不覆盖” */
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  /* 没有 data-state 时不带任何入场动画（chat.css 的 .32s scale 属于菜单，不该落在遮罩上） */
+  animation: none;
+}
+
+.cx-overlay.cx-dialog__overlay[data-backdrop="fade"] {
+  background-color: var(--modal-backdrop-fade-background, rgba(0, 0, 0, 0.5));
+  backdrop-filter: var(--modal-backdrop-fade-filter, blur(1px));
+  box-shadow: none;
+}
+
+.cx-overlay.cx-dialog__overlay[data-state="open"] {
+  animation: cx-dialog-overlay-in 0.6s var(--cubic-enter);
+}
+
+.cx-overlay.cx-dialog__overlay[data-state="closed"] {
+  animation: cx-dialog-overlay-out 0.4s var(--cubic-exit) forwards;
+}
+
+/* 改名：与 chat.css:1467 的 @keyframes cx-overlay-in（菜单的 scale .98→1）不再同名 */
+@keyframes cx-dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cx-dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── 8. Tooltip（官方 _Tooltip_1cofb_2，shell-shared:771-806 + token shell-shared:4032-4047）
+ *      圆角 10px（--radius-md）、底 rgba(54,54,54,.96)（--color-surface-elevated）、
+ *      字 14px/weight 400/行高 1.45、padding 三档、三叠加阴影 ──────────────── */
+
+/* 官方 _Tooltip_1cofb_2（官方CSS shell-shared.css:771-806；token 4032-4047；SPEC-OVERLAYS §6）
+ *   圆角 --tooltip-border-radius = --radius-md = 10px；底 --color-surface-elevated = rgba(54,54,54,.96)
+ *   字 --tooltip-font-size = 14px / --tooltip-font-weight = 400 / 行高 1.45；最大宽 300px
+ *   padding 三档：sm 8px 12px / md 12px 16px / lg 14px 18px；compact 2px 8px + 底 --gray-700 + 字 --gray-0
+ *   光标（官方CSS 781-786）：[data-clickable=false] → default；[data-clickable=true] → pointer
+ *   ⚠️ 几何未实测（tooltip 是 hover 触发，capture 里 [role=tooltip] 命中 0，SPEC-OVERLAYS §15 第 1 条）：
+ *      上面的值全部来自官方 CSS 声明 + token，不是量出来的。 */
+.cx-tooltip__content {
+  z-index: 60;
+  max-width: 300px;
+  padding: var(--tooltip-padding-md);
+  border-radius: var(--tooltip-border-radius);
+  background: var(--tooltip-background-color);
+  box-shadow: var(--tooltip-box-shadow);
+  color: var(--tooltip-text-color);
+  font-size: var(--tooltip-font-size);
+  font-weight: var(--tooltip-font-weight);
+  line-height: var(--tooltip-line-height);
+  text-wrap: pretty;
+  user-select: none;
+}
+
+.cx-tooltip__content[data-gutter-size="sm"] {
+  padding: var(--tooltip-padding-sm);
+}
+.cx-tooltip__content[data-gutter-size="lg"] {
+  padding: var(--tooltip-padding-lg);
+}
+
+.cx-tooltip__content[data-compact="true"] {
+  padding: var(--tooltip-compact-padding);
+  background: var(--tooltip-compact-background-color);
+  color: var(--tooltip-compact-text-color);
+  font-size: var(--tooltip-compact-font-size);
+  font-weight: var(--tooltip-compact-font-weight);
+}
+
+/* compact 的 hover 档（官方CSS shell-shared.css:787-792，仅 data-clickable=true，@media (hover:hover)） */
+@media (hover: hover) {
+  .cx-tooltip__content[data-compact="true"][data-clickable="true"]:hover {
+    background: var(--tooltip-compact-interactive-background-color-hover);
+    color: var(--tooltip-compact-interactive-text-color-hover);
+  }
+}
+
+.cx-tooltip__content[data-clickable="false"] {
+  cursor: default;
+}
+
+.cx-tooltip__content[data-clickable="true"] {
+  cursor: pointer;
+}
+
+.cx-tooltip__content[data-state="delayed-open"],
+.cx-tooltip__content[data-state="instant-open"] {
+  animation: cx-pop-in var(--transition-duration-basic) var(--ease-enter-snappy);
+}
+
+.cx-tooltip__content[data-state="closed"] {
+  animation: cx-pop-out var(--transition-duration-basic) var(--cubic-exit-snappy) forwards;
+}
+
+@keyframes cx-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cx-pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* ── 9. Menu（dropdown / context / menubar / select 共用）
+ * 官方 _MenuList_12y2s_2 原文（官方CSS raw/12y2s.css:1；SPEC-OVERLAYS §5.1）：
+ *   width: var(--menu-width, auto);
+ *   min-width: min(var(--menu-min-width, 300px), var(--radix-dropdown-menu-content-available-width));
+ *   max-width: var(--radix-dropdown-menu-content-available-width);
+ *   max-height: min(var(--radix-dropdown-menu-content-available-height), var(--menu-max-height, 1200px));
+ *   padding: var(--menu-gutter) [electron 4px]；border-radius: var(--menu-radius) [20px，弹层里唯一 20px]
+ *   backdrop-filter: var(--menu-backdrop-filter, none) → **electron 下 = none**（见文件头 a 条）
+ *   底 var(--menu-background-color) = rgb(45,45,45)；影 --menu-box-shadow；corner-shape SE(1.5)
+ * electron 档 token：--menu-gutter 4px、--menu-font-size 13px、--menu-line-height 18.5714px、
+ *   --menu-item-padding 5px 8px、--menu-item-content-padding 4px 8px、--menu-item-gap 6px、
+ *   --menu-separator-gutter 4px 8px（electron 块覆盖基档的 4px -4px，SPEC-OVERLAYS §5.1）；
+ *   注意 theme.css 的 --padding-row-y 被钉成 4px，所以这里一律显式写 calc(--spacing * 1.25) = 5px。 */
+
+.cx-menu__content {
+  z-index: 50;
+  min-width: min(var(--menu-min-width, 300px), var(--radix-popper-available-width, 100vw));
+  max-width: var(--radix-dropdown-menu-content-available-width, none);
+  max-height: min(
+    var(--radix-dropdown-menu-content-available-height, var(--radix-popper-available-height, 100vh)),
+    var(--menu-max-height, 1200px)
+  );
+  padding: var(--menu-gutter);
+  overflow: auto;
+  border: 0;
+  border-radius: var(--menu-radius);
+  corner-shape: var(--menu-corner-shape);
+  background-color: var(--menu-background-color);
+  backdrop-filter: none;
+  box-shadow: var(--menu-box-shadow);
+  color: var(--color-text);
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
+  transform-origin: var(
+    --radix-dropdown-menu-content-transform-origin,
+    var(--radix-popper-transform-origin, center)
+  );
+  will-change: transform;
+}
+
+.cx-menu__content[data-state="open"] {
+  animation: cx-menu-in var(--transition-duration-basic) var(--cubic-enter);
+}
+
+/* 进出场（官方CSS raw/12y2s.css:6-9，SPEC-OVERLAYS §5.4）：
+ *   [data-entering] → opacity 0 + scale(.95)；[data-entering-active] → .15s var(--cubic-enter)
+ *   [data-exiting]  → scale(1)；[data-exiting-active] → **.1s** var(--cubic-exit) + scale(.95) */
+.cx-menu__content[data-state="closed"] {
+  animation: cx-menu-out 0.1s var(--cubic-exit) forwards;
+}
+
+@keyframes cx-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cx-menu-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* A 类条目 _MenuItem_12y2s_2（官方CSS raw/12y2s.css:11-22；SPEC-INTERACTION §7.1）：
+ *   本体：display:block; position:relative; gap:6px; padding:5px 8px; cursor:pointer; user-select:none
+ *   ::before 面：radius 15px、背景 rgba(255,255,255,.078)、corner-shape SE(1.5)、opacity 0、
+ *     transform: scale(var(--scale, .98))「按下缩到 .98」、transition: transform .15s var(--cubic-enter)
+ *   [data-highlighted] / [data-state=open] → opacity 1 + scale(1)；高亮 + :active → scale(.98)
+ *   [data-disabled] → cursor not-allowed / opacity .5 / ::before display:none
+ *   [data-color=danger] → 文字 --color-text-danger-soft、面 --color-background-danger-soft-alpha
+ *   （结构差异：官方本体 display:block、行内是 _PressableInner_ 那个 flex 行；本工程把 flex 放在本体上，
+ *     视觉等价，不再多包一层。） */
+.cx-menu__item,
+.cx-menu__sub-trigger,
+.cx-menu__checkbox-item,
+.cx-menu__radio-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--menu-item-gap, calc(var(--spacing) * 1.5));
+  padding: var(
+    --menu-item-padding,
+    calc(var(--spacing) * 1.25) var(--padding-row-x, calc(var(--spacing) * 2))
+  );
+  border-radius: var(--menu-item-radius);
+  corner-shape: var(--menu-corner-shape);
+  color: var(--color-text);
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
+  white-space: nowrap;
+  cursor: var(--cursor-interaction, pointer);
+  outline: none;
+  user-select: none;
+}
+
+.cx-menu__item::before,
+.cx-menu__sub-trigger::before,
+.cx-menu__checkbox-item::before,
+.cx-menu__radio-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: var(--menu-item-radius);
+  background: var(--menu-item-background-color);
+  corner-shape: var(--menu-corner-shape);
+  opacity: 0;
+  transform: scale(var(--scale, 0.98));
+  transition: transform 0.15s var(--cubic-enter);
+  will-change: transform;
+}
+
+.cx-menu__item[data-highlighted]::before,
+.cx-menu__sub-trigger[data-highlighted]::before,
+.cx-menu__sub-trigger[data-state="open"]::before,
+.cx-menu__checkbox-item[data-highlighted]::before,
+.cx-menu__radio-item[data-highlighted]::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 高亮 + 按下：面带缩到 .98（官方 raw/12y2s.css:19） */
+.cx-menu__item[data-highlighted]:active::before,
+.cx-menu__sub-trigger[data-highlighted]:active::before,
+.cx-menu__checkbox-item[data-highlighted]:active::before,
+.cx-menu__radio-item[data-highlighted]:active::before {
+  transform: scale(0.98);
+}
+
+.cx-menu__item[data-disabled],
+.cx-menu__sub-trigger[data-disabled],
+.cx-menu__checkbox-item[data-disabled],
+.cx-menu__radio-item[data-disabled] {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cx-menu__item[data-disabled]::before,
+.cx-menu__sub-trigger[data-disabled]::before,
+.cx-menu__checkbox-item[data-disabled]::before,
+.cx-menu__radio-item[data-disabled]::before {
+  display: none;
+}
+
+.cx-menu__item[data-color="danger"],
+.cx-menu__sub-trigger[data-color="danger"] {
+  color: var(--color-text-danger-soft);
+}
+
+.cx-menu__item[data-color="danger"]::before,
+.cx-menu__sub-trigger[data-color="danger"]::before {
+  background: var(--color-background-danger-soft-alpha);
+}
+
+.cx-menu__item[data-selected] {
+  color: var(--color-text-emphasis, var(--color-text));
+}
+
+/* 分节标签：官方没有单独的 _MenuLabel_ 尺寸，取 _MenuItemContent_ 的内容内距
+ * var(--menu-item-content-padding) = 4px 8px（SPEC-OVERLAYS §5.1）；配色未实测，沿用本工程档。 */
+.cx-menu__label {
+  padding: var(
+    --menu-item-content-padding,
+    calc(var(--spacing) * 1) var(--padding-row-x, calc(var(--spacing) * 2))
+  );
+  color: var(--color-text-secondary);
+  font-size: var(--font-text-xs-size);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 分隔线 _Separator_12y2s_2（官方CSS raw/12y2s.css:27）：height 1px + margin var(--menu-separator-gutter)。
+ * electron 档该 token = var(--spacing) var(--padding-row-x, calc(--spacing*2)) = **4px 8px**
+ * （electron 块覆盖基档的 4px -4px，SPEC-OVERLAYS §5.1 / SPEC-INTERACTION §7.2）。
+ * 直接写死 4px 8px：theme.css 没搬 electron 的这一档，取 token 会落回基档的 4px -4px。 */
+.cx-menu__separator {
+  height: 1px;
+  /* <hr> 会带上 Tailwind preflight 的 border-top-width:1px，必须显式清掉 */
+  border: 0;
+  margin: calc(var(--spacing) * 1) var(--padding-row-x, calc(var(--spacing) * 2));
+  background-color: var(--menu-separator-background-color);
+}
+
+.cx-menu__shortcut {
+  margin-inline-start: auto;
+  padding-inline-start: var(--menu-choice-item-gap-end);
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs, 12px);
+  letter-spacing: 0.02em;
+}
+
+/* 指示器（SPEC-INTERACTION §4.1 / §5.2；官方CSS raw/12y2s.css:33-51）
+ *   菜单单选 _RadioIndicator_：18px（--menu-radio-indicator-size = --font-text-lg-size）圆环
+ *     box-shadow 0 0 0 1px rgba(255,255,255,.156) inset；高亮换 25%；选中底 #dfdfdf、孔 8px rgb(45,45,45)
+ *   菜单复选 _CheckboxIndicator_：16px（--menu-checkbox-indicator-size = calc(--spacing*4)） */
+.cx-menu__indicator {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--menu-radio-indicator-size, 18px);
+  height: var(--menu-radio-indicator-size, 18px);
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 1px var(--radio-group-indicator-border-color) inset;
+  color: var(--radio-group-indicator-hole-background-color);
+}
+
+.cx-menu__radio-item[data-highlighted] .cx-menu__indicator {
+  box-shadow: 0 0 0 1px var(--radio-group-indicator-border-color-hover) inset;
+}
+
+.cx-menu__radio-item[data-state="checked"] .cx-menu__indicator {
+  background-color: var(--radio-group-indicator-background-color);
+  box-shadow: none;
+}
+
+.cx-menu__checkbox-item .cx-menu__indicator {
+  width: var(--menu-checkbox-indicator-size, 16px);
+  height: var(--menu-checkbox-indicator-size, 16px);
+  box-shadow: none;
+  background-color: transparent;
+}
+
+.cx-menu__checkbox-item[data-state="checked"] .cx-menu__indicator {
+  background-color: var(--radio-group-indicator-background-color);
+}
+
+/* select 的勾不是 indicator 家族（官方未实测）：保持图标形态，不要套单选圆环 */
+.cx-select__item .cx-menu__indicator {
+  width: var(--menu-checkbox-indicator-size, 16px);
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+  color: var(--color-text);
+}
+
+.cx-menu__indicator[data-indicator-position="end"],
+[data-indicator-position="end"] .cx-menu__indicator {
+  order: 1;
+  margin-inline-start: var(--menu-indicator-margin-start, calc(var(--spacing) * 1.5));
+}
+
+.cx-menu__item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.cx-menu__sub-arrow {
+  margin-inline-start: auto;
+  color: var(--color-text-tertiary);
+}
+
+/* ── 10. Popover / HoverCard ─────────────────────────────────────────────
+ * 半径：--popover-radius = var(--radius-xl) = **15px**（electron；20px 是 browser 分支，SPEC-OVERLAYS §0.2）。
+ * 影：官方弹层族共用 --shadow-dropdown-overlay = --shadow-xl-spread
+ *   = 0 0 0 .5px rgba(255,255,255,.084), 0 8px 16px -4px #0000001f（shell-shared:4387 + 运行端）。
+ *   之前写的 0 0 0 var(--popover-overlay-ring-width) … 里那个变量本工程没定义 → 整条 box-shadow
+ *   在 computed 层被判无效而丢弃，弹层**没有影子**（已修）。
+ * backdrop-filter：官方没有 popover 的模糊声明；electron 下 --menu-backdrop-filter 无定义（文件头 a 条），
+ *   故取 none（**未实测**：popover 打开态不在 captures 里，SPEC-OVERLAYS §15）。
+ * ⚠️ Hover card 官方无 CSS module（只有 Tailwind 组合类），几何整体未实测（SPEC-OVERLAYS §7）——
+ *   这里沿用 popover 表面，仅作同族近似。 */
+
+.cx-popover__content,
+.cx-hover-card__content {
+  z-index: 50;
+  /* 默认按内容自适应；需要跟触发器等宽时由使用方传 style={{ width: "var(--radix-popover-trigger-width)" }} */
+  width: max-content;
+  max-width: min(360px, var(--radix-popper-available-width, 100vw));
+  max-height: var(--radix-popper-available-height, none);
+  overflow: auto;
+  border-radius: var(--popover-radius, var(--radius-xl));
+  corner-shape: var(--menu-corner-shape);
+  background-color: var(--color-surface-elevated);
+  backdrop-filter: none;
+  box-shadow: var(
+    --shadow-dropdown-overlay,
+    0 0 0 0.5px rgba(255, 255, 255, 0.084),
+    0 8px 16px -4px #0000001f
+  );
+  color: var(--color-text);
+  font-size: var(--menu-font-size);
+  outline: none;
+}
+
+.cx-popover__content[data-state="open"],
+.cx-hover-card__content[data-state="open"] {
+  animation: cx-pop-in var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-popover__content[data-state="closed"],
+.cx-hover-card__content[data-state="closed"] {
+  animation: cx-pop-out var(--transition-duration-basic) var(--cubic-exit) forwards;
+}
+
+.cx-popover__arrow,
+.cx-tooltip__arrow,
+.cx-hover-card__arrow {
+  fill: var(--color-surface-elevated);
+}
+
+/* ── 11. Dialog / Modal / AlertDialog ────────────────────────────────────
+ * 官方 _Modal_ovjjw_2（官方CSS raw/ovjjw.css:12-33；SPEC-OVERLAYS §13）：
+ *   桌面（≥768px）：max-width: var(--modal-max-width, 450px)（组件转传 --modal-max-width）
+ *     圆角 var(--modal-radius, var(--radius-xl)) → **electron 15px**（20px 是 browser 分支，文件头 b 条）
+ *     影 var(--modal-backdrop-dim-shadow, var(--shadow))；面 --color-surface-elevated
+ *     进/出场：--modal-out-opacity: 0、--modal-out-y: 20px，
+ *       entering-active: opacity 1 + translateY(0)，.6s var(--cubic-enter)
+ *       exiting-active:  opacity 0 + translateY(20px)，.3s var(--cubic-exit)（= bundle 常量 600/300）
+ *   结构：Header 50 高 / 0 20px 内距 / 下边框 1px --color-border / space-between / gap 8px
+ *         Body 16px 20px；[data-modal-scroll=inside] → flex:1 + overflow:auto + 透明下边框，
+ *              [data-scrollable=true] 时下边框转 --color-border（.3s）
+ *         Footer 16px 20px + justify-end + gap 8px
+ *   本工程把 Modal 居中写法保留为 translate(-50%,-50%)，位移叠在 calc 里；
+ *   --dialog-container-inner-padding（20px）是官方**外层居中容器**的内距，不是面板内距，已移出面板。 */
+
+.cx-dialog__overlay {
+  z-index: 45;
+}
+
+.cx-dialog__content {
+  --modal-out-opacity: 0;
+  --modal-out-y: 20px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: var(--dialog-min-width, var(--modal-min-width, 250px));
+  max-width: var(--modal-max-width, var(--dialog-max-width, 450px));
+  max-height: calc(95vh - 40px);
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: var(--modal-radius, var(--dialog-radius, var(--radius-xl)));
+  corner-shape: var(--menu-corner-shape);
+  background-color: var(--color-surface-elevated);
+  box-shadow: var(--modal-backdrop-dim-shadow, var(--shadow));
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+}
+
+.cx-dialog__content[data-state="open"] {
+  animation: cx-dialog-in var(--modal-enter-duration, 0.6s) var(--cubic-enter);
+}
+
+.cx-dialog__content[data-state="closed"] {
+  animation: cx-dialog-out var(--modal-exit-duration, 0.3s) var(--cubic-exit) forwards;
+}
+
+/* 官方 [data-animate=shake]（官方CSS raw/ovjjw.css:23-24）：0% 原位 / 20%,60% −5px / 40%,80% +5px */
+.cx-dialog__content[data-animate="shake"] {
+  animation: cx-shake 0.4s;
+}
+
+@keyframes cx-dialog-in {
+  from {
+    opacity: var(--modal-out-opacity, 0);
+    transform: translate(-50%, calc(-50% + var(--modal-out-y, 20px)));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes cx-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  to {
+    opacity: var(--modal-out-opacity, 0);
+    transform: translate(-50%, calc(-50% + var(--modal-out-y, 20px)));
+  }
+}
+
+@keyframes cx-shake {
+  0% {
+    transform: translate(-50%, -50%);
+  }
+  20%,
+  60% {
+    transform: translate(calc(-50% - 5px), -50%);
+  }
+  40%,
+  80% {
+    transform: translate(calc(-50% + 5px), -50%);
+  }
+  100% {
+    transform: translate(-50%, -50%);
+  }
+}
+
+.cx-dialog__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 2);
+  height: 50px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cx-dialog__title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: normal;
+  line-height: 1.4;
+}
+
+.cx-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 3);
+  padding: 16px 20px;
+}
+
+.cx-dialog__content[data-modal-scroll="inside"] .cx-dialog__body {
+  flex: 1;
+  overflow: auto;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.cx-dialog__content[data-scrollable="true"] .cx-dialog__body {
+  border-bottom-color: var(--color-border);
+}
+
+.cx-dialog__description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.cx-dialog__footer {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+}
+
+/* 关闭按钮：官方 Header 是 50px 条、内距 0 20px，24px 方钮（Button xs）垂直居中 → top 13px */
+.cx-dialog__close {
+  position: absolute;
+  top: 13px;
+  inset-inline-end: 20px;
+}
+
+.cx-alert-dialog__content {
+  min-width: var(--dialog-min-width);
+  max-width: var(--dialog-max-width);
+}
+
+.cx-alert-dialog__footer {
+  justify-content: flex-end;
+}
+
+/* ── 12. Select（--select-* 见 shell-shared:4006-4008）──────────────────────── */
+
+.cx-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--input-gap-sm);
+  height: var(--input-size, var(--control-size-2xs));
+  /* 2026-10-15 选择器改形（用户参考官方新版「打开方式」选择器）：
+     圆角矩形 + 毛玻璃底 + 贴边发丝边；内距收到 10px（内容离边框更近）。 */
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(var(--blur-lg, 16px));
+  color: var(--input-text-color, var(--color-text));
+  font-family: var(--font-sans);
+  font-size: var(--input-font-size, var(--control-font-size-md));
+  font-weight: var(--select-control-font-weight);
+  line-height: 1;
+  cursor: var(--cursor-interaction, pointer);
+  transition-duration: var(--transition-duration-basic);
+  transition-property: background-color, border-color, box-shadow, color;
+  transition-timing-function: var(--transition-ease-basic);
+}
+
+.cx-select__trigger:hover {
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 82%, transparent);
+}
+
+.cx-select__trigger:focus {
+  outline: none;
+}
+
+.cx-select__trigger:focus-visible {
+  outline: 2px solid var(--color-ring);
+  /* 聚焦环贴住按钮边界（原来 1px 外扩，看起来"边框离按钮还有一段距离"） */
+  outline-offset: 0;
+}
+
+.cx-select__trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cx-select__content {
+  transform-origin: var(--radix-select-content-transform-origin);
+}
+
+.cx-select__content[data-state="open"] {
+  animation: cx-select-in var(--transition-duration-basic) var(--cubic-enter);
+}
+
+.cx-select__content[data-state="closed"] {
+  animation: cx-select-out var(--transition-duration-basic) var(--cubic-exit) forwards;
+}
+
+@keyframes cx-select-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--select-list-scale));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cx-select-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(var(--select-list-scale));
+  }
+}
+
+.cx-select__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--menu-item-gap);
+  padding: var(--menu-item-padding);
+  border-radius: var(--menu-item-radius);
+  color: var(--color-text);
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
+  cursor: var(--cursor-interaction, default);
+  outline: none;
+  user-select: none;
+}
+
+.cx-select__item[data-highlighted] {
+  background-color: var(--menu-item-background-color);
+}
+
+.cx-select__item[data-state="checked"] {
+  /**
+   * 选中项**只打勾、不改字重**（用户 2026-10-15 给的参考截图：官方「打开方式」选择器里
+   * 当前项 = 右侧一枚勾号，字重与其它项一致，粗体会显得"半截加粗"）。
+   *
+   * ⚠️ 有意与官方 token 分道：官方桌面档 `--select-item-active-font-weight: 600`、
+   *    浏览器档 500（两处都在 tokens.css）。参考截图与实际观感都以"勾号 + 常规字重"为准，
+   *    所以这里显式落 `inherit`；勾号本身由 SelectItem 的 ItemIndicator 渲染（右侧对齐）。
+   *    想回到官方档位时把这一行改回 `font-weight: var(--select-item-active-font-weight)` 即可。
+   */
+  font-weight: inherit;
+}
+
+.cx-select__item[data-disabled] {
+  color: var(--color-text-disabled);
+  pointer-events: none;
+}
+
+.cx-select__viewport {
+  padding: var(--menu-gutter);
+}
+
+.cx-select__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-secondary);
+}
+
+/* ── 13. ScrollArea / Separator / Skeleton / Spinner ─────────────────────── */
+
+.cx-scroll-area {
+  position: relative;
+  overflow: hidden;
+}
+
+.cx-scroll-area__viewport {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.cx-scroll-area__scrollbar {
+  display: flex;
+  width: 10px;
+  padding: 2px;
+  touch-action: none;
+  user-select: none;
+  transition: background-color var(--transition-duration-relaxed) var(--transition-ease-basic);
+}
+
+.cx-scroll-area__scrollbar[data-orientation="horizontal"] {
+  flex-direction: column;
+  height: 10px;
+}
+
+.cx-scroll-area__thumb {
+  position: relative;
+  flex: 1;
+  border-radius: var(--radius-full);
+  background-color: color-mix(in oklab, var(--color-text) 16%, transparent);
+}
+
+.cx-scroll-area__thumb:hover {
+  background-color: color-mix(in oklab, var(--color-text) 28%, transparent);
+}
+
+.cx-separator {
+  flex-shrink: 0;
+  background-color: var(--color-border);
+}
+
+.cx-separator[data-orientation="horizontal"] {
+  height: 1px;
+  width: 100%;
+}
+
+.cx-separator[data-orientation="vertical"] {
+  width: 1px;
+  height: 100%;
+}
+
+.cx-skeleton {
+  border-radius: var(--radius-md);
+  background-color: var(--color-background-primary-ghost-hover);
+  animation: cx-skeleton-pulse 2s var(--cubic-move) infinite;
+}
+
+@keyframes cx-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.cx-spinner {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.cx-spinner > svg {
+  animation: var(--animate-spin);
+}
+
+.cx-spinner[data-size="sm"] > svg {
+  width: var(--control-icon-size-sm);
+  height: var(--control-icon-size-sm);
+}
+.cx-spinner[data-size="md"] > svg {
+  width: var(--control-icon-size-md);
+  height: var(--control-icon-size-md);
+}
+.cx-spinner[data-size="lg"] > svg {
+  width: var(--control-icon-size-lg);
+  height: var(--control-icon-size-lg);
+}
+
+/* ── 14. Toast（官方 .codex-toast-area + sonner 覆盖 + 自有包装的 CSS module，SPEC-OVERLAYS §9）──
+ *   容器（实测）：position: fixed; inset: 0; pointer-events: none; z-index: 60（类 codex-toast-area）
+ *     :not(:has([data-sonner-toast])) { visibility: hidden }（官方CSS shell-initial.css:7477-7479 实测）
+ *   sonner toaster 覆盖（官方CSS shell-initial.css:7480-7497）：
+ *     width: 100%；transition-duration: var(--transition-duration-relaxed)（.3s）；font-family: inherit
+ *     [data-x-position=right] → inset-inline: 24px；top: 56px；max-width: 320px；position: fixed
+ *   自有包装（raw/zsre1.css + --alert-* token，运行端 15px/16px/12px/14px/20px/600）
+ *
+ * ★ task-46 修（根因，别删）：这一行注释原本**没有闭合**（结尾缺注释终止符）⇒ 紧接着的三条 `.codex-toast-area*` 规则
+ *   全被当成注释文本，**从没进过任何一份构建产物** —— 实测四份 CSS（dist / dist-ctl2 / dist-toast / dist-toast2）
+ *   里 `codex-toast-area` 命中 **0**，而同一段的 `codex-sonner-toaster` 在（说明吞掉的只是这三条）。
+ *   后果：官方容器层的 `z-index: 60 / inset: 0 / pointer-events: none` 从来没生效 —— 即使渲染了容器也是条不设防的 div。
+ */
+
+.codex-toast-area {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.codex-toast-area:not(:has([data-sonner-toast])) {
+  visibility: hidden;
+}
+
+.codex-toast-area__inner {
+  position: absolute;
+  inset: 0;
+}
+
+/* 官方 [data-sonner-toaster].codex-sonner-toaster（esp. [data-x-position=right] 档 = 右上 56px / 左右 24px / 最大宽 320px）
+ *
+ * ★ task-46：选择器**照抄官方写法**（多带一个 `[data-sonner-toaster]` 属性 = 0,2,0 / 0,3,0），
+ *   不能只写 `.codex-sonner-toaster`（0,1,0）：sonner 在**运行时**注入自己的样式表（排在打包 CSS 之后），
+ *   同特异性下**后者胜** —— 实测改前 host `transition-duration` = sonner 的 **0.4s**，
+ *   我们这条 `var(--transition-duration-relaxed)`（0.3s）根本没生效；官方那条能生效正是因为它是 0,2,0。
+ *   定点改选择器而不是加 `!important`/改 token：token 一个字没动（`--transition-duration-relaxed` 不在 924 条之外/之内的问题里，它本来就是官方变量）。 */
+[data-sonner-toaster].codex-sonner-toaster {
+  width: 100%;
+  position: absolute;
+  top: 0;
+  font-family: inherit;
+  transition-duration: var(--transition-duration-relaxed);
+}
+
+[data-sonner-toaster].codex-sonner-toaster[data-x-position="right"] {
+  position: fixed;
+  inset-inline: calc(var(--spacing, 0.25rem) * 6);
+  top: calc(var(--spacing, 0.25rem) * 14);
+  width: auto;
+  max-width: calc(var(--spacing, 0.25rem) * 80);
+  margin-inline-start: auto;
+}
+
+[data-sonner-toaster].codex-sonner-toaster [data-sonner-toast],
+[data-sonner-toaster].codex-sonner-toaster [data-sonner-toast] > * {
+  transition-duration: var(--transition-duration-relaxed);
+}
+
+/* 条本体 = 官方 alert 面（raw/zsre1.css:1-3 + --alert-* token）：
+ *   _toast_ { pointer-events: auto; width: max-content; max-width: 100% }
+ *   _alert_ { min-width: 0; max-width: 100%; box-shadow: 0 4px 12px #0000001a }
+ *   --alert-border-radius = --radius-xl = 15px（electron）、--alert-gutter 16px、--alert-gap 12px、
+ *   --alert-font-size 14px、--alert-line-height 20px、--alert-title-font-weight 600 */
+.cx-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--alert-gap, calc(var(--spacing) * 3));
+  width: max-content;
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--alert-gutter, calc(var(--spacing) * 4));
+  border: 0;
+  border-radius: var(--alert-border-radius, var(--radius-xl));
+  corner-shape: var(--menu-corner-shape);
+  background-color: var(--menu-background-color);
+  backdrop-filter: none;
+  box-shadow: 0 4px 12px #0000001a;
+  color: var(--color-text);
+  font-size: var(--alert-font-size, 14px);
+  line-height: var(--alert-line-height, 20px);
+  pointer-events: auto;
+}
+
+.cx-toast [data-title],
+.cx-toast__title {
+  font-weight: var(--alert-title-font-weight, 600);
+  line-height: 1.4;
+}
+
+.cx-toast [data-description],
+.cx-toast__description {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.4;
+}
+
+/* ── 15. Label / 菜单栏触发按钮（官方应用菜单，SPEC §4/§5）─────────────────
+ * 触发按钮 49×23、圆角 10px、padding 4px 10px、14px/14px/400，
+ *   常态字色 rgba(255,255,255,.498)、hover/开态底 rgba(255,255,255,.03)、
+ *   字色 rgb(223,223,223)
+ * 下拉容器：bg rgb(31,31,31)、圆角 7.5px（--radius-sm）、无 backdrop-filter、
+ *   内边距 4px 0（条目左右各缩 4px）、条目 28 高 / padding 5px 16px / 12px/18px、
+ *   阴影 rgba(0,0,0,.42) 0 4px 12px 0（SPEC §5 实测）
+ * -------------------------------------------------------------------------- */
+
+.cx-label {
+  color: var(--color-text);
+  font-size: var(--font-text-sm-size);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--font-text-sm-line-height);
+}
+
+.cx-menu__item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 顶部菜单栏触发按钮（SPEC-OVERLAYS §3.3 实测）：
+ *   静默：bg rgba(0,0,0,0)、字 rgba(255,255,255,.498)、rect 49.333×23.333、圆角 10px（--radius-md）、
+ *         padding 4px 10px、font 14px/14px/400、corner-shape SE(1.5)、**border 0.667px solid transparent**
+ *         （= 声明 1px，dpr1.5 下 computed 读作 0.667px；23.333 = 14 + 8 + 2×0.667 ⇒ 高度由内容决定，
+ *          不要再写死 23px）
+ *   hover：bg-text/5（≈ rgba(255,255,255,.05)）+ 官方**显式**写 `hover:text-codex-description`
+ *         （[task-70] 离线核对：官方类串见 captures/recon-official/official-rail-plugins.json 的 dom.nodes[937..940]，
+ *          形如 `… text-tertiary hover:bg-text/5 hover:text-codex-description …`）。
+ *         但**净效果与 tertiary 同值**：官方基础档 `--color-codex-description: var(--app-color-text-foreground-tertiary`
+ *         （app-shared-f2d570e85ceb.css @209012 字节偏移），而 `--color-text-tertiary` 的基础档同值 ⇒ **不改色**。
+ *         ⚠️ 只有祖先链挂了 `electron:[--color-codex-description:color-mix(in srgb,var(--color-text) 70%,transparent)]`
+ *         （app-shared @1127014 那条工具类，会话区见过）时 hover 才更亮；shell 祖先链本轮未采到该类 ⇒ 残留未实测。）
+ *   开态：bg --color-codex-application-menu-selection = rgba(255,255,255,.03)、字 rgb(223,223,223) */
+.cx-menubar__trigger {
+  display: inline-flex;
+  align-items: center;
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2.5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  corner-shape: var(--codex-corner-shape);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: var(--font-text-sm-size);
+  font-weight: var(--font-weight-normal);
+  line-height: 1;
+  cursor: var(--cursor-interaction, default);
+  user-select: none;
+  outline: none;
+  transition:
+    background-color var(--transition-duration-basic) var(--transition-ease-basic),
+    color var(--transition-duration-basic) var(--transition-ease-basic);
+}
+
+.cx-menubar__trigger:hover {
+  background-color: color-mix(in srgb, var(--color-text) 5%, transparent);
+}
+
+.cx-menubar__trigger[data-state="open"] {
+  background-color: var(--color-codex-application-menu-selection, rgba(255, 255, 255, 0.03));
+  color: var(--color-text);
+}
+
+.cx-menubar__trigger:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -1px;
+}
+
+.cx-menubar__trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* 应用菜单容器（SPEC-OVERLAYS §3.1 实测；**不是**通用 --menu-* 弹层，别混）：
+ *   bg rgb(31,31,31)（--color-codex-application-menu）、圆角 7.5px（--radius-sm）、corner-shape **round**（SE 1 不是 1.5）
+ *   无边框、无 backdrop-filter（实测 none）、影 rgba(0,0,0,.42) 0 4px 12px 0、padding 4px 0（py-1）
+ *   min-width 220px（变量 --app-menu-min-width）、max-height min(available, 100vh − 12px)
+ *   锚点 = #application-menu-content-anchor（触发按钮 x、y=18） */
+.cx-menubar__content {
+  min-width: var(--app-menu-min-width, 220px);
+  max-height: min(var(--radix-popper-available-height, 100vh), calc(100vh - 12px));
+  padding: calc(var(--spacing) * 1) 0;
+  overflow: hidden auto;
+  border-radius: var(--radius-sm);
+  corner-shape: round;
+  background-color: var(
+    --app-color-background-application-menu,
+    var(--color-codex-application-menu, #1f1f1f)
+  );
+  backdrop-filter: none;
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.42);
+}
+
+/* 应用菜单分隔线：满宽 × h-[0.5px]（computed 1px）、上下各 8px（my-2）、
+ * 色 --color-border-strong = rgba(255,255,255,.157)（SPEC-OVERLAYS §3.2 实测） */
+.cx-menubar__content .cx-menu__separator {
+  height: var(--border-width-hairline, 0.5px);
+  margin: calc(var(--spacing) * 2) 0;
+  background-color: var(--color-border-strong);
+}
+
+/* 应用菜单条目 = B 类（Tailwind 组合，SPEC-INTERACTION §7.3）：直接换底色，**不用** ::before 高亮面。
+ *   条目 212×28（左右各缩 4px）、padding 5px 16px、圆角 7.5px、字 12px/18px/400、色 rgb(223,223,223) */
+.cx-menubar__item {
+  min-height: calc(var(--spacing) * 7);
+  margin: 0 calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 1.25) calc(var(--spacing) * 4);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-text-xs-size);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--font-text-lg-size);
+  color: var(--color-text);
+}
+
+.cx-menubar__item::before {
+  content: none;
+}
+
+.cx-menubar__item:hover,
+.cx-menubar__item[data-highlighted],
+.cx-menubar__item[data-state="open"] {
+  background-color: var(--color-background-primary-ghost-hover);
+}
+
+.cx-kbd-chord {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+/* 官方 Button 禁用配色（shell-shared:715-719）：非 dimmed 档换禁用底/字色 */
+.cx-btn[data-disabled][data-variant]:not([data-disabled-tone="dimmed"])::before {
+  background-color: var(--color-background-disabled);
+  opacity: 1;
+}
+
+.cx-btn[data-disabled][data-variant]:not([data-disabled-tone="dimmed"]) {
+  color: var(--color-text-disabled);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 16. 模型选择器（SPEC-OVERLAYS §1；官方CSS raw/b9jvu.css + raw/1d00n.css）
+ *
+ * 布局尺寸是 **254×84**：宽 width: calc(var(--spacing) * 63.5) = 254px（b9jvu.css:16 原文）；
+ * 高 4(padding) + 36(第 1 行) + 36(第 2 行) + 4(padding) = 84（SPEC §1.5 高度账）。
+ * ⚠️ SPEC §9 记的 249×82 是入场动画 scale(.98) 的第 0 帧，**不要按它实现**。
+ * 视觉：底 color-mix(in oklab, --color-surface-elevated-secondary 90%, transparent)（computed ≈
+ *   oklab(0.297 0 0 / 0.9)）、圆角 20px（--radius-2xl）、ring .5px --color-border、影 --shadow-xl-spread、
+ *   **backdrop-filter: blur(8px)**（Tailwind backdrop-blur-sm = --blur-sm；不是 --menu-backdrop-filter
+ *   的 16px，见文件头 a 条）、padding 4px、overflow: hidden（SPEC §1.3 实测）。
+ * 入场：.32s cubic-bezier(.23,1,.32,1) 30ms both，keyframes 0% opacity 0 + scale(.98)（b9jvu.css:16-20）。
+ * 结构差异：本工程给的是可量测的类，宿主（src/chat 的输入区）自行接线。
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+.cx-model-picker__content {
+  --dropdown-overlay-ring-width: var(--model-picker-ring-width, 0.5px);
+  --shadow-dropdown-overlay: var(--model-picker-overlay-shadow, var(--shadow-xl-spread));
+  width: calc(var(--spacing) * 63.5);
+  /* 实测 padding = 4px（SPEC §1.3）。官方 b9jvu.css:16 那句 --app-menu-gutter: 0px 不能让
+   * padding 落 0，否则高度账变成 0 + 36 + 40 + 0 = 76（实测 84 = 4 + 36 + 40 + 4）。 */
+  padding: var(--spacing);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--codex-corner-shape);
+  background-color: var(
+    --model-picker-background,
+    color-mix(in oklab, var(--color-surface-elevated-secondary) 90%, transparent)
+  );
+  backdrop-filter: blur(var(--blur-sm, 8px));
+  box-shadow:
+    0 0 0 var(--dropdown-overlay-ring-width, 0.5px) var(--color-border-overlay, var(--color-border)),
+    var(--shadow-xl-spread, 0 8px 16px -4px #0000001f);
+  color: var(--color-text);
+  transform-origin: var(
+    --radix-dropdown-menu-content-transform-origin,
+    var(--radix-popper-transform-origin, center)
+  );
+  will-change: opacity, transform;
+}
+
+.cx-model-picker__content[data-state="open"] {
+  animation: 0.32s cubic-bezier(0.23, 1, 0.32, 1) 30ms both cx-model-picker-enter;
+}
+
+/* 官方唯一自己带 reduced-motion 的弹层之一（b9jvu.css:19；SPEC-INTERACTION §11.2） */
+.cx-model-picker__content:has(> [data-reduced-motion="true"]) {
+  animation: none;
+}
+
+@keyframes cx-model-picker-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 第 1 行宿主 _ViewControls_1d00n_170（1d00n.css:31-40）：min-height 36、居中、padding-inline 8px，
+ * ::before 占位 16px；[data-explicit-model=true] → padding-inline 32px 且去掉占位 */
+.cx-model-picker__view-controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding-inline: calc(var(--spacing) * 2);
+}
+
+.cx-model-picker__view-controls::before {
+  content: "";
+  width: calc(var(--spacing) * 4);
+}
+
+.cx-model-picker__view-controls[data-explicit-model="true"] {
+  padding-inline: calc(var(--spacing) * 8);
+}
+
+.cx-model-picker__view-controls[data-explicit-model="true"]::before {
+  content: none;
+}
+
+/* 第 1 行本体 _ViewToggle_1d00n_195（1d00n.css:47；SPEC §1.5 实测 107.469×32 @y6）
+ * min-height 32 / 圆角 8px / padding 4px / 字号 14px（--text-base）/ 字重 500 / 行高 20px / SE(1.5) */
+.cx-model-picker__view-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: var(--spacing);
+  border: 0;
+  border-radius: 8px;
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-base, 14px);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.cx-model-picker__row-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-menu-item-content, calc(var(--spacing) * 1.5));
+}
+
+/* 第 2 行宿主 _SimpleView_1d00n_118（1d00n.css:24）：min-height 36 + padding-block 4px
+ * （y=44 = 4 + 36 + 4 实测自证） */
+.cx-model-picker__slider-row {
+  min-height: 36px;
+  padding-block: var(--spacing);
+}
+
+/* 强度滑杆 _SliderKeyboardControl_1d00n_123（1d00n.css:25）：outline 0 / margin 0 / padding 0 / display block
+ * 实测 rect 246×32 @ (x4, y44) —— 246 = 254 − 8（容器左右各 4px） */
+.cx-model-picker__slider {
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  outline: 0;
+}
+
+/* 多模型列表 _ModelList_1d00n_10（1d00n.css:26）：max-height min(316px, available − 4px) */
+.cx-model-picker__list {
+  max-height: min(316px, calc(var(--radix-dropdown-menu-content-available-height, 100vh) - var(--spacing)));
+  margin-block-end: calc(-1 * var(--spacing));
+  padding-block-end: var(--spacing);
+  padding-inline: var(--spacing);
+  overflow-y: auto;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 17. 权限菜单（SPEC-OVERLAYS §2；Tailwind 组合式，实测逐项）
+ *
+ * 容器 320×161.6875 = 4(padding) ×2 + 26(表头) + 42.5625×3（条目步进）
+ * 条目 312 × 42.5625 = padding 5px 8px + 内容 32.5625；圆角 rounded-xl = **15px**；
+ *   字号 13px / 行高 18.5714px（--text-sm--line-height）/ 字重 430（--font-ui-weight）；
+ *   行内容 gap 6px（--spacing-menu-item-content）；色 rgb(223,223,223)。
+ * hover 用 hover:bg-primary-ghost-hover = rgba(255,255,255,.078)（B 类：直接换底，不用 ::before，
+ *   与 §9 的 _MenuItem_12y2s_2「::before 高亮面」是两套实现，SPEC §2.4 明确不要混）。
+ * ⚠️ 描述行的字号/行高只能反算：内容盒 32.5625 = 18.5714(标题行) + 14(描述行) → 描述行高 14px；
+ *   描述字号没有直接实测值（标"未实测"）。宽度 320 也是实测 rect，官方没给 calc 出处。
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+.cx-permission-menu__content {
+  /* 官方容器的类清单是 flex flex-col（SPEC-OVERLAYS §2.2 实测原文）→ 条目才会撑满 312 */
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  padding: var(--spacing);
+  overflow-y: auto;
+  border: 0;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--codex-corner-shape);
+  background-color: color-mix(in oklab, var(--color-surface-elevated-secondary) 90%, transparent);
+  backdrop-filter: blur(var(--blur-sm, 8px));
+  box-shadow:
+    0 0 0 0.5px var(--color-border-overlay, var(--color-border)),
+    var(--shadow-xl-spread, 0 8px 16px -4px #0000001f);
+  color: var(--color-text);
+  font-size: var(--text-sm, 13px);
+  line-height: var(--text-sm--line-height, 1.4286);
+}
+
+.cx-permission-menu__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-menu-item-content, calc(var(--spacing) * 1.5));
+  height: 26px;
+  padding-inline: var(--padding-row-x, calc(var(--spacing) * 2));
+  color: var(--color-text);
+  font-size: var(--text-sm, 13px);
+}
+
+.cx-permission-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-menu-item-content, calc(var(--spacing) * 1.5));
+  width: 100%;
+  min-height: 42.5625px;
+  /* 条目 padding = p-[var(--app-menu-item-padding, var(--padding-row-y) var(--padding-row-x))]；
+   * electron 下 --padding-row-y 生效值 5px（SPEC §0.3），--padding-row-x = 8px */
+  padding: calc(var(--spacing) * 1.25) var(--padding-row-x, calc(var(--spacing) * 2));
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-sm, 13px);
+  font-weight: var(--font-ui-weight, 430);
+  line-height: var(--text-sm--line-height, 1.4286);
+  text-align: start;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.cx-permission-menu__item:hover,
+.cx-permission-menu__item:focus,
+.cx-permission-menu__item[data-highlighted] {
+  background-color: var(--color-background-primary-ghost-hover);
+  outline: none;
+}
+
+.cx-permission-menu__item-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 32.5625px;
+  min-width: 0;
+}
+
+.cx-permission-menu__item-title {
+  font-size: var(--text-sm, 13px);
+  line-height: var(--text-sm--line-height, 1.4286);
+}
+
+/* 描述行高 14px 由内容盒 32.5625 反算（18.5714 + 14）；字号未实测 */
+.cx-permission-menu__item-description {
+  color: var(--color-codex-description, rgba(255, 255, 255, 0.498));
+  font-size: var(--text-xs, 12px);
+  line-height: 14px;
+}
+
+.cx-permission-menu__leading-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-leading-size, 16px);
+  height: var(--icon-leading-size, 16px);
+  color: var(--color-text-secondary);
+}
+
+.cx-permission-menu__check {
+  margin-inline-start: auto;
+  color: var(--color-text);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 18. cmdk 行（命令面板 / 选择器 / 建议菜单，SPEC-OVERLAYS §4.3-4.5；SPEC-INTERACTION §10）
+ *
+ * 用官方的属性选择器原文（[cmdk-root] / [cmdk-item] / [cmdk-list] / [cmdk-input] / [cmdk-empty]），
+ * 数值出处：官方CSS shell-initial.css:7743-7865。
+ * ⚠️ 命令面板整块 rect **未实测**（只在 Ctrl+K 交互态出现，captures 里 [cmdk-*] 命中 0，
+ *   SPEC-OVERLAYS §4 末尾的警告 + §15 第 3 条）—— 下面是官方 CSS 声明值，不是量出来的。
+ * 本工程 src/ui 目前没有 cmdk 组件（shell 的搜索面板是自有 class），这组规则是给命令面板预留的钩子。
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+[cmdk-root] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+  min-width: 100%;
+  padding: var(--spacing);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3xl);
+  background-color: var(--color-surface-elevated-secondary);
+  color: var(--color-text);
+  font-size: var(--text-sm, 13px);
+  user-select: none;
+  z-index: 1000;
+  opacity: 1;
+  transform: translateZ(0);
+}
+
+/* electron 档字号 14px（官方CSS shell-initial.css:7863-7865） */
+:root[data-codex-window-type="electron"] [cmdk-root] {
+  font-size: var(--text-base, 14px);
+}
+
+.command-menu-dialog [cmdk-root],
+.cx-cmdk__dialog [cmdk-root] {
+  max-height: var(--command-menu-max-height, calc(min(300px, max(120px, 90vh - 64px)) + 64px));
+  overflow: hidden;
+  border-color: transparent;
+  border-radius: var(--radius-2xl);
+  background-color: var(--color-surface-elevated-secondary);
+  box-shadow: var(--shadow-2xl);
+  backdrop-filter: none;
+}
+
+[cmdk-item] {
+  content-visibility: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  min-height: calc(var(--spacing) * 6);
+  padding: calc(var(--spacing) * 1.25) var(--padding-row-x, calc(var(--spacing) * 2));
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  cursor: var(--cursor-interaction, pointer);
+  opacity: 0.75;
+  outline: none;
+  user-select: none;
+}
+
+[cmdk-item]:hover:not([aria-disabled="true"]):not([data-disabled="true"]),
+[cmdk-item][data-selected="true"],
+[cmdk-item][aria-selected="true"],
+[cmdk-item]:focus-visible,
+[cmdk-item]:active:not([aria-disabled="true"]):not([data-disabled="true"]) {
+  background-color: var(--color-background-primary-ghost-hover);
+  opacity: 1;
+}
+
+[cmdk-item][aria-disabled="true"],
+[cmdk-item][data-disabled="true"] {
+  cursor: default;
+  opacity: 0.25;
+}
+
+[cmdk-item][data-command-menu-loading="true"] {
+  cursor: default;
+  opacity: 0.6;
+  background-color: transparent;
+}
+
+[cmdk-item][data-command-menu-empty-state="true"] {
+  cursor: default;
+  opacity: 1;
+  background-color: transparent;
+}
+
+[cmdk-list] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+  min-height: 0;
+  max-height: min(300px, var(--cmdk-list-height, 300px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  transition: max-height var(--transition-duration-basic) ease;
+}
+
+.command-menu-dialog [cmdk-list],
+.cx-cmdk__dialog [cmdk-list] {
+  max-height: var(--command-menu-list-max-height, min(300px, max(120px, 90vh - 64px)));
+  scroll-padding-block-start: calc(var(--spacing) * 8);
+}
+
+[cmdk-input] {
+  padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2.5);
+}
+
+[cmdk-input]:focus-visible,
+[cmdk-list]:focus-visible,
+[cmdk-dialog],
+[cmdk-dialog]:focus-visible {
+  outline: none;
+}
+
+[cmdk-empty] {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--spacing) * 8);
+  padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2.5);
+  color: var(--color-codex-description, rgba(255, 255, 255, 0.498));
+  line-height: 1.4;
+  text-align: center;
+  white-space: pre-wrap;
+}

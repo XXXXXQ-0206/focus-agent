@@ -10,7 +10,8 @@
 | --- | --- |
 | 启动 | 解析安装目录（`ARTEX_HOME` → exe 同级/上级 → `C:\artex-ymh`）→ 按需拉起 PostgreSQL → 拉起 `artex.exe` → 端口 8787 就绪后加载控制台 |
 | 托盘 | 图标存在 ⇔ ARTEX 在跑；右键 `打开 / 重启 / 退出`；单击切回窗口；后端停掉后两个心跳周期自动收摊 |
-| 窗口 | 关窗 = 收进托盘（不退出）；外链走系统浏览器 |
+| 窗口 | 关窗 = 收进托盘（不退出）；外链走系统浏览器；右上角可在 Codex 风格客户端与原生 ARTEX Web 间切换 |
+| 服务校验 | TCP 端口就绪后还必须通过 `GET /api/health`，且响应为 `{"ok":true,"service":"artex"}` 才加载页面 |
 | 退出 | 停 ARTEX（进程树 + 端口占用者兜底）→ **只停自己拉起的 PostgreSQL** |
 | 单实例 | `app.requestSingleInstanceLock()`，第二次启动只是把已有窗口调到前台 |
 | 静默自启 | `ARTEX.exe --silent` 只亮托盘、不弹窗 |
@@ -26,6 +27,15 @@ npm run pack                   # @electron/packager 出 dist\ARTEX-win32-x64\ART
 
 产物是自包含的 Electron 应用（约 250 MB，和 dsh-desktop 同级），不再依赖系统浏览器；
 如果只想要"极简常驻 + 用浏览器看"，用 `C:\artex-ymh\launcher\dist\ArtexLauncher.exe`（约 0.2 MB、私有内存 11 MB）。
+
+## 双界面
+
+桌面端和 Web 端共用同一套 Codex renderer。启动后默认打开 `/` 的 Codex 风格客户端；窗口右上角和托盘菜单提供两个明确入口：
+
+- `Codex`：开发中的 Codex 风格客户端。
+- `ARTEX Web`：原生 ARTEX 前端（`/artex/`）。
+
+切换只是在本机 ARTEX origin 内导航，不新增 IPC，也不会把页面权限扩展到 Node.js。窗口会拒绝文件、脚本和其他未知协议；明确的 HTTP/HTTPS 外链才交给系统浏览器。
 
 ## 为什么是 Electron
 

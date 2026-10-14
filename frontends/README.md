@@ -4,10 +4,10 @@
 
 | 目录 | 定位 | 状态 |
 | --- | --- | --- |
-| [`../web`](../web) | Focus Agent 的类 Codex 风格 Web 客户端，包含任务对话、实时插话和 Codex 式工作区外壳。 | **开发中**，是当前单体构建默认嵌入的前端。 |
+| [`codex-client`](codex-client) | Focus Agent 的类 Codex 风格 Web/Electron renderer，包含任务对话、实时插话和 Codex 式工作区外壳。 | **开发中**，是当前单体构建默认嵌入的前端。 |
 | [`artex-web`](artex-web) | 原始 ARTEX Web 控制台，保留任务、资产、发现、系统设置等传统控制台布局。 | 从 `artex-ymh/upstream/main` 固定提取，作为独立前端维护。 |
 
-两套前端共用仓库根目录的 Go API，默认反代地址为 `http://localhost:8787`。它们是两份独立的 Next.js 工程，源码、依赖和构建产物互不复用；不要把 `artex-web` 的源码覆盖到 `../web`，否则会丢失 Codex 客户端的实时插话和 API 绑定。
+两套前端共用仓库根目录的 Go API，默认反代地址为 `http://localhost:8787`。Codex renderer 是 Vite + React，原生 ARTEX 是 Next.js；源码、依赖和构建产物互不复用。旧根目录 Codex Web 已移除，未迁移的 ARTEX 业务页面通过 `/artex/` 原生前端继续提供。
 
 ## 来源
 
@@ -25,12 +25,12 @@
 
 ```bash
 # Codex 风格 Web（开发中）
-cd web
+cd frontends/codex-client
 npm ci
 npm run dev -- --port 3000
 
 # 原始 ARTEX Web
-cd ../frontends/artex-web
+cd ../artex-web
 npm ci
 npm run dev -- --port 3001
 ```

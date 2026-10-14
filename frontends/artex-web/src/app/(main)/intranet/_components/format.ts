@@ -1,4 +1,4 @@
-// 内网作战页共用的小工具。
+// 内网会话页共用的小工具。
 
 /** fmtTime 把 RFC3339 时间格式化为 zh-CN 短格式；空值/非法值原样兜底。 */
 export function fmtTime(ts: string | undefined | null): string {

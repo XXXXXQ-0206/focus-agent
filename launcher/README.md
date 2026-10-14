@@ -34,7 +34,7 @@ pwsh -File build.ps1 -SelfContained  # 自包含单文件，约 70 MB，换机�
 pwsh -File create_shortcut.ps1       # 桌面创建 "ARTEX" 快捷方式
 ```
 
-图标由 `assets\make_icons.ps1` 从 `web\out\icon.png` 生成（运行态彩色 / 停止态灰度，各 7 个尺寸）。
+图标由 `assets\make_icons.ps1` 从 `frontends\artex-web\public\logo.png` 生成（运行态彩色 / 停止态灰度，各 7 个尺寸）。
 
 ## 实测资源占用（本机，空载）
 

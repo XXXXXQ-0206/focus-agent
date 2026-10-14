@@ -967,7 +967,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/stage", s.stageList)
 	mux.HandleFunc("DELETE /api/stage/{token}", s.stageDelete)
 
-	// 内网作战页（人工操作通道,JWT 后；与 agent host 工具隔离，见 intranet.go)。
+	// 内网会话页（人工操作通道,JWT 后；与 agent host 工具隔离，见 intranet.go)。
 	// 人工 exec/write/delete/teardown 全部打 [intranet] 服务端审计日志。
 	mux.HandleFunc("GET /api/sessions", s.intranetListSessions)
 	mux.HandleFunc("GET /api/sessions/{id}", s.intranetGetSession)

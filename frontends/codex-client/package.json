@@ -1,0 +1,43 @@
+{
+  "name": "artex-codex-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ARTEX shared Codex-style renderer for Web and Electron",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.104.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.54.0",
+    "motion": "^14.1.0",
+    "radix-ui": "^1.7.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.20.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4"
+  }
+}

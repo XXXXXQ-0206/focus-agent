@@ -1,0 +1,1238 @@
+{
+  "generatedAt": "2026-10-10T08:52:30.000Z",
+  "url": "http://127.0.0.1:5273/src/ui/dev-preview.html",
+  "failed": 0,
+  "results": [
+    {
+      "id": "model-picker 254×84 · w",
+      "selector": "[data-bench=\"model-picker\"] > .cx-model-picker__content",
+      "prop": "rect.w",
+      "expected": 254,
+      "actual": "254",
+      "pass": true
+    },
+    {
+      "id": "model-picker 254×84 · h",
+      "selector": "[data-bench=\"model-picker\"] > .cx-model-picker__content",
+      "prop": "rect.h",
+      "expected": 84,
+      "actual": "84",
+      "pass": true
+    },
+    {
+      "id": "model-picker 圆角 20px",
+      "selector": ".cx-model-picker__content",
+      "prop": "border-radius",
+      "expected": "20px",
+      "actual": "20px",
+      "pass": true
+    },
+    {
+      "id": "model-picker 模糊 8px（不是 16px）",
+      "selector": ".cx-model-picker__content",
+      "prop": "backdrop-filter",
+      "expected": "blur(8px)",
+      "actual": "blur(8px)",
+      "pass": true
+    },
+    {
+      "id": "model-picker padding 4px",
+      "selector": ".cx-model-picker__content",
+      "prop": "padding",
+      "expected": "4px",
+      "actual": "4px",
+      "pass": true
+    },
+    {
+      "id": "模型行1 高 36",
+      "selector": ".cx-model-picker__view-controls",
+      "prop": "rect.h",
+      "expected": 36,
+      "actual": "36",
+      "pass": true
+    },
+    {
+      "id": "模型行2 高 40（min-height 36 + padding-block 4×2）",
+      "selector": ".cx-model-picker__slider-row",
+      "prop": "rect.h",
+      "expected": 40,
+      "actual": "40",
+      "pass": true
+    },
+    {
+      "id": "强度滑杆 246 宽",
+      "selector": ".cx-model-picker__slider",
+      "prop": "rect.w",
+      "expected": 246,
+      "actual": "246",
+      "pass": true
+    },
+    {
+      "id": "强度滑杆 高 32",
+      "selector": ".cx-model-picker__slider",
+      "prop": "rect.h",
+      "expected": 32,
+      "actual": "32",
+      "pass": true
+    },
+    {
+      "id": "ViewToggle 高 32",
+      "selector": ".cx-model-picker__view-toggle",
+      "prop": "rect.h",
+      "expected": 32,
+      "actual": "32",
+      "pass": true
+    },
+    {
+      "id": "ViewToggle 圆角 8px",
+      "selector": ".cx-model-picker__view-toggle",
+      "prop": "border-radius",
+      "expected": "8px",
+      "actual": "8px",
+      "pass": true
+    },
+    {
+      "id": "ViewToggle 字号 14px",
+      "selector": ".cx-model-picker__view-toggle",
+      "prop": "font-size",
+      "expected": "14px",
+      "actual": "14px",
+      "pass": true
+    },
+    {
+      "id": "权限菜单容器 320 宽",
+      "selector": ".cx-permission-menu__content",
+      "prop": "rect.w",
+      "expected": 320,
+      "actual": "320",
+      "pass": true
+    },
+    {
+      "id": "权限菜单容器 161.6875 高",
+      "selector": ".cx-permission-menu__content",
+      "prop": "rect.h",
+      "expected": 161.6875,
+      "actual": "161.6875",
+      "pass": true
+    },
+    {
+      "id": "权限菜单表头 26 高",
+      "selector": ".cx-permission-menu__header",
+      "prop": "rect.h",
+      "expected": 26,
+      "actual": "26",
+      "pass": true
+    },
+    {
+      "id": "权限条目 312 宽",
+      "selector": ".cx-permission-menu__item",
+      "prop": "rect.w",
+      "expected": 312,
+      "actual": "312",
+      "pass": true
+    },
+    {
+      "id": "权限条目 42.5625 高",
+      "selector": ".cx-permission-menu__item",
+      "prop": "rect.h",
+      "expected": 42.5625,
+      "actual": "42.5625",
+      "pass": true
+    },
+    {
+      "id": "权限条目 padding 5px 8px",
+      "selector": ".cx-permission-menu__item",
+      "prop": "padding",
+      "expected": "5px 8px",
+      "actual": "5px 8px",
+      "pass": true
+    },
+    {
+      "id": "权限条目圆角 15px",
+      "selector": ".cx-permission-menu__item",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "权限条目字号 13px",
+      "selector": ".cx-permission-menu__item",
+      "prop": "font-size",
+      "expected": "13px",
+      "actual": "13px",
+      "pass": true
+    },
+    {
+      "id": "权限条目行高 18.5714px",
+      "selector": ".cx-permission-menu__item",
+      "prop": "line-height",
+      "expected": "18.5714px",
+      "actual": "18.5714px",
+      "pass": true
+    },
+    {
+      "id": "权限条目字重 430",
+      "selector": ".cx-permission-menu__item",
+      "prop": "font-weight",
+      "expected": "430",
+      "actual": "430",
+      "pass": true
+    },
+    {
+      "id": "权限条目内容 32.5625 高",
+      "selector": ".cx-permission-menu__item-content",
+      "prop": "rect.h",
+      "expected": 32.5625,
+      "actual": "32.5625",
+      "pass": true
+    },
+    {
+      "id": "应用菜单底 rgb(31,31,31)",
+      "selector": ".cx-menubar__content",
+      "prop": "background-color",
+      "expected": "rgb(31, 31, 31)",
+      "actual": "rgb(31, 31, 31)",
+      "pass": true
+    },
+    {
+      "id": "应用菜单圆角 7.5px",
+      "selector": ".cx-menubar__content",
+      "prop": "border-radius",
+      "expected": "7.5px",
+      "actual": "7.5px",
+      "pass": true
+    },
+    {
+      "id": "应用菜单无模糊",
+      "selector": ".cx-menubar__content",
+      "prop": "backdrop-filter",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "应用菜单 padding 4px 0",
+      "selector": ".cx-menubar__content",
+      "prop": "padding",
+      "expected": "4px 0px",
+      "actual": "4px 0px",
+      "pass": true
+    },
+    {
+      "id": "应用菜单 min-width 220",
+      "selector": ".cx-menubar__content",
+      "prop": "min-width",
+      "expected": "220px",
+      "actual": "220px",
+      "pass": true
+    },
+    {
+      "id": "应用菜单条目 28 高",
+      "selector": ".cx-menubar__item",
+      "prop": "rect.h",
+      "expected": 28,
+      "actual": "28",
+      "pass": true
+    },
+    {
+      "id": "应用菜单条目 padding 5px 16px",
+      "selector": ".cx-menubar__item",
+      "prop": "padding",
+      "expected": "5px 16px",
+      "actual": "5px 16px",
+      "pass": true
+    },
+    {
+      "id": "应用菜单条目圆角 7.5px",
+      "selector": ".cx-menubar__item",
+      "prop": "border-radius",
+      "expected": "7.5px",
+      "actual": "7.5px",
+      "pass": true
+    },
+    {
+      "id": "应用菜单条目字 12px",
+      "selector": ".cx-menubar__item",
+      "prop": "font-size",
+      "expected": "12px",
+      "actual": "12px",
+      "pass": true
+    },
+    {
+      "id": "应用菜单条目行高 18px",
+      "selector": ".cx-menubar__item",
+      "prop": "line-height",
+      "expected": "18px",
+      "actual": "18px",
+      "pass": true
+    },
+    {
+      "id": "应用菜单条目字重 400",
+      "selector": ".cx-menubar__item",
+      "prop": "font-weight",
+      "expected": "400",
+      "actual": "400",
+      "pass": true
+    },
+    {
+      "id": "应用菜单条目不画 ::before 面",
+      "selector": ".cx-menubar__item",
+      "prop": "content",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "应用菜单分隔线 0.5px",
+      "selector": ".cx-menubar__content .cx-menu__separator",
+      "prop": "rect.h",
+      "expected": 0.5,
+      "actual": "0.5",
+      "pass": true
+    },
+    {
+      "id": "应用菜单分隔线 margin 8px 0",
+      "selector": ".cx-menubar__content .cx-menu__separator",
+      "prop": "margin",
+      "expected": "8px 0px",
+      "actual": "8px 0px",
+      "pass": true
+    },
+    {
+      "id": "菜单容器圆角 20px",
+      "selector": "[data-bench=\"menu-generic\"] .cx-menu__content",
+      "prop": "border-radius",
+      "expected": "20px",
+      "actual": "20px",
+      "pass": true
+    },
+    {
+      "id": "菜单容器 padding 4px",
+      "selector": "[data-bench=\"menu-generic\"] .cx-menu__content",
+      "prop": "padding",
+      "expected": "4px",
+      "actual": "4px",
+      "pass": true
+    },
+    {
+      "id": "菜单容器无模糊",
+      "selector": "[data-bench=\"menu-generic\"] .cx-menu__content",
+      "prop": "backdrop-filter",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "菜单容器底 rgb(45,45,45)",
+      "selector": "[data-bench=\"menu-generic\"] .cx-menu__content",
+      "prop": "background-color",
+      "expected": "rgb(45, 45, 45)",
+      "actual": "rgb(45, 45, 45)",
+      "pass": true
+    },
+    {
+      "id": "A 类条目 padding 5px 8px",
+      "selector": "[data-bench=\"menu-item\"]",
+      "prop": "padding",
+      "expected": "5px 8px",
+      "actual": "5px 8px",
+      "pass": true
+    },
+    {
+      "id": "A 类条目圆角 15px",
+      "selector": "[data-bench=\"menu-item\"]",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "A 类条目 gap 6px",
+      "selector": "[data-bench=\"menu-item\"]",
+      "prop": "gap",
+      "expected": "6px",
+      "actual": "6px",
+      "pass": true
+    },
+    {
+      "id": "A 类条目字号 13px",
+      "selector": "[data-bench=\"menu-item\"]",
+      "prop": "font-size",
+      "expected": "13px",
+      "actual": "13px",
+      "pass": true
+    },
+    {
+      "id": "A 类条目行高 18.5714px",
+      "selector": "[data-bench=\"menu-item\"]",
+      "prop": "line-height",
+      "expected": "18.5714px",
+      "actual": "18.5714px",
+      "pass": true
+    },
+    {
+      "id": "A 类高亮面 opacity 1",
+      "selector": "[data-bench=\"menu-item-highlighted\"]",
+      "prop": "opacity",
+      "expected": "1",
+      "actual": "1",
+      "pass": true
+    },
+    {
+      "id": "A 类静默面 scale(.98)",
+      "selector": "[data-bench=\"menu-item\"]",
+      "prop": "transform",
+      "expected": "matrix(0.98, 0, 0, 0.98, 0, 0)",
+      "actual": "matrix(0.98, 0, 0, 0.98, 0, 0)",
+      "pass": true
+    },
+    {
+      "id": "菜单分隔线 margin 4px 8px",
+      "selector": "[data-bench=\"menu-separator\"]",
+      "prop": "margin",
+      "expected": "4px 8px",
+      "actual": "4px 8px",
+      "pass": true
+    },
+    {
+      "id": "菜单分隔线 1px",
+      "selector": "[data-bench=\"menu-separator\"]",
+      "prop": "rect.h",
+      "expected": 1,
+      "actual": "1",
+      "pass": true
+    },
+    {
+      "id": "菜单单选指示器 18px",
+      "selector": ".cx-menu__radio-item .cx-menu__indicator",
+      "prop": "rect.w",
+      "expected": 18,
+      "actual": "18",
+      "pass": true
+    },
+    {
+      "id": "菜单复选指示器 16px",
+      "selector": ".cx-menu__checkbox-item .cx-menu__indicator",
+      "prop": "rect.w",
+      "expected": 16,
+      "actual": "16",
+      "pass": true
+    },
+    {
+      "id": "toast 圆角 15px",
+      "selector": ".cx-toast",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "toast padding 16px",
+      "selector": ".cx-toast",
+      "prop": "padding",
+      "expected": "16px",
+      "actual": "16px",
+      "pass": true
+    },
+    {
+      "id": "toast gap 12px",
+      "selector": ".cx-toast",
+      "prop": "gap",
+      "expected": "12px",
+      "actual": "12px",
+      "pass": true
+    },
+    {
+      "id": "toast 字号 14px",
+      "selector": ".cx-toast",
+      "prop": "font-size",
+      "expected": "14px",
+      "actual": "14px",
+      "pass": true
+    },
+    {
+      "id": "toast 行高 20px",
+      "selector": ".cx-toast",
+      "prop": "line-height",
+      "expected": "20px",
+      "actual": "20px",
+      "pass": true
+    },
+    {
+      "id": "toast 影 0 4px 12px #0000001a",
+      "selector": ".cx-toast",
+      "prop": "box-shadow",
+      "expected": "rgba(0, 0, 0, 0.1) 0px 4px 12px 0px",
+      "actual": "rgba(0, 0, 0, 0.1) 0px 4px 12px 0px",
+      "pass": true
+    },
+    {
+      "id": "cmdk-root 圆角 20px（弹窗档）",
+      "selector": "[cmdk-root]",
+      "prop": "border-radius",
+      "expected": "20px",
+      "actual": "20px",
+      "pass": true
+    },
+    {
+      "id": "cmdk-item 圆角 12.5px",
+      "selector": "[cmdk-item]",
+      "prop": "border-radius",
+      "expected": "12.5px",
+      "actual": "12.5px",
+      "pass": true
+    },
+    {
+      "id": "cmdk-item padding 5px 8px",
+      "selector": "[cmdk-item]",
+      "prop": "padding",
+      "expected": "5px 8px",
+      "actual": "5px 8px",
+      "pass": true
+    },
+    {
+      "id": "cmdk-item 最小高 24px",
+      "selector": "[cmdk-item]",
+      "prop": "min-height",
+      "expected": "24px",
+      "actual": "24px",
+      "pass": true
+    },
+    {
+      "id": "cmdk-item 静默 opacity .75",
+      "selector": "[cmdk-item]:not([data-selected=\"true\"])",
+      "prop": "opacity",
+      "expected": "0.75",
+      "actual": "0.75",
+      "pass": true
+    },
+    {
+      "id": "cmdk-item 选中 opacity 1",
+      "selector": "[cmdk-item][data-selected=\"true\"]",
+      "prop": "opacity",
+      "expected": "1",
+      "actual": "1",
+      "pass": true
+    },
+    {
+      "id": "cmdk-item 选中底 ghost-hover",
+      "selector": "[cmdk-item][data-selected=\"true\"]",
+      "prop": "background-color",
+      "expected": "rgba(255, 255, 255, 0.08)",
+      "actual": "rgba(255, 255, 255, 0.08)",
+      "pass": true
+    },
+    {
+      "id": "cmdk-item 禁用 opacity .25",
+      "selector": "[cmdk-item][aria-disabled=\"true\"]",
+      "prop": "opacity",
+      "expected": "0.25",
+      "actual": "0.25",
+      "pass": true
+    },
+    {
+      "id": "btn 3xs 高 20",
+      "selector": "[data-bench=\"btn-3xs\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 20,
+      "actual": "20",
+      "pass": true
+    },
+    {
+      "id": "btn 2xs 高 22",
+      "selector": "[data-bench=\"btn-2xs\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 22,
+      "actual": "22",
+      "pass": true
+    },
+    {
+      "id": "btn xs 高 24",
+      "selector": "[data-bench=\"btn-xs\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 24,
+      "actual": "24",
+      "pass": true
+    },
+    {
+      "id": "btn sm 高 26",
+      "selector": "[data-bench=\"btn-sm\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 26,
+      "actual": "26",
+      "pass": true
+    },
+    {
+      "id": "btn md 高 28",
+      "selector": "[data-bench=\"btn-md\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 28,
+      "actual": "28",
+      "pass": true
+    },
+    {
+      "id": "btn lg 高 32",
+      "selector": "[data-bench=\"btn-lg\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 32,
+      "actual": "32",
+      "pass": true
+    },
+    {
+      "id": "btn xl 高 36",
+      "selector": "[data-bench=\"btn-xl\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 36,
+      "actual": "36",
+      "pass": true
+    },
+    {
+      "id": "btn 2xl 高 40",
+      "selector": "[data-bench=\"btn-2xl\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 40,
+      "actual": "40",
+      "pass": true
+    },
+    {
+      "id": "btn 3xl 高 44",
+      "selector": "[data-bench=\"btn-3xl\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 44,
+      "actual": "44",
+      "pass": true
+    },
+    {
+      "id": "btn 4xl 高 48",
+      "selector": "[data-bench=\"btn-4xl\"] .cx-btn",
+      "prop": "rect.h",
+      "expected": 48,
+      "actual": "48",
+      "pass": true
+    },
+    {
+      "id": "btn lg 字号 14px",
+      "selector": "[data-bench=\"btn-lg\"] .cx-btn",
+      "prop": "font-size",
+      "expected": "14px",
+      "actual": "14px",
+      "pass": true
+    },
+    {
+      "id": "btn md 圆角 7.5px",
+      "selector": "[data-bench=\"btn-md\"] .cx-btn",
+      "prop": "border-radius",
+      "expected": "7.5px",
+      "actual": "7.5px",
+      "pass": true
+    },
+    {
+      "id": "btn 2xl 圆角 12.5px",
+      "selector": "[data-bench=\"btn-2xl\"] .cx-btn",
+      "prop": "border-radius",
+      "expected": "12.5px",
+      "actual": "12.5px",
+      "pass": true
+    },
+    {
+      "id": "btn 3xl 圆角 15px",
+      "selector": "[data-bench=\"btn-3xl\"] .cx-btn",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "btn 4xl 圆角 15px",
+      "selector": "[data-bench=\"btn-4xl\"] .cx-btn",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "btn 按压不缩放（transform none）",
+      "selector": "[data-bench=\"btn-md\"] .cx-btn",
+      "prop": "transform",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "btn 展开态面 opacity .6",
+      "selector": "[data-bench=\"btn-variant-ghost\"] .cx-btn[aria-expanded=\"true\"]",
+      "prop": "opacity",
+      "expected": "0.6",
+      "actual": "0.6",
+      "pass": true
+    },
+    {
+      "id": "btn 选中态面 opacity 1",
+      "selector": "[data-bench=\"btn-variant-ghost\"] .cx-btn[data-selected]",
+      "prop": "opacity",
+      "expected": "1",
+      "actual": "1",
+      "pass": true
+    },
+    {
+      "id": "btn transparent 无 ::before 层",
+      "selector": "[data-bench=\"btn-variant-transparent\"] .cx-btn",
+      "prop": "content",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "btn disabled 底 = --color-background-disabled",
+      "selector": "[data-bench=\"btn-variant-solid\"] .cx-btn[disabled]",
+      "prop": "background-color",
+      "expected": "/ 0.05)",
+      "actual": "oklab(0.903646 0.0000412762 0.0000180602 / 0.05)",
+      "pass": true
+    },
+    {
+      "id": "btn disabled 文字 = --color-text-disabled",
+      "selector": "[data-bench=\"btn-variant-solid\"] .cx-btn[disabled]",
+      "prop": "color",
+      "expected": "rgba(255, 255, 255, 0.498)",
+      "actual": "rgba(255, 255, 255, 0.498)",
+      "pass": true
+    },
+    {
+      "id": "input 3xs 高 22",
+      "selector": "[data-bench=\"input-3xs\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 22,
+      "actual": "22",
+      "pass": true
+    },
+    {
+      "id": "input 2xs 高 24",
+      "selector": "[data-bench=\"input-2xs\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 24,
+      "actual": "24",
+      "pass": true
+    },
+    {
+      "id": "input xs 高 26",
+      "selector": "[data-bench=\"input-xs\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 26,
+      "actual": "26",
+      "pass": true
+    },
+    {
+      "id": "input sm 高 28",
+      "selector": "[data-bench=\"input-sm\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 28,
+      "actual": "28",
+      "pass": true
+    },
+    {
+      "id": "input md 高 32",
+      "selector": "[data-bench=\"input-md\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 32,
+      "actual": "32",
+      "pass": true
+    },
+    {
+      "id": "input lg 高 36",
+      "selector": "[data-bench=\"input-lg\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 36,
+      "actual": "36",
+      "pass": true
+    },
+    {
+      "id": "input xl 高 40",
+      "selector": "[data-bench=\"input-xl\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 40,
+      "actual": "40",
+      "pass": true
+    },
+    {
+      "id": "input 2xl 高 44",
+      "selector": "[data-bench=\"input-2xl\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 44,
+      "actual": "44",
+      "pass": true
+    },
+    {
+      "id": "input 3xl 高 48",
+      "selector": "[data-bench=\"input-3xl\"] .cx-input",
+      "prop": "rect.h",
+      "expected": 48,
+      "actual": "48",
+      "pass": true
+    },
+    {
+      "id": "input sm 圆角 10px",
+      "selector": "[data-bench=\"input-sm\"] .cx-input",
+      "prop": "border-radius",
+      "expected": "10px",
+      "actual": "10px",
+      "pass": true
+    },
+    {
+      "id": "input xl 圆角 12.5px",
+      "selector": "[data-bench=\"input-xl\"] .cx-input",
+      "prop": "border-radius",
+      "expected": "12.5px",
+      "actual": "12.5px",
+      "pass": true
+    },
+    {
+      "id": "input 2xl 圆角 15px",
+      "selector": "[data-bench=\"input-2xl\"] .cx-input",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "input outline 描边 1px inset",
+      "selector": "[data-bench=\"input-outline\"] .cx-input[data-variant=\"outline\"]",
+      "prop": "box-shadow",
+      "expected": "0px 0px 0px 1px inset",
+      "actual": "rgba(255, 255, 255, 0.157) 0px 0px 0px 1px inset",
+      "pass": true
+    },
+    {
+      "id": "switch menu 32×19 · 宽",
+      "selector": "[data-bench=\"switch-menu\"] .cx-switch",
+      "prop": "rect.w",
+      "expected": 32,
+      "actual": "32",
+      "pass": true
+    },
+    {
+      "id": "switch menu 32×19 · 高",
+      "selector": "[data-bench=\"switch-menu\"] .cx-switch",
+      "prop": "rect.h",
+      "expected": 19,
+      "actual": "19",
+      "pass": true
+    },
+    {
+      "id": "switch menu thumb 13px",
+      "selector": "[data-bench=\"switch-menu\"] .cx-switch__thumb",
+      "prop": "rect.w",
+      "expected": 13,
+      "actual": "13",
+      "pass": true
+    },
+    {
+      "id": "switch settings 32×20 · 高",
+      "selector": "[data-bench=\"switch-settings\"] .cx-switch",
+      "prop": "rect.h",
+      "expected": 20,
+      "actual": "20",
+      "pass": true
+    },
+    {
+      "id": "switch settings thumb 16px",
+      "selector": "[data-bench=\"switch-settings\"] .cx-switch__thumb",
+      "prop": "rect.w",
+      "expected": 16,
+      "actual": "16",
+      "pass": true
+    },
+    {
+      "id": "switch settings 开态位移 14px",
+      "selector": "[data-bench=\"switch-settings\"] .cx-switch[data-state=\"checked\"] .cx-switch__thumb",
+      "prop": "transform",
+      "expected": "matrix(1, 0, 0, 1, 14, 0)",
+      "actual": "matrix(1, 0, 0, 1, 14, 0)",
+      "pass": true
+    },
+    {
+      "id": "switch menu 开态位移 16px",
+      "selector": "[data-bench=\"switch-menu\"] .cx-switch[data-state=\"checked\"] .cx-switch__thumb",
+      "prop": "transform",
+      "expected": "matrix(1, 0, 0, 1, 16, 0)",
+      "actual": "matrix(1, 0, 0, 1, 16, 0)",
+      "pass": true
+    },
+    {
+      "id": "checkbox 18×18 · 宽",
+      "selector": ".cx-checkbox",
+      "prop": "rect.w",
+      "expected": 18,
+      "actual": "18",
+      "pass": true
+    },
+    {
+      "id": "checkbox 18×18 · 高",
+      "selector": ".cx-checkbox",
+      "prop": "rect.h",
+      "expected": 18,
+      "actual": "18",
+      "pass": true
+    },
+    {
+      "id": "checkbox 圆角 5px",
+      "selector": ".cx-checkbox",
+      "prop": "border-radius",
+      "expected": "5px",
+      "actual": "5px",
+      "pass": true
+    },
+    {
+      "id": "checkbox 边框 1px #5d5d5d",
+      "selector": ".cx-checkbox",
+      "prop": "border-color",
+      "expected": "rgb(93, 93, 93)",
+      "actual": "rgb(93, 93, 93)",
+      "pass": true
+    },
+    {
+      "id": "checkbox 选中底 #ededed",
+      "selector": ".cx-checkbox[data-state=\"checked\"]",
+      "prop": "background-color",
+      "expected": "rgb(237, 237, 237)",
+      "actual": "rgb(237, 237, 237)",
+      "pass": true
+    },
+    {
+      "id": "checkbox 勾本体 64%×32%",
+      "selector": ".cx-checkbox[data-state=\"checked\"] .cx-checkbox__indicator",
+      "prop": "height",
+      "expected": 5.1172,
+      "actual": "5.33333px",
+      "pass": true
+    },
+    {
+      "id": "checkbox 勾竖笔 2px",
+      "selector": ".cx-checkbox[data-state=\"checked\"] .cx-checkbox__indicator",
+      "prop": "width",
+      "expected": "2px",
+      "actual": "2px",
+      "pass": true
+    },
+    {
+      "id": "radio 指示器 16px",
+      "selector": ".cx-radio-item__indicator",
+      "prop": "rect.w",
+      "expected": 16,
+      "actual": "16",
+      "pass": true
+    },
+    {
+      "id": "radio 孔 6px",
+      "selector": ".cx-radio-item__hole",
+      "prop": "rect.w",
+      "expected": 6,
+      "actual": "6",
+      "pass": true
+    },
+    {
+      "id": "radio 项间距 6px",
+      "selector": ".cx-radio-item",
+      "prop": "gap",
+      "expected": "6px",
+      "actual": "6px",
+      "pass": true
+    },
+    {
+      "id": "live 下拉菜单容器圆角 20px",
+      "selector": "[data-radix-popper-content-wrapper] .cx-menu__content",
+      "prop": "border-radius",
+      "expected": "20px",
+      "actual": "20px",
+      "pass": true
+    },
+    {
+      "id": "live 下拉条目 padding 5px 8px",
+      "selector": "[data-radix-popper-content-wrapper] .cx-menu__item",
+      "prop": "padding",
+      "expected": "5px 8px",
+      "actual": "5px 8px",
+      "pass": true
+    },
+    {
+      "id": "Modal 圆角 15px",
+      "selector": ".cx-dialog__content",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "Modal max-width 450",
+      "selector": ".cx-dialog__content",
+      "prop": "max-width",
+      "expected": "450px",
+      "actual": "450px",
+      "pass": true
+    },
+    {
+      "id": "Modal 宽 450",
+      "selector": ".cx-dialog__content",
+      "prop": "rect.w",
+      "expected": 450,
+      "actual": "450",
+      "pass": true
+    },
+    {
+      "id": "Modal Header 50 高",
+      "selector": ".cx-dialog__header",
+      "prop": "rect.h",
+      "expected": 50,
+      "actual": "50",
+      "pass": true
+    },
+    {
+      "id": "Modal Header padding 0 20",
+      "selector": ".cx-dialog__header",
+      "prop": "padding",
+      "expected": "0px 20px",
+      "actual": "0px 20px",
+      "pass": true
+    },
+    {
+      "id": "Modal Header 下边框 1px",
+      "selector": ".cx-dialog__header",
+      "prop": "border-bottom-width",
+      "expected": 1,
+      "actual": "0.666667px",
+      "pass": true
+    },
+    {
+      "id": "Modal 标题 18px",
+      "selector": ".cx-dialog__title",
+      "prop": "font-size",
+      "expected": "18px",
+      "actual": "18px",
+      "pass": true
+    },
+    {
+      "id": "Modal 标题字重 600",
+      "selector": ".cx-dialog__title",
+      "prop": "font-weight",
+      "expected": "600",
+      "actual": "600",
+      "pass": true
+    },
+    {
+      "id": "Modal Body padding 16px 20px",
+      "selector": ".cx-dialog__body",
+      "prop": "padding",
+      "expected": "16px 20px",
+      "actual": "16px 20px",
+      "pass": true
+    },
+    {
+      "id": "Modal Footer padding 16px 20px",
+      "selector": ".cx-dialog__footer",
+      "prop": "padding",
+      "expected": "16px 20px",
+      "actual": "16px 20px",
+      "pass": true
+    },
+    {
+      "id": "Modal Footer 间距 8px",
+      "selector": ".cx-dialog__footer",
+      "prop": "gap",
+      "expected": "8px",
+      "actual": "8px",
+      "pass": true
+    },
+    {
+      "id": "Modal 动效时长 0.6s",
+      "selector": ".cx-dialog__content",
+      "prop": "animation-duration",
+      "expected": "0.6s",
+      "actual": "0.6s",
+      "pass": true
+    },
+    {
+      "id": "遮罩 #00000080",
+      "selector": ".cx-overlay",
+      "prop": "background-color",
+      "expected": "rgba(0, 0, 0, 0.5)",
+      "actual": "rgba(0, 0, 0, 0.5)",
+      "pass": true
+    },
+    {
+      "id": "遮罩默认无 blur",
+      "selector": ".cx-overlay",
+      "prop": "backdrop-filter",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "AlertDialog 与 Modal 同圆角",
+      "selector": ".cx-dialog__content",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "tooltip 圆角 10px",
+      "selector": ".cx-tooltip__content",
+      "prop": "border-radius",
+      "expected": "10px",
+      "actual": "10px",
+      "pass": true
+    },
+    {
+      "id": "tooltip md padding 12px 16px",
+      "selector": ".cx-tooltip__content",
+      "prop": "padding",
+      "expected": "12px 16px",
+      "actual": "12px 16px",
+      "pass": true
+    },
+    {
+      "id": "tooltip 字号 14px",
+      "selector": ".cx-tooltip__content",
+      "prop": "font-size",
+      "expected": "14px",
+      "actual": "14px",
+      "pass": true
+    },
+    {
+      "id": "tooltip 最大宽 300px",
+      "selector": ".cx-tooltip__content",
+      "prop": "max-width",
+      "expected": "300px",
+      "actual": "300px",
+      "pass": true
+    },
+    {
+      "id": "tooltip 底 rgba(54,54,54,.96)",
+      "selector": ".cx-tooltip__content",
+      "prop": "background-color",
+      "expected": "rgba(54, 54, 54, 0.96)",
+      "actual": "rgba(54, 54, 54, 0.96)",
+      "pass": true
+    },
+    {
+      "id": "tooltip 行高 1.45",
+      "selector": ".cx-tooltip__content",
+      "prop": "line-height",
+      "expected": "20.3px",
+      "actual": "20.3px",
+      "pass": true
+    },
+    {
+      "id": "tooltip compact padding 2px 8px",
+      "selector": ".cx-tooltip__content[data-compact]",
+      "prop": "padding",
+      "expected": "2px 8px",
+      "actual": "2px 8px",
+      "pass": true
+    },
+    {
+      "id": "tooltip compact 底 #afafaf",
+      "selector": ".cx-tooltip__content[data-compact]",
+      "prop": "background-color",
+      "expected": "rgb(175, 175, 175)",
+      "actual": "rgb(175, 175, 175)",
+      "pass": true
+    },
+    {
+      "id": "tooltip compact 字重 430",
+      "selector": ".cx-tooltip__content[data-compact]",
+      "prop": "font-weight",
+      "expected": "430",
+      "actual": "430",
+      "pass": true
+    },
+    {
+      "id": "popover 圆角 15px",
+      "selector": ".cx-popover__content",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "popover 有影子（--shadow-dropdown-overlay）",
+      "selector": ".cx-popover__content",
+      "prop": "box-shadow",
+      "expected": "rgba(255, 255, 255, 0.082) 0px 0px 0px 0.5px, rgba(0, 0, 0, 0.12) 0px 8px 16px -4px",
+      "actual": "rgba(255, 255, 255, 0.082) 0px 0px 0px 0.5px, rgba(0, 0, 0, 0.12) 0px 8px 16px -4px",
+      "pass": true
+    },
+    {
+      "id": "hovercard 圆角 15px",
+      "selector": ".cx-hover-card__content",
+      "prop": "border-radius",
+      "expected": "15px",
+      "actual": "15px",
+      "pass": true
+    },
+    {
+      "id": "--popover-radius（应 15px）",
+      "prop": "token --popover-radius",
+      "expected": "",
+      "actual": "calc(.75rem * 1.25)",
+      "pass": null
+    },
+    {
+      "id": "--modal-radius（应 15px）",
+      "prop": "token --modal-radius",
+      "expected": "",
+      "actual": "calc(.75rem * 1.25)",
+      "pass": null
+    },
+    {
+      "id": "--dialog-radius（应 15px）",
+      "prop": "token --dialog-radius",
+      "expected": "",
+      "actual": "calc(.75rem * 1.25)",
+      "pass": null
+    },
+    {
+      "id": "--alert-border-radius（应 15px）",
+      "prop": "token --alert-border-radius",
+      "expected": "",
+      "actual": "calc(.75rem * 1.25)",
+      "pass": null
+    },
+    {
+      "id": "--blur-sm（= 8px）",
+      "prop": "token --blur-sm",
+      "expected": "",
+      "actual": "8px",
+      "pass": null
+    },
+    {
+      "id": "--menu-backdrop-filter（本工程 theme.css 定义，官方 electron 无此项）",
+      "prop": "token --menu-backdrop-filter",
+      "expected": "",
+      "actual": "blur(16px)",
+      "pass": null
+    },
+    {
+      "id": "--padding-row-y @ :root（官方 :root = 4px）",
+      "prop": "token --padding-row-y",
+      "expected": "",
+      "actual": "calc(0.25rem * 1)",
+      "pass": null
+    },
+    {
+      "id": "--padding-row-y @ body（官方 electron body = 5px）",
+      "prop": "token --padding-row-y @body",
+      "expected": "",
+      "actual": "calc(0.25rem * 1)",
+      "pass": null
+    },
+    {
+      "id": "权限菜单 3 条步进 42.5625",
+      "prop": "rect.y 差",
+      "expected": 42.5625,
+      "actual": "",
+      "pass": true
+    }
+  ]
+}

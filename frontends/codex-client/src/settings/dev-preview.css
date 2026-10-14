@@ -1,0 +1,92 @@
+/* 自测台几何（SPEC §3 实测值），只服务 dev-preview.html */
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: var(--gray-0);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+.harness {
+  position: relative;
+  width: 1280px;
+  height: 816px;
+}
+
+.harness__rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 52px;
+  background-color: var(--gray-0);
+}
+
+.harness__panel {
+  position: absolute;
+  top: 44px;
+  left: 52px;
+  width: 288px;
+  height: 768px;
+  border-radius: 12px 0 0 12px;
+  background-color: color-mix(in srgb, rgb(45, 45, 45) 65%, transparent);
+}
+
+.harness__panel-head {
+  height: 90px;
+}
+
+/* 面板滚动区 [52,134 288×678]，padding 4px 0 8px（SPEC §3） */
+.harness__panel-scroll {
+  position: absolute;
+  inset: 90px 0 0;
+  padding: 4px 0 8px;
+  overflow-y: auto;
+}
+
+/* 面板 section：padding 0 8px（SPEC §3） */
+.harness__panel-section {
+  padding: 0 8px;
+}
+
+/* 主内容面 [340,44 936×768] bg rgb(24,24,24) radius 0 12px 4px 0（SPEC §3） */
+.harness__surface {
+  position: absolute;
+  top: 44px;
+  left: 340px;
+  width: 936px;
+  height: 768px;
+  overflow: hidden;
+  border-radius: 0 12px 4px 0;
+  background-color: rgb(24, 24, 24);
+}
+
+/* 内容视口顶 y=96 → 头部 52px（--app-shell-header-height） */
+.harness__surface-header {
+  height: 52px;
+}
+
+.harness__surface-viewport {
+  height: 716px;
+}
+/* 自测台：左下角两个实验室，避开主内容面（不参与设置页几何量测） */
+.lab {
+  position: absolute;
+  left: 8px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 330px;
+  padding: 8px;
+  border-radius: 12px;
+  background-color: rgb(31, 31, 31);
+}
+
+.lab {
+  top: 8px;
+}
+
+.lab--controls {
+  top: 96px;
+  align-items: center;
+}

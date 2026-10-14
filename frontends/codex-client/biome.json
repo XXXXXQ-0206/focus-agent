@@ -1,0 +1,76 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "src/**",
+      "electron/**",
+      "!electron/dist",
+      "tools/**",
+      "!src/settings/dev-preview.html",
+      "*.ts",
+      "*.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 110
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off"
+      },
+      "style": {
+        "useTemplate": "warn"
+      },
+      "a11y": {
+        "useKeyWithClickEvents": "off",
+        "noStaticElementInteractions": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "noImportantStyles": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    },
+    "linter": {
+      "enabled": true
+    },
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/styles/tokens.css"
+      ],
+      "formatter": {
+        "enabled": false
+      },
+      "linter": {
+        "enabled": false
+      }
+    }
+  ]
+}

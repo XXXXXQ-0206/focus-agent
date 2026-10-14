@@ -10,10 +10,9 @@ __pycache__/
 *.pyo
 
 # frontend
-web/node_modules/
-web/.next/
-web/tsconfig.tsbuildinfo
-web/next-env.d.ts
+frontends/codex-client/node_modules/
+frontends/codex-client/dist/
+frontends/codex-client/*.tsbuildinfo
 frontends/artex-web/node_modules/
 frontends/artex-web/.next/
 frontends/artex-web/out/
@@ -78,6 +77,11 @@ Thumbs.db
 /desktop/build/
 /desktop/dist/
 /desktop/dist-tmp/
+# 桌面端 / 前端的本机运行日志与 pid（开发机产物，不进公开仓库）
+/desktop/*.log
+/desktop/*.pid
+/frontends/codex-client/*.log
+/frontends/codex-client/*.pid
 # 运行时杂项
 /ligolo-ng.yaml
 /.sock.lock

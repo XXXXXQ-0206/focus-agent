@@ -5,6 +5,7 @@
 
 import { auth } from "@/lib/auth";
 import { refreshAccessToken } from "@/lib/auth-refresh";
+import { appPath } from "@/lib/app-path";
 import type { ChatMention } from "@/lib/chat-mentions";
 import { MOCK } from "@/lib/mock/enabled";
 import { mockHandle } from "@/lib/mock/handler";
@@ -136,7 +137,7 @@ async function httpInner<T>(path: string, init: RequestInit | undefined, retried
     }
     if (typeof window !== "undefined") {
       auth.clearToken();
-      window.location.href = "/login";
+      window.location.href = appPath("/login");
     }
     throw new Error("未授权");
   }
@@ -212,7 +213,7 @@ const del = <T>(p: string, body?: unknown) =>
 // Go serializes nil slices as JSON null — coerce to [].
 const arr = <T>(x: T[] | null | undefined): T[] => x ?? [];
 const tq = (task?: string, sep: "?" | "&" = "?") => (task ? `${sep}task=${encodeURIComponent(task)}` : "");
-// 内网作战页四个列表的 ?task_id= 过滤参数(空 = 全局视图)。
+// 内网会话页四个列表的 ?task_id= 过滤参数(空 = 全局视图)。
 const taskQuery = (taskId?: string) => (taskId ? `?task_id=${encodeURIComponent(taskId)}` : "");
 
 // findingFilterParams 把发现页的筛选条件序列化成 query string。列表 / 分组 /
@@ -1216,7 +1217,7 @@ export const api = {
   applyUpdate: () => post<{ ok: boolean; target: string }>(`/update/apply`),
   rollbackUpdate: () => post<{ ok: boolean }>(`/update/rollback`),
 
-  // ---- 内网作战（拓扑 / 会话 / 隧道 / 凭据）----
+  // ---- 内网会话（拓扑 / 会话 / 隧道 / 凭据）----
   // 四个列表都支持可选 taskId(拼 ?task_id=);不传保持全局视图。
   intranetTopology: (taskId?: string) =>
     get<IntranetTopology>(`/intranet/topology${taskQuery(taskId)}`).then((r) => ({

@@ -6,6 +6,7 @@ import * as React from "react";
 import { AppSidebar } from "@/app/(main)/_components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import { appPath } from "@/lib/app-path";
 import { getClientCookie } from "@/lib/cookie.client";
 import {
   SIDEBAR_COLLAPSIBLE_VALUES,
@@ -41,7 +42,7 @@ export default function Layout({ children }: Readonly<{ children: ReactNode }>) 
       // “cookie 存在”就把我们从 /login 又重定向回主界面，与本守卫来回弹跳
       // 形成无限重定向 → 白屏（cookie 与 localStorage 不一致时触发）。
       auth.clearToken();
-      window.location.href = "/login";
+      window.location.href = appPath("/login");
     }
   }, []);
 

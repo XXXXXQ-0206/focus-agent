@@ -46,23 +46,37 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: |
+            frontends/codex-client/package-lock.json
+            frontends/artex-web/package-lock.json
       - run: npm ci
-        working-directory: web
-      # 类型检查是硬门；biome 全仓尚有百余个既有 lint error，先只对 src 出报告
-      # 不阻塞，待存量清理后再升级成硬门。
+        working-directory: frontends/codex-client
+      - run: npm ci
+        working-directory: frontends/artex-web
+      - run: npm run typecheck
+        working-directory: frontends/codex-client
       - run: npx tsc --noEmit
-        working-directory: web
+        working-directory: frontends/artex-web
       - name: Biome lint report (src only, non-blocking)
-        working-directory: web
+        working-directory: frontends/codex-client
         continue-on-error: true
         run: npx biome check src
-      - run: npm run build:static
-        working-directory: web
+      - name: Build Codex renderer
+        run: npm run build
+        working-directory: frontends/codex-client
+      - name: Build native ARTEX export
+        run: npm run build
+        working-directory: frontends/artex-web
+        env:
+          NEXT_EXPORT: "1"
       - uses: actions/upload-artifact@v4
         with:
-          name: web-dist
-          path: web/out
+          name: codex-dist
+          path: frontends/codex-client/dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artex-dist
+          path: frontends/artex-web/out
 
   # ③ 五平台交叉编译（内嵌前端）+ 打 zip
   binaries:
@@ -84,8 +98,12 @@ jobs:
           cache: true
       - uses: actions/download-artifact@v4
         with:
-          name: web-dist
-          path: server/webui/dist
+          name: codex-dist
+          path: server/webui/dist/codex
+      - uses: actions/download-artifact@v4
+        with:
+          name: artex-dist
+          path: server/webui/dist/artex
       - name: Build and package with build.sh
         env:
           ARTEX_TARGET_OS: ${{ matrix.goos }}

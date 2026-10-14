@@ -1,0 +1,307 @@
+.artex-codex-conversation .cx-thread__content,
+.artex-codex-conversation .cx-thread__column {
+  --cx-col: min(768px, calc(100% - 32px));
+  width: var(--cx-col);
+  margin-inline: auto;
+}
+
+/* 任务面板打开时，工作台视图与转录列同源位移（-154px），
+   否则 768 的列会伸到 308 宽的浮层下面（实测 03-overview 截图）。 */
+.artex-codex-conversation[data-artifact="open"] .artex-workbench {
+  translate: var(--cx-content-shift) 0;
+}
+
+/* ── 首页 ARTEX「模式」选择器（= Codex 首页「选择项目」芯片那一槽）──────────────
+   芯片本身沿用官方 .cx-chip / .cx-project-rail__chip 几何（28px / r9999 /
+   padding 0 8px / gap 6px / 13px·430，见 chat.css 头注释的实测账），这里只补：
+     · 最大宽度（模式名可能较长，如「报告撰写」）与省略号；
+     · 光标（原生是 button，不是 label+select）。 */
+.artex-mode-chip {
+  max-width: min(320px, 70vw);
+  cursor: pointer;
+}
+
+.artex-mode-chip .cx-chip__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 模式菜单：应用同款菜单浮层（.codex-app-menu 已给 bg/r7.5/阴影/padding 4px 0）。
+   条目是 <button>，按钮不继承字体 ⇒ 这里显式 font: inherit，字号由
+   .codex-app-menu__item 的 12px 决定，行高 28px 与官方菜单行一致。 */
+.artex-mode-menu {
+  min-width: 220px;
+}
+
+.artex-mode-menu .codex-app-menu__item {
+  width: calc(100% - 8px);
+  border: 0;
+  font: inherit;
+  text-align: start;
+  cursor: default;
+}
+
+.artex-mode-menu .codex-app-menu__item:not([data-selected]) .codex-app-menu__label {
+  color: var(--color-text-emphasis);
+}
+
+.artex-mode-menu__check {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+}
+
+.artex-mode-menu__badge {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 0.5px solid var(--color-border-strong);
+  border-radius: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.artex-mode-menu__empty {
+  display: block;
+  padding: 6px 16px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 会话页标题栏里的模式徽标（与 .codex-icon-button 同排） */
+.artex-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: var(--color-background-primary-ghost-hover);
+  color: var(--color-text-secondary, var(--color-text-emphasis));
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.artex-codex-error {
+  margin: 8px 16px 0;
+  color: var(--color-text-danger, #ff6764);
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.artex-codex-activity {
+  width: min(768px, 100%);
+  margin: 0 auto 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-xl, 15px);
+  background: var(--color-surface-secondary);
+}
+
+.artex-codex-activity__meta {
+  margin-bottom: 5px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.artex-codex-activity p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 21px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.artex-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.artex-workbench {
+  width: min(768px, calc(100% - 32px));
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 auto;
+  overflow: auto;
+  padding: 24px 8px 148px;
+  color: var(--color-text);
+}
+
+.artex-workbench h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.artex-workbench > p {
+  margin: 0 0 14px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.artex-workbench__row {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 10px 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+button.artex-workbench__row {
+  cursor: pointer;
+}
+
+button.artex-workbench__row:hover {
+  color: var(--color-text);
+}
+
+.artex-workbench__row > span,
+.artex-workbench__row > strong {
+  min-width: 0;
+}
+
+.artex-workbench__row > span {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.artex-workbench__row > span:has(small) {
+  display: grid;
+  gap: 3px;
+}
+
+.artex-workbench__row strong {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.artex-workbench__row small,
+.artex-workbench__muted {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.artex-workbench__facts {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px 18px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.artex-workbench__facts dt {
+  color: var(--color-text-tertiary);
+}
+
+.artex-workbench__facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.artex-workbench__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.artex-workbench__chips span {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.artex-workbench__progress {
+  height: 6px;
+  margin: 12px 0 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-secondary);
+}
+
+.artex-workbench__progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-text-info, #8ab4ff);
+}
+
+.artex-workbench__node-list {
+  margin-top: 18px;
+}
+
+.artex-workbench__action {
+  flex: 0 0 auto;
+  min-height: 30px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  padding: 0 9px;
+  background: var(--color-surface-secondary);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.artex-workbench__action:hover {
+  background: var(--color-surface-tertiary);
+}
+
+.artex-workbench__report {
+  margin: 0;
+  overflow: auto;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .artex-task-actions {
+    gap: 0;
+  }
+
+  .artex-task-actions .codex-icon-button {
+    padding-inline: 6px;
+    font-size: 11px;
+  }
+
+  .artex-workbench {
+    width: calc(100% - 20px);
+    padding: 18px 2px 140px;
+  }
+
+  .artex-workbench__facts {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px 12px;
+  }
+
+  .artex-workbench__row {
+    align-items: flex-start;
+    gap: 10px;
+  }
+}

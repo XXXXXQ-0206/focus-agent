@@ -1,0 +1,19 @@
+<!doctype html>
+<html data-theme="dark" lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>设置页自测台 · codex-desktop-src</title>
+    <!--
+      自测台（仅开发用）：把设置页放进一个 1:1 复刻外壳几何的容器里，
+      以便在 1280×816 下量测内容列 / 卡片 / 行高 / 侧栏导航几何。
+      打开方式：npm run dev 后访问
+        http://127.0.0.1:5273/src/settings/dev-preview.html?section=shortcuts
+      几何依据：SPEC §3（外壳几何）+ 交办实测（设置列 728 居中于 x=439）。
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./dev-preview.tsx" type="module"></script>
+  </body>
+</html>

@@ -1,13 +1,22 @@
 import { fileURLToPath } from "node:url";
 
-// 静态导出：`NEXT_EXPORT=1 next build` 产出纯静态目录到 web/out，可直接丢进
+// 静态导出：`NEXT_EXPORT=1 next build` 产出纯静态目录到 frontends/artex-web/out，可直接丢进
 // nginx web 根目录运行。开发(next dev)不设该变量，保留 /api 反代与热更新。
 const isExport = process.env.NEXT_EXPORT === "1";
 // Vercel demo：整站走 mock，无后端，无需 /api 反代。
 const isMock = process.env.NEXT_PUBLIC_MOCK === "1";
+// The native ARTEX UI is served below /artex by the dual-UI Go handler. Keep
+// development at the root so `next dev` remains convenient on its own.
+const appBasePath = isExport ? "/artex" : "";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  basePath: appBasePath || undefined,
+  env: {
+    // Shared by client-side hard navigations and public assets. API calls must
+    // continue to use /api at the host root and do not use this helper.
+    NEXT_PUBLIC_APP_BASE_PATH: appBasePath,
+  },
   // 避免父目录的 lockfile 影响根目录推断及资源路径生成。
   turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
   reactCompiler: true,
