@@ -14,6 +14,7 @@ import { artexApi, getAccessToken } from "@/artex";
 import { ArtexSystemPage } from "@/artex/adapted-pages";
 import { authRouteDecision } from "@/artex/auth-gate";
 import { ArtexConversationPage, ArtexHomePage, ArtexTaskPage } from "@/artex/codex-adapter";
+import { ArtexApprovalsPage } from "@/artex/approvals-page";
 import { ArtexAgentDetailPage, ArtexAgentsPage, ArtexSystemLogsPage } from "@/artex/system-settings-pages";
 import { ArtexTaskListPage } from "@/artex/task-list-page";
 import { ArtexIntranetPage, ArtexSyncPage, ArtexWorkspacePage } from "@/artex/toolkit-pages";
@@ -118,8 +119,9 @@ function EntryRouter() {
         <Route element={<ArtexHomePage />} path="new" />
         <Route element={<ArtexHomePage />} path="chat" />
         {/* 2026-10-15：总览 / 资产 / 发现（含详情）/ 命令记录 / 审批 五个页面按用户口径**删除**。
-            深链一律重定向到还活着的落点：审批 → 设置里的「审批与拦截」（队列与裁决都搬进去了），
-            其余四项的数据都是"按任务"的，任务页里仍有各自的视图 ⇒ 统一回落任务列表。 */}
+            深链一律重定向到还活着的落点：审批 → 左侧栏的「审批」页（/approvals，2026-10-15 产品重排：
+            队列搬到导轨、策略留在设置），其余四项的数据都是"按任务"的，任务页里仍有各自的视图
+            ⇒ 统一回落任务列表。 */}
         <Route element={<Navigate replace to="/function/tasks" />} path="dashboard" />
         {/* ARTEX 模式对话页：首页选模式发消息 → 建对话 → 落到这里（见 codex-adapter 的
             ArtexConversationPage 头注释）。旧行为是重定向回任务列表，现在换成真实会话视图。 */}
@@ -144,12 +146,12 @@ function EntryRouter() {
         <Route element={<ControlsGalleryPage />} path="controls" />
         <Route element={<Navigate replace to="/function/tasks" />} path="assets" />
         <Route element={<Navigate replace to="/function/tasks" />} path="findings" />
-        <Route element={<Navigate replace to="/settings/approvals" />} path="approvals" />
+        <Route element={<ArtexApprovalsPage />} path="approvals" />
         <Route element={<Navigate replace to="/function/tasks" />} path="function/assets" />
         <Route element={<Navigate replace to="/function/tasks" />} path="function/findings" />
         <Route element={<Navigate replace to="/function/tasks" />} path="function/findings/detail" />
         <Route element={<ArtexSystemPage kind="traffic" />} path="function/traffic" />
-        <Route element={<Navigate replace to="/settings/approvals" />} path="system/intercept/approvals" />
+        <Route element={<Navigate replace to="/approvals" />} path="system/intercept/approvals" />
         {/* 2026-10-15：LLM / MCP 两个配置型页面并入设置（用户要求），旧深链重定向。
             工具（system/tools）、技能（system/skills）与 Agent 页（system/agents*）保留在探索里：
             技能先被并入设置，随后用户要求「做成和工具类似的卡片，还原到里面去」⇒ 已还原。 */}

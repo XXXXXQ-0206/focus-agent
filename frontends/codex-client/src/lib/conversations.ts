@@ -9,23 +9,23 @@ import type { Conversation, Message } from "./types";
  * 当前是纯本地同步实现，接口签名刻意做成"可替换成异步"的形状：
  * 接后端时把 useConversations / useMessages 换成 useQuery 即可，组件侧不用改。
  *
- * ⚠️ 但「我们自己发出来的会话」**不在**本文件的数据源里 —— 它们由 `src/chat/runtime` 的
- * localStorage 索引（键 `codex.conversations`，见 runtime/store.ts:18）持有。
- * 侧栏「最近」要能看见它们，就必须把两份数据合并：见下面的 mergeConversations()。
- * 依赖方向是**调用方注入**（运行时记录以结构化类型传进来），本文件不 import
- * `@/chat/runtime` —— 那一侧反正已经 import 了 `@/lib/types`，反向依赖会成环。
+ * ⚠️ 但「运行期产生的会话」**不在**本文件的数据源里 —— 它们由调用方注入（结构化类型）。
+ * 依赖方向是**调用方注入**：本文件只声明合并真正读到的字段，不反向 import 任何会话侧模块。
+ *
+ * 历史：这些「运行期记录」原本来自 `src/chat/runtime` 的 localStorage 索引
+ * （2026-10-16 已随直连链路删除）。`mergeConversations()` 这个汇合点保留着 ——
+ * 现在侧栏的「最近」由 ARTEX 会话列表与样例数据汇合，形状不变。
  */
 
 /**
  * 合并用的「运行时会话记录」形状。
  *
- * 刻意不 import `@/chat/runtime` 的 ConversationRecord（避免 lib ↔ chat 成环）：
  * 这里只声明合并**真正读到**的字段，多出来的（messageCount / origin）由调用方保留。
- * 与 ConversationRecord 结构兼容 —— 结构化类型，直接传进来即可。
+ * 结构化类型 —— 调用方把记录直接传进来即可，不需要它 import 谁的类型。
  */
 export interface RuntimeConversationLike {
   id: string;
-  /** 标题（运行时时由首条用户消息派生，见 runtime/store.ts:37-42 deriveTitle） */
+  /** 标题（运行期记录里通常由首条用户消息派生） */
   title?: string;
   /** 最近活跃时间（ISO 字符串） */
   updatedAt?: string;
@@ -43,19 +43,16 @@ function timeOf(iso: string | undefined): number {
  * 样例会话 × 运行时会话 → 一份可直接渲染的列表（侧栏「最近」的唯一数据源）。
  *
  * 三条口径（都是既有契约，不要在一次改动里偷换成别的）：
- *  1. **去重**：同一个 id 只出一次。冲突时 **runtime 胜** —— 本地发过消息的会话以
- *     localStorage 为准（runtime/runtime.ts:192-206：先读持久化，读不到才用调用方垫的
- *     样例消息）。runtime 索引里没有的字段（pinned / unread / projectId）从样例那条继承，
- *     因为运行时不写它们，直接覆盖会把「置顶」丢成 undefined。
+ *  1. **去重**：同一个 id 只出一次。冲突时**运行期记录胜** —— 它带着真实的消息计数与
+ *     时间戳。记录里没有的字段（pinned / unread / projectId）从样例那条继承，
+ *     因为它不写这些字段，直接覆盖会把「置顶」丢成 undefined。
  *  2. **排序**：updatedAt 倒序。比较用 epoch 毫秒而不是 ISO 字符串 ——
  *     字符串比较在跨时区偏移（`+08:00` vs `Z`）时会排错。
- *  3. **标题以索引为准**：索引里的标题就是首条用户消息派生的（deriveTitle），
- *     与 ConversationRoute 头部取的是**同一个字段**（ChatConversation.tsx:97-98：
- *     `conversation?.title ?? runtimeRecord?.title ?? …`）—— 两边不会一个显示「新聊天」、
- *     另一个显示真标题。
+ *  3. **标题以运行期记录为准**：两边取的是**同一个字段**（`title ?? runtimeRecord?.title`），
+ *     不会出现一个显示「新聊天」、另一个显示真标题。
  *
  * @param samples 样例会话（@/lib 的 CONVERSATIONS / useConversations()）
- * @param runtime useRuntimeConversations() 的记录（localStorage 索引）
+ * @param runtime 运行期记录（调用方注入，结构化类型）
  */
 export function mergeConversations(
   samples: readonly Conversation[],

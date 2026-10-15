@@ -5,7 +5,7 @@ import { ApprovalsPane } from "./approvals";
 import { ArchivedPane } from "./archived";
 import { BrowserPane } from "./browser";
 import { ConnectionsPane } from "./connections";
-import { LlmPane } from "./llm";
+import { ModelApiPane } from "./model-api";
 import { PluginsPane } from "./plugins";
 import { ShortcutsPane } from "./shortcuts";
 import { SyncPane } from "./sync";
@@ -62,7 +62,8 @@ export const SETTINGS_PANES: Record<string, ComponentType<SettingsPaneProps>> = 
   archived: ArchivedPane,
   browser: BrowserPane,
   connections: ConnectionsPane,
-  llm: LlmPane,
+  /** 「模型与 API」= 原「LLM 配置」+「自定义 API」合并页（2026-10-15，按 dsh 的模型配置重做）。 */
+  "model-api": ModelApiPane,
   plugins: PluginsPane,
   shortcuts: ShortcutsPane,
   sync: SyncPane,

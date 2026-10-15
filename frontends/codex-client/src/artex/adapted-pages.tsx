@@ -13,7 +13,7 @@ import {
   CodexWrench,
 } from "@/icons";
 import { TrafficPage } from "@/pages/OperationsPages";
-import { Badge, EmptyState, ResourceGrid, ResourceRow, SearchField } from "@/pages/parts";
+import { Badge, EmptyState, ResourceGrid, ResourceRow, SearchField, SlatePage } from "@/pages/parts";
 import type { SettingsNavIcon } from "@/settings/nav-model";
 import { Button, Dialog, DialogContent, Input, Spinner, Textarea } from "@/ui";
 import { artexApi } from "./api";
@@ -34,35 +34,28 @@ function failure(error: unknown): string {
 }
 
 function DataPage({
-  kicker,
   title,
   description,
   toolbar,
   children,
 }: {
-  kicker: string;
+  /** 旧 ops 骨架的栏目标签；改用设置页骨架后不再渲染（保留入参避免调用点改动） */
+  kicker?: string;
   title: string;
   description: string;
   toolbar?: ReactNode;
   children: ReactNode;
 }) {
+
+  /**
+   * ★ 2026-10-15：本骨架原来是自己那套 ops chrome（kicker 行 + ops-page intro + 表格），
+   *   现已换成**设置页骨架**（SlatePage = 标题带 60 + 768 列 + 728 内容），
+   *   与左侧栏其余页面、设置页统一到同一份规范；调用点的 props 一个没改。
+   */
   return (
-    <div className="cx-page" data-page={title}>
-      <div className="cx-page__toolbar">
-        <span className="ops-toolbar-label">{kicker}</span>
-        <div className="cx-page__toolbar-trailing">{toolbar}</div>
-      </div>
-      <div className="cx-page__body ops-page">
-        <header className="ops-page__intro">
-          <div>
-            <p className="page-kicker">{kicker}</p>
-            <h1>{title}</h1>
-            <p>{description}</p>
-          </div>
-        </header>
-        {children}
-      </div>
-    </div>
+    <SlatePage actions={toolbar} subtitle={description} title={title}>
+      {children}
+    </SlatePage>
   );
 }
 
@@ -516,62 +509,29 @@ function ArtexSystemDataPage({ kind }: { kind: Exclude<SystemKind, "traffic"> })
     : [];
 
   return (
-    <div className="cx-page" data-page={`system-${kind}`}>
-      <div className="cx-page__body" ref={bodyRef}>
-        <div className="cx-slate-scroll">
-          <header
-            className="cx-slate-head"
-            data-scrolled={scrolled ? "true" : undefined}
-            {...RESOURCE_SLATE_ATTRS}
+    <>
+      {/* ★ 2026-10-15：骨架换成设置页同款（标题带 + 768 列 + 728 内容），见 pages/parts.tsx */}
+      <SlatePage
+        actions={
+          <button
+            aria-label={`刷新${config.title}`}
+            className="cx-slate-iconbutton"
+            disabled={loading}
+            onClick={() => void load()}
+            type="button"
           >
-            <div className="cx-slate-head__content">
-              <div className="cx-slate-head__row">
-                <div className="cx-slate-head__title">
-                  <h1>{config.title}</h1>
-                </div>
-                <div className="cx-slate-head__actions">
-                  <div className="cx-slate-toolbar">
-                    <div className="cx-slate-search">
-                      <label className="sr-only" htmlFor={`system-${kind}-search`}>
-                        搜索{config.title}
-                      </label>
-                      <div className="cx-slate-search__capsule">
-                        <span aria-hidden className="cx-slate-search__icon">
-                          <CodexSearch size={16} />
-                        </span>
-                        <input
-                          id={`system-${kind}-search`}
-                          onChange={(event) => setQuery(event.target.value)}
-                          placeholder="搜索"
-                          type="search"
-                          value={query}
-                        />
-                      </div>
-                    </div>
-                    <div className="cx-slate-pageactions">
-                      <button
-                        aria-label={`刷新${config.title}`}
-                        className="cx-slate-iconbutton"
-                        disabled={loading}
-                        onClick={() => void load()}
-                        type="button"
-                      >
-                        <CodexRefresh size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <div className="cx-slate-subtitle">
-            <div className="cx-slate-subtitle__row" data-page-subtitle="true">
-              <div className="cx-slate-subtitle__text">{config.description}</div>
-            </div>
-          </div>
-
-          <div className="cx-page__column cx-slate-content" style={{ gap: 20, maxWidth: "none" }}>
+            <CodexRefresh size={16} />
+          </button>
+        }
+        search={{
+          id: `system-${kind}-search`,
+          onChange: setQuery,
+          placeholder: `搜索${config.title}`,
+          value: query,
+        }}
+        subtitle={config.description}
+        title={config.title}
+      >
             {kind === "llm" && Object.keys(meta).length > 0 ? (
               <section className="cx-page__section">
                 <h2 className="cx-page__section-title">
@@ -705,9 +665,7 @@ function ArtexSystemDataPage({ kind }: { kind: Exclude<SystemKind, "traffic"> })
                 )}
               </section>
             ) : null}
-          </div>
-        </div>
-      </div>
+      </SlatePage>
 
       <Dialog
         onOpenChange={(open) => {
@@ -729,6 +687,6 @@ function ArtexSystemDataPage({ kind }: { kind: Exclude<SystemKind, "traffic"> })
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

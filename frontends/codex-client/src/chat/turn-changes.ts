@@ -1,5 +1,5 @@
 import { messageToBlocks } from "./block-adapter";
-import type { RuntimeMessage } from "./runtime";
+import type { RuntimeMessage } from "./types";
 
 /**
  * 一轮里的代码改动汇总（用户 2026-10-15 给的官方截图里那条

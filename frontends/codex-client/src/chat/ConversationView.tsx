@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
 import { Composer } from "./Composer";
 import { Message } from "./Message";
-import type { RuntimeMessage } from "./runtime";
+import type { RuntimeMessage } from "./types";
 import { ChatSkeleton } from "./Skeleton";
 import { isToolOnlyMessage, ToolActivityGroup } from "./ToolActivityGroup";
 import { QueuedMessageBar } from "./QueuedMessageBar";
@@ -19,8 +19,9 @@ import "./chat.css";
 /**
  * 会话态骨架（官方 blocks-conversation.json 实测复刻）。
  *
- * 这是**唯一的会话骨架**：原生会话页（ChatConversation 的 ConversationRoute）与 ARTEX 任务会话页
- * 都从这里渲染 —— 一个骨架、两套数据源，会话页不再各抄一份结构。
+ * 这是**唯一的会话骨架**：ARTEX 会话页与 ARTEX 任务会话页都从这里渲染 ——
+ * 一个骨架、两套数据源，会话页不再各抄一份结构。
+ * （2026-10-16 之前还有一套本机会话页共用它，那套运行时已删除，见 ./index.ts 头注释。）
  *
  * 实测（@1280×816）：
  *   thread-scroll-container  [·,96 935×716]  padding **`32px 0 0`**  overflow-y auto

@@ -1,12 +1,17 @@
-import type { ApiErrorKind, ChatToolCall, TokenUsage } from "@/api/types";
-import type { ErrorNode } from "@/chat/blocks";
 import type { Message, ToolCall } from "@/lib/types";
 
+import type { ErrorNode } from "./blocks";
+
 /**
- * 会话运行时的对外类型。
+ * 会话消息模型 —— 「一条消息长什么样」以及**怎么把它翻译成官方块**。
+ *
+ * 来历：2026-10-16 清掉本工程早期的本机会话运行时（`src/chat/runtime/**` 的状态机、
+ * `src/api/**` 的直连客户端、未挂路由的 ChatHome / ChatConversation）时，从
+ * `runtime/types.ts` 里保留下来的**唯一还活着的一部分** —— 渲染侧（ConversationView /
+ * Message / ToolActivityGroup / turn-changes）与 ARTEX 桥接侧（artex/codex-adapter）都用它。
  *
  * 关键约定：`RuntimeMessage` **继承** `@/lib/types` 的 `Message`，
- * 所以 `src/chat/Message.tsx` / `Markdown.tsx` 不用改一行就能渲染真实流式消息；
+ * 所以 `src/chat/Message.tsx` / `Markdown.tsx` 不用改一行就能渲染真实消息；
  * 多出来的字段（phase / error / usage）都是可选的，旧组件忽略即可。
  */
 
@@ -32,7 +37,42 @@ export function statusOf(phase: TurnPhase): "idle" | "streaming" {
   return isActivePhase(phase) ? "streaming" : "idle";
 }
 
-/** 错误的可序列化形态（ApiError 本身有 cause，不适合进 state / localStorage） */
+/**
+ * 错误分类。原属已删除的 `@/api/types`（直连客户端），这里是**剩下的唯一使用者**
+ * 需要的取值集合：决定给用户看的中文文案，以及「值不值得重试」。
+ */
+export type ApiErrorKind =
+  | "config" // 本地配置问题（没填地址 / 地址格式不对）
+  | "aborted" // 用户主动停止
+  | "timeout" // 连接超时 / 流式空闲超时
+  | "network" // 连不上（DNS / 端口 / 证书 / 断网）
+  | "auth" // 401
+  | "forbidden" // 403
+  | "not_found" // 404
+  | "bad_request" // 400 / 422 等
+  | "rate_limit" // 429
+  | "server" // 5xx
+  | "protocol" // 连上了但响应不是合法的 SSE / JSON
+  | "unknown";
+
+/** token 用量（OpenAI / DeepSeek 兼容字段；服务端不一定给） */
+export interface TokenUsage {
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  /** DeepSeek-R1 等会单独报推理 token（`completion_tokens_details.reasoning_tokens`） */
+  reasoningTokens: number | null;
+}
+
+/** 流式过程中逐步拼出来的工具调用（arguments 是**按 index 拼接**的字符串） */
+export interface ChatToolCall {
+  index: number;
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/** 错误的可序列化形态（ApiError 本身带 cause，不适合进 state / localStorage） */
 export interface RuntimeErrorInfo {
   kind: ApiErrorKind;
   message: string;
@@ -47,8 +87,8 @@ export interface RuntimeMessage extends Message {
   /**
    * 错误信息。**UI 直接渲染它**（独立错误条）：Message.tsx 用官方 ErrorBlock（SPEC §12）渲染，
    * 映射函数是下面的 `toDisplayErrorNode`。
-   * ⚠️ runtime **不再**把错误文案回填进 content（曾经兜底过），所以「正文为空 + error 非空」
-   * 是常见组合 —— 渲染方必须认这个字段，否则用户看不到任何报错。
+   * ⚠️ 错误文案**不**回填进 content，所以「正文为空 + error 非空」是常见组合 ——
+   * 渲染方必须认这个字段，否则用户看不到任何报错。
    */
   error?: RuntimeErrorInfo | null;
   finishReason?: string | null;
@@ -61,9 +101,6 @@ export interface RuntimeMessage extends Message {
    * 而 block-adapter 只能用轮级的 `message.streaming` 推状态，于是整轮都在「思考中」：
    * 真机 500ms 采样实测到 1535ms 时正文已经流出 39 字，推理块仍是「思考中 + 自动展开」，
    * 到 2047ms 收尾才跳「已思考」。这里补一个段级信号给渲染方用。
-   *
-   * ⚠️ 翻牌时机是**推断**（SPEC 没写 `completed` 具体何时置位）：取「第一个 content /
-   *    tool_call 增量」为界；模型若交错输出思考与正文，会表现成思考提前收束。
    */
   reasoningComplete?: boolean;
   /** 被用户中止（不算错误） */
@@ -72,79 +109,13 @@ export interface RuntimeMessage extends Message {
   editedFrom?: string;
 }
 
-export interface RuntimeState {
-  /** 草稿态（首页还没落会话）为 null；首次发送后会被填上并 adopt 到真实会话 id */
-  conversationId: string | null;
-  messages: RuntimeMessage[];
-  phase: TurnPhase;
-  /** 最近一次「非中断」错误；中断不写这里 */
-  error: RuntimeErrorInfo | null;
-  /** 正在流式写入的助手消息 id（没有则为 null） */
-  activeMessageId: string | null;
-  /** 工具回环已进行的轮数 */
-  round: number;
-  updatedAt: number;
-}
-
-/**
- * 会话索引记录。
- * 与 `@/lib` 里的 mock `Conversation` 字段对齐（id/title/updatedAt + pinned/unread/running），
- * 额外带 messageCount / origin，方便侧栏区分「本次运行产生的真实会话」与「官方样例数据」。
- */
-export interface ConversationRecord {
-  id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-  messageCount: number;
-  /** runtime = 由本工程对话运行时真实产生 */
-  origin: "runtime";
-}
-
-/** 工具执行器的入参 */
-export interface ToolExecutionRequest {
-  id: string;
-  name: string;
-  /** 模型给的原始 arguments 字符串（JSON 文本，可能不合法） */
-  arguments: string;
-}
-
-/** 工具执行器：返回给模型看的文本结果 */
-export type ToolExecutor = (request: ToolExecutionRequest) => string | Promise<string>;
-
-/** 状态机的全部输入。runtime 只负责把这些动作喂进来，状态怎么变由 reducer 决定 */
-export type RuntimeAction =
-  | { type: "hydrate"; conversationId: string | null; messages: RuntimeMessage[]; updatedAt?: number }
-  | { type: "turn/start"; user: RuntimeMessage; assistant: RuntimeMessage; at: number }
-  | { type: "message/append"; message: RuntimeMessage }
-  | { type: "message/patch"; id: string; patch: Partial<RuntimeMessage> }
-  | { type: "delta"; id: string; content?: string; reasoning?: string }
-  | { type: "tool/upsert"; id: string; call: ToolCall }
-  | { type: "phase"; phase: TurnPhase; activeMessageId?: string | null }
-  | {
-      type: "turn/finish";
-      id: string;
-      phase: TurnPhase;
-      finishReason: string | null;
-      usage: TokenUsage | null;
-      at: number;
-    }
-  | { type: "turn/error"; id: string; error: RuntimeErrorInfo }
-  /** 工具回环轮数（RuntimeState.round 的**唯一**写入点） */
-  | { type: "round"; round: number }
-  | { type: "truncate"; fromId: string; at: number }
-  | { type: "clear"; at: number };
-
 /**
  * 一条错误 → 官方错误块的输入（SPEC-CONVERSATION-BLOCKS.md §12）。
- *
- * 为什么放在 runtime 而不是 Message.tsx：这样它和 `toDisplayToolCall` 一样能被
- * 无 React 的自测直接调用（node src/chat/runtime/selftest.mjs），映射有没有接错不靠肉眼看。
  *
  * 出处与推断边界：
  *   · `title` 的英文原文确证 = `System error` / `Stream error`（SPEC §12），
  *     但 zip 里没有 zh-CN 译文 → 这里的「请求失败」是**推断译文**，与 SPEC §13.2 的口径一致；
- *   · `message` / `additionalDetails` 是 SPEC §12 的「正文 + 详情」，数据来自 errors.ts 的中文文案；
+ *   · `message` / `additionalDetails` 是 SPEC §12 的「正文 + 详情」；
  *   · `defaultExpanded: true` —— SPEC §12 的呈现是「段落 + 正文」（正文直接可见），
  *     而折叠骨架的完成态默认是收起的（SPEC §2.2：isExpanded = userExpanded，初始 false），
  *     不展开就等于把错误藏在一次点击后面。

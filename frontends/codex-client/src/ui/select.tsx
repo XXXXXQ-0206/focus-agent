@@ -56,12 +56,25 @@ export function SelectContent({
 
 export interface SelectItemProps extends ComponentProps<typeof SelectPrimitive.Item> {
   children?: ReactNode;
+  /**
+   * 列表条目里的第二行说明（例如端点地址、协议路径）。
+   *
+   * ★ 2026-10-15（用户截图：表单里的两个下拉"都挤出来了"）——
+   *   Radix 会把**选中项 `ItemText` 的内容 portal 进触发器**（SelectValue），
+   *   所以只要把说明放进 `ItemText`，28px 高的触发器里就会出现两行文字、直接顶出边框。
+   *   这里刻意把它渲染成 `ItemText` 的**兄弟节点**：下拉列表里看得到，触发器里永远看不到。
+   *   需要"触发器里也显示说明"时不要走这条路，应该改触发器自身的渲染。
+   */
+  description?: ReactNode;
 }
 
-export function SelectItem({ className, children, ...props }: SelectItemProps) {
+export function SelectItem({ className, children, description, ...props }: SelectItemProps) {
   return (
     <SelectPrimitive.Item className={cn("cx-select__item", className)} {...props}>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      <span className="cx-select__item-main" data-with-description={description ? "" : undefined}>
+        <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+        {description ? <span className="cx-select__item-description">{description}</span> : null}
+      </span>
       <span className="cx-menu__indicator" style={{ marginInlineStart: "auto" }}>
         <SelectPrimitive.ItemIndicator>
           <Check aria-hidden size={14} />

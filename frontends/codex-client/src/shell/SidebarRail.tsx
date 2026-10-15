@@ -1,15 +1,8 @@
 import { type ComponentPropsWithoutRef, type Ref } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { CodexSidebar, CodexSidebarHidden } from "@/icons";
 import { cn } from "@/lib/utils";
-import {
-  RAIL_BOTTOM_ITEMS,
-  RAIL_PRIMARY_ITEMS,
-  RAIL_SECONDARY_ITEMS,
-  type RailItem,
-} from "./rail-items";
-import { useSidebar } from "./use-sidebar";
+import { RAIL_BOTTOM_ITEMS, RAIL_PRIMARY_ITEMS, RAIL_SECONDARY_ITEMS, type RailItem } from "./rail-items";
 
 /**
  * 52px 图标导轨（官方 `nav.group/sidebar-rail`）。
@@ -47,15 +40,14 @@ import { useSidebar } from "./use-sidebar";
  * 这是官方行为（官方那条根本没有链接语义）。键盘可达性不受影响：`<button>` 可 Tab 聚焦、
  * Enter/Space 都会激活，与官方一致。
  *
- * ★ 2026-10-15（用户：「不要『探索』，全部移入左侧栏」）——本文件的两处结构变更：
+ * ★ 2026-10-15（用户：「不要『探索』，全部移入左侧栏」）：
  *   1) 删掉「探索」popover 菜单轨条（RailExplore）与随之而来的 **HTML5 拖拽固定**机制
  *      （自定义 MIME `application/x-codex-rail-item` + `use-rail-pinned.ts` 的 localStorage
  *      持久化 + 右键「从侧栏移除」）。菜单本身没有了，条目全部常驻，拖拽与固定都失去意义；
  *      原菜单的 6 个目的地现在直接住在 `RAIL_SECONDARY_ITEMS`（分隔线之后那一组）。
- *   2) 顶部 36px 应用菜单栏被用户移除，**侧栏开关**（原来住在菜单栏左簇 [74,4 28×28]）
- *      搬到这里：底部组的最上面一枚 36×36，与「设置」齿轮同列。放在导轨而不是面板头的原因是
- *      **收起态**——面板收起后它自己的开关就没了，导轨是唯一始终可见的一列（旧实现里设置页
- *      专门补过一个开关就是为这个死胡同，见 AppShell 的历史注释）。
+ *      2) 侧栏开关**不在这里** —— 它住在顶部菜单栏的左簇（[74,4 28×28]，见 AppMenuBar.tsx）。
+ *      当天一度因为误删菜单栏而临时搬到本导轨底部，菜单栏恢复后已经搬回去了；
+ *      底部组保持与上游一致：只有「设置」齿轮。
  */
 
 /**
@@ -106,33 +98,6 @@ function RailButton({ className, item }: { className?: string; item: RailItem })
   return <RailItemButton className={className} item={item} />;
 }
 
-/**
- * 侧栏（288px 面板）的收起 / 展开开关。
- *
- * 形态与导轨条目一致（36×36 / r12.5 / 20px 图标），差别只在它不是跳转：
- *   · `data-rail-action="toggle-sidebar"` 给验收与样式一个稳定钩子；
- *   · 窄窗口（<900px）下侧栏是**强制**收起态（useSidebar 的 effective 恒为 collapsed，
- *     toggle() 只改偏好、界面不动）⇒ 置 disabled 并把原因写进 title，
- *     否则按钮看起来是坏的（这条语义沿用被删掉的 AppMenuBar 里的同一处理）。
- */
-function RailSidebarToggle() {
-  const { collapsed, narrow, toggle } = useSidebar();
-  const label = narrow ? "窗口过窄，侧边栏已自动收起" : collapsed ? "显示侧边栏" : "隐藏侧边栏";
-  return (
-    <button
-      aria-label={label}
-      className="codex-rail__item"
-      data-rail-action="toggle-sidebar"
-      disabled={narrow}
-      onClick={toggle}
-      title={label}
-      type="button"
-    >
-      {collapsed ? <CodexSidebarHidden size={20} /> : <CodexSidebar size={20} />}
-    </button>
-  );
-}
-
 export function SidebarRail({ className }: { className?: string }) {
   return (
     <nav aria-label="主导航" className={cn("codex-rail", className)} data-app-navigation-rail="true">
@@ -150,7 +115,6 @@ export function SidebarRail({ className }: { className?: string }) {
       </div>
 
       <div className="codex-rail__bottom">
-        <RailSidebarToggle />
         {RAIL_BOTTOM_ITEMS.map((item) => (
           // [task-55] 去掉死类名 codex-rail__item--bottom：CSS 从无该规则；底部槽布局由父级
           // .codex-rail__bottom、条目几何由 RailButton 自带的 .codex-rail__item 承担。

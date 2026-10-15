@@ -1922,3 +1922,301 @@
   flex: 0 0 auto;
   color: var(--color-text-tertiary);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 业务页对齐「设置页规范」（2026-10-15）
+ * ===========================================================================
+ * 用户要求：除对话页外，左侧栏各页与设置页统一到同一套规范。
+ * 骨架已经由 parts.tsx 的 SlatePage 换成设置页同款（.cx-settings 骨架类），
+ * 这一层负责把**页面内容原语**换成设置页的卡片 / 行 / 分段控件 / 输入框口径 ——
+ * 数值全部引用 settings.css 已经在用的那组变量（--cx-settings-card-* /
+ * --cx-settings-row-padding-* / --cx-settings-page-gutter），改一处两边同时变。
+ * ------------------------------------------------------------------------- */
+
+/* ── 标题带右侧操作区（搜索 / 分段过滤 / 页面动作）────────────────────────
+   设置页标题带实测：`display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;
+   min-height:60px;padding:12px 20px`，里面只有 h1。业务页多了一组右侧控件，
+   按 `.cx-settings__page-actions`（pane-kit 的同族槽位）的语义贴在行尾。 */
+.cx-settings-page__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 标题带是 `flex-wrap: wrap` 的整行：这一簇允许多行会被压窄、逐个换行（实测把 60px 的
+     标题带撑到 160）。这里钉成单行 + 子项不收缩，溢出交给下面各页自己收敛控件数量。 */
+  flex-wrap: nowrap;
+  margin-inline-start: auto;
+}
+
+.cx-settings-page__actions > * {
+  flex: 0 0 auto;
+}
+
+/* 标题带里的搜索框：设置页「下拉触发钮 / 输入框」那一档（圆角矩形 10px + 毛玻璃 +
+   贴边发丝边 + 内距 10），不是旧的 slate 胶囊。 */
+.cx-settings-page__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(var(--blur-lg, 16px));
+  color: var(--color-text-tertiary);
+}
+
+.cx-settings-page__search input {
+  width: 168px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 430;
+  outline: none;
+}
+
+.cx-settings-page__search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* 页面内的分段 tab（系统日志 / 内网会话用的 .cx-slate-tabs）→ 设置页分段控件口径：
+   高 23（19 + 2×2）、圆角 9999、段内距 0 8、13px/430，选中底 = 次级底。 */
+.cx-slate-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* ⚠️ 必须显式复位旧 slate 页头那套（pages.css 上文 .cx-slate-tabs：width 100% /
+     min-height 60 / margin-inline auto / padding-inline 30）—— 否则它会以「整行 tab 条」
+     的盒模型留在标题带里，把 60px 的标题带撑高、并把右侧动作挤出可视区。 */
+  width: auto;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex-wrap: nowrap;
+}
+
+.cx-slate-tablist {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background-color: var(--cx-settings-soft-background);
+}
+
+.cx-slate-tab {
+  height: 19px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--cx-settings-control-font-size, 13px);
+  font-weight: 430;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cx-slate-tab[aria-selected="true"] {
+  background-color: var(--cx-settings-secondary-background);
+}
+
+.cx-slate-tab:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+/* ── 列表 → 设置卡片；行 → 设置行 ────────────────────────────────────────
+   旧：`.cx-page__list` 是 -12px 出血的无边框列表、`.cx-row` 是 6/12 内距的圆角行。
+   新：列表就是设置卡片（rgb(35,35,35) / r20 / 发丝边），行是设置行
+   （padding 12px 16px，行间发丝线左右各内缩一个行内距）。 */
+.cx-page__list {
+  gap: 0;
+  margin-inline: 0;
+  border: var(--cx-settings-card-hairline) solid var(--cx-settings-card-hairline-color);
+  border-radius: var(--cx-settings-card-radius);
+  background-color: var(--cx-settings-card-background);
+  overflow: hidden;
+}
+
+.cx-row-wrap + .cx-row-wrap {
+  position: relative;
+}
+
+.cx-row-wrap + .cx-row-wrap::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: var(--cx-settings-row-padding-inline);
+  left: var(--cx-settings-row-padding-inline);
+  height: var(--cx-settings-card-hairline);
+  background-color: var(--cx-settings-card-hairline-color);
+}
+
+.cx-row {
+  gap: 12px;
+  min-height: 0;
+  padding: var(--cx-settings-row-padding-block) var(--cx-settings-row-padding-inline);
+  border-radius: 0;
+}
+
+.cx-row__title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cx-row__desc {
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 16px;
+}
+
+/* ── 资源卡（工具 / 技能 / Agent 的卡片网格）────────────────────────────
+   旧：无底色的两列行、图标是 32×32 描边块。
+   新：每张卡就是设置卡片（同色 / 同圆角 / 同发丝边），两列、间距 16。 */
+.cx-res-grid {
+  gap: 16px;
+}
+
+.cx-res-row {
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: var(--cx-settings-card-hairline) solid var(--cx-settings-card-hairline-color);
+  border-radius: var(--cx-settings-card-radius);
+  background-color: var(--cx-settings-card-background);
+}
+
+.cx-res-row:hover {
+  background-color: color-mix(in srgb, var(--cx-settings-card-background) 88%, var(--color-text) 4%);
+}
+
+.cx-res-row__icon {
+  border: var(--cx-settings-card-hairline) solid var(--cx-settings-card-hairline-color);
+  background-color: var(--cx-settings-soft-background);
+}
+
+.cx-res-row__title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cx-res-row__desc {
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 16px;
+}
+
+/* ── 分段控件（页面内筛选）→ 设置页分段控件口径 ─────────────────────────── */
+.cx-seg {
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--cx-settings-soft-background);
+}
+
+.cx-seg__item {
+  height: 19px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  color: var(--color-text);
+  font-size: var(--cx-settings-control-font-size, 13px);
+  font-weight: 430;
+  line-height: 18px;
+}
+
+.cx-seg__item[data-selected="true"] {
+  background: var(--cx-settings-secondary-background);
+  box-shadow: none;
+}
+
+/* ── 搜索框 → 设置页输入框口径 ─────────────────────────────────────────── */
+.cx-search input {
+  height: 28px;
+  padding: 0 10px 0 calc(var(--spacing) * 8);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(var(--blur-lg, 16px));
+  font-size: 13px;
+  font-weight: 430;
+}
+
+/* ── 分区标题 → 设置页分区标题（14px/500 + 6px 下沿）────────────────────── */
+.cx-page__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cx-page__section-title {
+  margin: 0;
+  padding-bottom: 6px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+/* ── 空态 → 设置页空态口径（图标 32 圆底 / 标题 13-500 / 说明 12-430）──── */
+.cx-empty {
+  gap: 4px;
+  padding: 32px 16px;
+}
+
+.cx-empty__art {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 4px;
+  border-radius: 9999px;
+  background-color: var(--cx-pane-subtle-bg, var(--cx-settings-soft-background));
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+}
+
+.cx-empty__art svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cx-empty__title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18.5714px;
+}
+
+.cx-empty__description {
+  max-width: 420px;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 16px;
+}
+
+/* ── `fill` 档（工作区 / 内网会话这类需要内部滚动的两栏版式）──────────────
+   设置页的内容列是普通块流；业务页有两栏版式，需要「列撑满剩余高度」。
+   只在 data-fill="true" 时放开，普通页面完全按设置页的文档流走。 */
+.cx-settings--page[data-fill="true"] .cx-settings__scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-settings--page[data-fill="true"] .cx-settings__page:last-child {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cx-settings--page[data-fill="true"] .cx-settings__column {
+  flex: 1 1 auto;
+  min-height: 0;
+}

@@ -144,79 +144,47 @@ export function ArtexAgentsPage() {
   );
 
   return (
-    <div className="cx-page" data-page="agents">
-      <div className="cx-page__body" ref={bodyRef}>
-        <div className="cx-slate-scroll">
-          <header
-            className="cx-slate-head"
-            data-scrolled={scrolled ? "true" : undefined}
-            {...AGENTS_SLATE_ATTRS}
-          >
-            <div className="cx-slate-head__content">
-              <div className="cx-slate-head__row">
-                <div className="cx-slate-head__title">
-                  <h1>Agent</h1>
-                </div>
-                <div className="cx-slate-head__actions">
-                  <div className="cx-slate-toolbar">
-                    <div className="cx-slate-search">
-                      <label className="sr-only" htmlFor="agents-page-search">
-                        搜索 Agent
-                      </label>
-                      <div className="cx-slate-search__capsule">
-                        <span aria-hidden className="cx-slate-search__icon">
-                          <Search size={16} />
-                        </span>
-                        <input
-                          id="agents-page-search"
-                          onChange={(event) => setQuery(event.target.value)}
-                          placeholder="搜索 Agent"
-                          type="search"
-                          value={query}
-                        />
-                      </div>
-                    </div>
-                    <div className="cx-slate-pageactions">
-                      <button
-                        aria-label="刷新"
-                        className="cx-slate-iconbutton"
-                        disabled={loading}
-                        onClick={() => void loadAgents()}
-                        type="button"
-                      >
-                        <RefreshCw size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <div className="cx-slate-subtitle">
-            <div className="cx-slate-subtitle__row" data-page-subtitle="true">
-              <div className="cx-slate-subtitle__text">服务端 Agent 清单、运行配置与提示词。</div>
-            </div>
+    /* ★ 2026-10-15：骨架换成设置页同款（标题带 60 + 768 列 + 728 内容），
+       「内置 / 自定义」筛选作为标题带右侧的分段控件（设置页分段口径）。 */
+    <SlatePage
+      actions={
+        <button
+          aria-label="刷新"
+          className="cx-slate-iconbutton"
+          disabled={loading}
+          onClick={() => void loadAgents()}
+          type="button"
+        >
+          <RefreshCw size={16} />
+        </button>
+      }
+      search={{
+        id: "agents-page-search",
+        onChange: setQuery,
+        placeholder: "搜索 Agent",
+        value: query,
+      }}
+      subtitle="服务端 Agent 清单、运行配置与提示词。"
+      tabs={
+        <div className="cx-slate-tabs">
+          <div aria-label="Agent 目录" className="cx-slate-tablist" role="tablist">
+            {AGENT_DIRECTORY_TABS.map((tab) => (
+              <button
+                aria-selected={directory === tab.id}
+                className="cx-slate-tab"
+                key={tab.id}
+                onClick={() => setDirectory(tab.id)}
+                role="tab"
+                type="button"
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-
-          <div className="cx-slate-tabs">
-            <div aria-label="Agent 目录" className="cx-slate-tablist" role="tablist">
-              {AGENT_DIRECTORY_TABS.map((tab) => (
-                <button
-                  aria-selected={directory === tab.id}
-                  className="cx-slate-tab"
-                  key={tab.id}
-                  onClick={() => setDirectory(tab.id)}
-                  role="tab"
-                  type="button"
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="cx-page__column cx-slate-content" style={{ gap: 20, maxWidth: "none" }}>
+        </div>
+      }
+      title="Agent"
+    >
             {error ? (
               <EmptyState
                 actions={
@@ -289,10 +257,7 @@ export function ArtexAgentsPage() {
                 <ResourceGrid>{customAgents.map(renderRow)}</ResourceGrid>
               </section>
             ) : null}
-          </div>
-        </div>
-      </div>
-    </div>
+    </SlatePage>
   );
 }
 

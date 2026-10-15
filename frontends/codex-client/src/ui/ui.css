@@ -1975,6 +1975,15 @@
   opacity: 0.5;
 }
 
+/* 触发器里的值：单行 + 省略号。Radix 的 SelectValue 是触发器的第一个子节点；
+   长模型名/协议名只许省略，不许把箭头挤出按钮（2026-10-15 用户截图：两行文字顶破边框）。 */
+.cx-select__trigger > :first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cx-select__content {
   transform-origin: var(--radix-select-content-transform-origin);
 }
@@ -2044,6 +2053,25 @@
 .cx-select__item[data-disabled] {
   color: var(--color-text-disabled);
   pointer-events: none;
+}
+
+/* 条目正文：单行时与原来一致；带说明时竖排两行（说明**只在列表里**，见 select.tsx 注释） */
+.cx-select__item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cx-select__item-main:not([data-with-description]) {
+  flex-direction: row;
+  align-items: center;
+}
+
+.cx-select__item-description {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  font-size: 12px;
+  line-height: 15px;
 }
 
 .cx-select__viewport {

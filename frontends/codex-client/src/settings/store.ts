@@ -367,8 +367,9 @@ export function updateSettings(patch: Partial<CodexSettings>) {
  * removeProperty 一次 —— §3.7b 补偿选择器删掉之后，body 上也必须真的清干净，否则默认档会
  * 残留上一次选的 `--font-code-size`（行为用例 st.reset.clears-inline 的判据）。
  *
- * 只动本键：codex.api（自定义 API）/ codex.conversations / codex.messages.* /
- * codex.sidebar.* 一律不碰 —— 保护清单见 reset-settings.tsx 头注释。
+ * 只动本键：codex.conversations / codex.messages.* / codex.sidebar.* 一律不碰
+ * （codex.api 是历史遗留的本机直连配置，页面已删、键也不清）—— 保护清单见
+ * reset-settings.tsx 头注释。
  */
 export function resetSettings() {
   state = DEFAULT_SETTINGS;

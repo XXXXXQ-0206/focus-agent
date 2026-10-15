@@ -410,7 +410,6 @@ export function ArtexSyncPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
@@ -456,11 +455,9 @@ export function ArtexSyncPage() {
   const saveDatasource = async () => {
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       await artexApi.ssDatasource({ url: url.trim(), api_key: apiKey });
       setApiKey("");
-      setNotice("数据源已保存并启用");
       await loadStatus();
     } catch (caught) {
       setError(errorText(caught));
@@ -489,7 +486,6 @@ export function ArtexSyncPage() {
     }
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       const syncResult = await artexApi.ssSync({
         dimension,
@@ -501,7 +497,6 @@ export function ArtexSyncPage() {
         warnings: syncResult.warnings,
         errors: syncResult.errors,
       });
-      setNotice("同步完成");
     } catch (caught) {
       setError(errorText(caught));
     } finally {
@@ -708,14 +703,13 @@ export function ArtexSyncPage() {
         </section>
       ) : null}
 
-      {error || notice ? (
+      {error ? (
         <section className="cx-page__section">
           {error ? (
             <p className="artex-page-note" role="alert">
               {error}
             </p>
           ) : null}
-          {notice ? <p className="artex-page-note">{notice}</p> : null}
         </section>
       ) : null}
     </SlatePage>

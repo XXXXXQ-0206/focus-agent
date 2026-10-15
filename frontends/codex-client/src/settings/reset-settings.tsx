@@ -71,8 +71,10 @@ import { resetSettings } from "./store";
  *      3. localStorage：`codex.settings` / `codex.commands`（键位改写）/ `cx.pane.*`
  *         **被删除**（getItem → null，不是写回一份默认 JSON）；
  *         `codex.theme` 回到官方默认 **"system"**（见下条的「为什么不是删键」）
- *      4. **保护清单（一律不动）**：`codex.api`（用户的自定义 API 配置）、
- *         `codex.conversations` / `codex.messages.*`（会话数据）、`codex.sidebar.*`（侧栏布局）
+ *      4. **保护清单（一律不动）**：`codex.conversations` / `codex.messages.*`（会话数据）、
+ *         `codex.sidebar.*`（侧栏布局）。
+ *         （`codex.api` 是历史遗留的本机直连配置 —— 2026-10-16 直连链路已从界面删除，
+ *          键本身仍然不碰，用户真填过就不会因为一次重置被抹掉。）
  *   ③ 点「取消」/ Esc → 关闭弹窗，**一个键、一个变量都不改**。
  *
  * 「为什么 codex.theme 是写回默认档而不是删键」：主题的 React 状态在
@@ -103,7 +105,7 @@ export const RESET_SETTINGS_CONFIRM_LEAD = "这会丢弃本工程的全部本地
 export const RESET_SETTINGS_CONFIRM_SCOPE =
   "将清掉 <html> 与 <body> 上的字号 / 行距 / 代码字号 / 圆角倍率 inline 变量与本地键 " +
   "codex.settings、codex.commands（键位改写）、cx.pane.*，主题恢复默认「深色」。" +
-  "不会动：自定义 API（codex.api）、会话记录（codex.conversations / codex.messages.*）、" +
+  "不会动：会话记录（codex.conversations / codex.messages.*）、" +
   "侧栏布局（codex.sidebar.*）。";
 /** 确认按钮：官方快捷键页同语义弹窗的确认文案（settings.keyboardShortcuts.resetAllConfirm.confirm） */
 export const RESET_SETTINGS_CONFIRM_ACTION = "全部重置";
@@ -225,7 +227,7 @@ export function ResetSettingsSection() {
           description={
             "官方文案与位置（settings.appearance.resetToDefault = 「重置为默认设置」，外观 → 高级）：" +
             "官方无确认框、只重置高级外观偏好；本工程加了确认框，作用域扩大到本页「本还原工程附加」的" +
-            "字号 / 行距 / 代码字号 / 圆角倍率与本工程的本地设置键（不动 codex.api）。"
+            "字号 / 行距 / 代码字号 / 圆角倍率与本工程的本地设置键。"
           }
           label={RESET_SETTINGS_LABEL}
         />

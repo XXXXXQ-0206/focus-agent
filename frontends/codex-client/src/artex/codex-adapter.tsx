@@ -23,7 +23,7 @@ import {
   useComposerSelection,
   useFollowUp,
 } from "@/chat";
-import type { RuntimeMessage } from "@/chat/runtime";
+import type { RuntimeMessage } from "@/chat";
 import {
   CodexArchive,
   CodexBrain,

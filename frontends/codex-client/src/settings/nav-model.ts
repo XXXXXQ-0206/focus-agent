@@ -195,11 +195,19 @@ const INTEGRATION_ITEMS: SettingsNavItem[] = [
  */
 const ARTEX_ITEMS: SettingsNavItem[] = [
   {
-    slug: "llm",
-    label: "LLM 配置",
+    /**
+     * ★ 2026-10-15（用户：「把 LLM 配置 + 自定义 API 合并，做成 DeepSeek Harness 那样」）：
+     *   原来这里一条「LLM 配置」（服务端档案），「还原工程（附加）」组里还有一条
+     *   「自定义 API」（客户端直连）—— 两页讲的是同一件事（模型从哪来、用哪把钥匙），
+     *   现在合并成一页「模型与 API」：当前生效 / 服务商 / 客户端直连 / 故障转移池。
+     *   旧 slug `llm` 与 `api` 在 SettingsPage 里做重定向，书签不失效。
+     */
+    slug: "model-api",
+    label: "模型与 API",
     icon: Cpu,
-    iconSource: "原「探索 → LLM」页（2026-10-15 按用户要求并入设置）；lucide Cpu",
-    description: "全局模型、配置档案与故障转移池",
+    iconSource:
+      "原「探索 → LLM」页（2026-10-15 并入设置；同日与「自定义 API」合并）；lucide Cpu",
+    description: "服务商、协议、密钥、高级项（思考强度 / 输出上限 / 收发模式）与故障转移池",
     additional: true,
   },
   {
@@ -242,7 +250,13 @@ const ARTEX_ITEMS: SettingsNavItem[] = [
     label: "审批与拦截",
     icon: ShieldCheck,
     iconSource: "原「探索 → 审批」页的策略部分（2026-10-15 并入设置）；lucide ShieldCheck",
-    description: "临时自动放行与拦截规则（待审批队列在原页）",
+    /**
+     * 2026-10-15：官方「配置」页里的批准策略 / 沙盒 / 网络访问在本客户端**没有执行侧**
+     * （本客户端只发 HTTP 请求、不落本机执行），这句说明原来挂在「模型与 API」页里，
+     * 用户指出那不属于模型页 ⇒ 挪到真正干活的地方（本页）。
+     */
+    description:
+      "临时自动放行与拦截规则（待审批队列在原页）；官网「配置」页的沙盒 / 网络访问在本客户端没有执行侧，故不在此列",
     additional: true,
   },
   {
@@ -264,14 +278,6 @@ const ADDITIONAL_ITEMS: SettingsNavItem[] = [
     description: "官方控件标本台（/controls）—— 不是设置分区，点开即离开设置页",
     additional: true,
     to: "/controls",
-  },
-  {
-    slug: "api",
-    label: "自定义 API",
-    icon: Server,
-    iconSource: "附加项，无官方图标（lucide Server）",
-    description: "OpenAI 兼容端点 · 只存在本地 localStorage",
-    additional: true,
   },
   {
     slug: "about",

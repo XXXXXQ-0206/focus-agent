@@ -61,10 +61,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
     try {
       const result = await artexApi.detectPython();
       setPython(result.python_interpreter);
-      await server.save(
-        { python_interpreter: result.python_interpreter },
-        "已检测到 Python 并保存用于之后的脚本工具调用。",
-      );
+      await server.save({ python_interpreter: result.python_interpreter });
     } catch (caught) {
       server.fail(caught instanceof Error ? caught.message : "检测失败");
     }
@@ -78,7 +75,6 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
     const picked = await desktop.pickPath("file", "选择 Python 解释器");
     if (picked) {
       setPython(picked);
-      await server.save({ python_interpreter: picked }, "Python 解释器已保存");
       return;
     }
     setEditingPython(true);
@@ -139,7 +135,6 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
       section={section}
       title="连接与流量"
     >
-      <Feedback error={server.error} loading={server.loading && !server.settings} notice={server.notice} />
 
       {/* ── 上游代理（原「上游连接 → 代理」）────────────────────────────── */}
       <PaneSection description="浏览器自动化与目标流量出去时走的代理；也是流量捕获的落点。" title="上游代理">
@@ -159,7 +154,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
                 <Button
                   color="secondary"
                   disabled={serverUnavailable || globalProxy === (server.settings?.global_proxy ?? "")}
-                  onClick={() => void server.save({ global_proxy: globalProxy.trim() }, "全局代理已保存")}
+                  onClick={() => void server.save({ global_proxy: globalProxy.trim() })}
                   size="sm"
                   variant="soft"
                 >
@@ -186,7 +181,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
                 disabled={serverUnavailable}
                 label="流量捕获"
                 onChange={(value) =>
-                  void server.save({ traffic_capture: value }, `流量捕获已${value ? "开启" : "关闭"}`)
+                  void server.save({ traffic_capture: value })
                 }
               />
             }
@@ -200,10 +195,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
                 disabled={serverUnavailable}
                 label="Agent 自动绑定流量"
                 onChange={(value) =>
-                  void server.save(
-                    { agent_traffic_binding: value },
-                    `Agent 自动绑定流量已${value ? "开启" : "关闭"}`,
-                  )
+                  void server.save({ agent_traffic_binding: value })
                 }
               />
             }
@@ -253,7 +245,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
                     color="primary"
                     disabled={serverUnavailable || python === (server.settings?.python_interpreter ?? "")}
                     onClick={() => {
-                      void server.save({ python_interpreter: python.trim() }, "Python 解释器已保存");
+                      void server.save({ python_interpreter: python.trim() });
                       setEditingPython(false);
                     }}
                     size="sm"

@@ -23,33 +23,29 @@ import {
  *      `GET /api/intercept/rules` + `POST /api/intercept/rules/{id}/toggle` + `DELETE …`（拦截规则）。
  *      `GET /api/intercept/pending` + `POST /api/intercept/pending/{id}/decide`（待审批队列的裁决）。
  *
- * ⚠️ 2026-10-15 第二轮：用户判定「整个项目不再需要独立的审批页」，于是把**队列与裁决**
- * 也从 `/system/intercept/approvals` 搬到这里（那条路由现在重定向到本页）——
- * 人工审批这条安全闸门不能消失，只是不再单独占一个页面。
+ * ★ 2026-10-15 第三轮（产品重排）：审批是**待办**，不是配置 ⇒ **队列与裁决搬去左侧栏**
+ * （`/approvals`，见 artex/approvals-page.tsx）；本页只留**策略**两段
+ * （临时自动放行 / 拦截规则），并在页头放一个跳回队列的入口。
  */
 export function ApprovalsPane({ section }: SettingsPaneProps) {
   const navigate = useNavigate();
   const [autoAllow, setAutoAllow] = useState<AutoAllowState | null>(null);
   const [rules, setRules] = useState<InterceptRule[]>([]);
-  const [pending, setPending] = useState<Approval[]>([]);
   const [decidingId, setDecidingId] = useState<number | null>(null);
   const [hours, setHours] = useState("2");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [allow, ruleList, pendingList] = await Promise.all([
+      const [allow, ruleList] = await Promise.all([
         artexApi.getAutoAllow().catch(() => null),
         artexApi.interceptRules().catch(() => [] as InterceptRule[]),
-        artexApi.approvals().catch(() => [] as Approval[]),
       ]);
       setAutoAllow(allow);
       setRules(ruleList);
-      setPending(pendingList);
       setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法读取审批配置");
@@ -67,7 +63,6 @@ export function ApprovalsPane({ section }: SettingsPaneProps) {
     try {
       const parsedHours = Math.max(1, Math.min(72, Number(hours) || 2));
       setAutoAllow(await artexApi.setAutoAllow(enabled, parsedHours));
-      setNotice(enabled ? `已开启自动放行 ${String(parsedHours)} 小时` : "已关闭自动放行");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "保存失败");
     } finally {
@@ -103,34 +98,26 @@ export function ApprovalsPane({ section }: SettingsPaneProps) {
   const remaining = autoAllow?.remaining_seconds ?? 0;
   const allowedNow = autoAllow?.enabled === true;
 
-  const decide = async (approval: Approval, decision: "allowed" | "denied") => {
-    setDecidingId(approval.id);
-    try {
-      await artexApi.interceptDecide(approval.id, decision);
-      setPending((current) => current.filter((item) => item.id !== approval.id));
-      setNotice(decision === "allowed" ? "已允许这次调用" : "已拒绝这次调用");
-      setError("");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "裁决失败");
-    } finally {
-      setDecidingId(null);
-    }
-  };
-
   return (
     <PaneShell
       actions={
-        <Button
-          color="secondary"
-          onClick={() => navigate("/intranet")}
-          size="sm"
-          variant="ghost"
-          title="会话与凭据在「连接与流量」里"
-        >
-          内网作战台
-        </Button>
+        <>
+          {/* 队列是**待办**，住在左侧栏的「审批」页（2026-10-15 产品重排）。 */}
+          <Button color="secondary" onClick={() => navigate("/approvals")} size="sm" variant="soft">
+            打开审批队列
+          </Button>
+          <Button
+            color="secondary"
+            onClick={() => navigate("/intranet")}
+            size="sm"
+            variant="ghost"
+            title="会话、隧道与凭据在「内网会话」页"
+          >
+            打开内网会话
+          </Button>
+        </>
       }
-      lede="放行策略、拦截规则与待审批队列；裁决后的记录在任务页的「拦截」视图里。"
+      lede="这一页只管**策略**：临时自动放行与拦截规则。待审批队列在左侧栏的「审批」页；裁决后的记录在任务页的「拦截」视图里。"
       section={section}
       title="审批与拦截"
     >
@@ -146,68 +133,6 @@ export function ApprovalsPane({ section }: SettingsPaneProps) {
           tone="danger"
         />
       ) : null}
-      {notice ? <PaneBanner title={notice} tone="success" /> : null}
-
-      {/* ── 待审批队列（原审批页的核心动作）────────────────────────────── */}
-      <PaneSection
-        description={
-          pending.length === 0
-            ? "没有等待裁决的调用"
-            : `${String(pending.length)} 条等待裁决：逐条看命令与理由后放行或拒绝`
-        }
-        title="待审批"
-      >
-        <PaneCard>
-          {pending.length === 0 ? (
-            <PaneEmpty
-              description="Agent 触发需要人工确认的动作时，会出现在这里（也可在任务页的「拦截」视图查看该任务的记录）。"
-              title="当前无待审批"
-            />
-          ) : (
-            pending.map((approval) => (
-              <PaneRow
-                description={
-                  <span>
-                    {approval.agent_name || "agent"} · {approval.reason || "等待决定"}
-                    {approval.task_id ? ` · 任务 ${approval.task_id}` : ""}
-                    {approval.created_at ? ` · ${approval.created_at}` : ""}
-                    {approval.tool_input && Object.keys(approval.tool_input).length > 0 ? (
-                      <>
-                        {" · "}
-                        <code>{JSON.stringify(approval.tool_input).slice(0, 120)}</code>
-                      </>
-                    ) : null}
-                  </span>
-                }
-                key={approval.id}
-                label={approval.tool_name}
-                control={
-                  <span className="cx-pane__row-actions">
-                    <Button
-                      color="success"
-                      disabled={decidingId !== null}
-                      onClick={() => void decide(approval, "allowed")}
-                      size="sm"
-                      variant="soft"
-                    >
-                      允许调用
-                    </Button>
-                    <Button
-                      color="danger"
-                      disabled={decidingId !== null}
-                      onClick={() => void decide(approval, "denied")}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      拒绝
-                    </Button>
-                  </span>
-                }
-              />
-            ))
-          )}
-        </PaneCard>
-      </PaneSection>
 
       <PaneSection
         description={

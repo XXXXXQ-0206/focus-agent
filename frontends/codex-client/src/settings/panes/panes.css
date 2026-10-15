@@ -314,23 +314,6 @@
   max-width: 320px;
 }
 
-.cx-pane__option {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.cx-pane__option-label {
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.cx-pane__option-description {
-  color: color-mix(in srgb, var(--color-text) 65%, transparent);
-  font-size: 12px;
-  line-height: 15px;
-}
-
 /* 输入框：与下拉同高（28）*/
 .cx-pane .cx-input {
   --cx-input-size: 28px;
@@ -557,6 +540,46 @@
   gap: 4px;
   padding: 32px 16px;
   text-align: center;
+}
+
+/* 「获取可用模型」探测结果（模型与 API 页）：一排可选模型 chip。
+   设置口径：13px、圆角矩形 10px、淡底 + 发丝边，悬停出更亮的底（与页内其它控件同族）。 */
+.cx-model-probe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 8px;
+  border: var(--cx-settings-card-hairline, 0.5px) solid
+    var(--cx-settings-card-hairline-color, rgb(255 255 255 / 0.082));
+  border-radius: var(--radius-md);
+  background-color: var(--cx-settings-soft-background);
+}
+
+.cx-model-probe__item {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--cx-settings-secondary-background);
+  color: var(--color-text);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cx-model-probe__item:hover {
+  background: color-mix(in srgb, var(--cx-settings-secondary-background) 70%, var(--color-text) 10%);
+}
+
+.cx-model-probe__item:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
 }
 
 .cx-pane__empty-icon {

@@ -8,8 +8,12 @@
  * 几何基准（参考端实测 @1280×816，dpr 1.5；出处 SPEC.md §3/§4/§5 + captures/*）
  *   外壳根          padding `0 4px 4px 0`        → 顶部栏宽 1276、内容底 812
  *   外壳底色        **rgb(40,40,40)**             ← 截图取色 + token --app-color-background-shell
- *   ~~顶部菜单栏    [0,0 1276×**36**]~~           **2026-10-15 用户要求删除**（见 AppShell.tsx 文件头），
- *                                                36px 高度与 [6,4 102×28] 左簇等几何只作历史留档
+ *   顶部菜单栏      [0,0 1276×**36**]             高 = --height-toolbar-sm
+ *   左簇            [6,4 **102**×28]              gap 6px（导航组 62 + 侧栏组 28 + me 6）
+ *   menubar         [108,6 215.33×23.33]          padding `0 8px 0 4px` gap 2px
+ *   菜单触发钮      [112/163.33/214.67/266]       **49.33×23.33**  r 10px  cs SE1.5
+ *                                                  padding `4px 10px`  14px/14px/400
+ *   应用菜单下拉    y = **30** / 宽 220(文件·编辑·帮助) · **300**(视图)
  *   图标导轨        [0,44 **52**×768]             nav-list [6,50 40×716] 按钮 36×36 步进 44
  *   对话面板        [52,44 **288**×768]           bg color-mix(in oklab, rgb(24,24,24) 65%, transparent)
  *                                                  border-radius **12px 0 0 12px**
@@ -19,6 +23,7 @@
  *   内容视口        [341,96 **935**×716]          工作区 header 高 **52px**
  */
 
+export { AppMenuBar } from "./AppMenuBar";
 export { AppShell } from "./AppShell";
 export { PageSurface } from "./PageSurface";
 // task-28：面板页槽（/scheduled 的列表 portal 目标）与页面档位表。
@@ -32,7 +37,6 @@ export {
   type SurfaceLayout,
 } from "./page-layouts";
 export { PanelPortal, PanelSlotHost, usePanelSlot } from "./panel-slot";
-export { ChatRoute, ConversationRoute, NotFoundRoute, SettingsRoute, SettingsSectionRoute } from "./routes";
 export { SearchDialog } from "./SearchDialog";
 export { SidebarPanel } from "./SidebarPanel";
 export { SidebarRail } from "./SidebarRail";

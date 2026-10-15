@@ -5,7 +5,7 @@ import type { ToolCall } from "@/lib/types";
 
 import { describeToolCall, messageToBlocks } from "./block-adapter";
 import { ActivityDisclosure, ActivityGroup, type ActivityStatus } from "./blocks";
-import type { RuntimeMessage } from "./runtime";
+import type { RuntimeMessage } from "./types";
 
 /**
  * 连续的工具调用 → **一个折叠组**（用户 2026-10-15 给的官方截图口径）。

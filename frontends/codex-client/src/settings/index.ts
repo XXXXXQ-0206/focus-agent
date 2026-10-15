@@ -2,7 +2,7 @@
  * 设置域对外出口。
  *
  * 契约（docs/ARCHITECTURE.md §5）：
- *   · 设置页主体：SettingsPage（挂到 /settings/:section，由 Lead 在 shell/routes.tsx 接线）
+ *   · 设置页主体：SettingsPage（挂到 /settings/:section，接线在 App.tsx 的路由表）
  *   · 侧栏设置导航：SettingsNav + 数据模型 nav-model.ts（面板归 cx-shell）
  *   · 设置项真实生效：store.ts（官方常规页 25 行 + 外观页 + 附加档位，全部写 DOM）
  *   · 控件原语：controls.tsx（SPEC §5 实测几何）

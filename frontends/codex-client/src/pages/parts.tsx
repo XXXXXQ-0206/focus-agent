@@ -1,4 +1,4 @@
-import { type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import { type CodexIconProps, CodexSearch, CodexX } from "@/icons";
 
@@ -11,22 +11,6 @@ import "./pages.css";
 
 export type PagePhase = "loading" | "ready" | "empty" | "error";
 
-/**
- * Slate 页面骨架（官方 /plugins 页头四层，见 src/pages/PluginsPage.tsx 的实测注释）：
- *   slate 页头（h1 + 搜索胶囊 + 动作）→ 副标题行 →（可选）分区 tab 行 → 内容列。
- *
- * 这是全应用业务页的统一 chrome：Agent / 系统资源 / 设置（另一种 pane 形态）/ 工作区 /
- * 命令记录 / 同步 / 内网会话 / 总览 都从这里渲染；页面只提供内容与数据。
- * 五个 data-* 是**能力声明**（官方六态实测取值恒定），真正的动态信号只有 data-scrolled。
- */
-const SLATE_CAPABILITY_ATTRS = {
-  "data-collapsible": "",
-  "data-expand-search": "true",
-  "data-scroll-collapse": "true",
-  "data-sticky": "true",
-  "data-wrap-actions": "true",
-} as const;
-
 export interface SlateSearchConfig {
   id: string;
   value: string;
@@ -34,6 +18,25 @@ export interface SlateSearchConfig {
   onChange: (value: string) => void;
 }
 
+/**
+ * 业务页骨架 —— **2026-10-15 起改用「设置页规范」**（用户要求：左侧栏那些非对话页面
+ * 与设置页统一；随后还要按产品口径把这些页面与设置页重新编排）。
+ *
+ * 结构与设置页**同源**（`settings.css` 的骨架类原样复用，不再是另一套 slate 页头）：
+ *   `.cx-settings`（纵向撑满）
+ *     ├ `.cx-settings__scroll`（滚动容器，scrollbar-gutter: stable）
+ *     │   ├ `.cx-settings__shell` → `.cx-settings__page` → `.cx-settings__header`
+ *     │   │     标题带 60px：h1 28px/500 + 右侧操作区（搜索 / 分段过滤 / 页面动作）
+ *     │   └ `.cx-settings__page` → `.cx-settings__column`（768 列，内距 20 ⇒ 内容 728）
+ *     └ 可选 `.cx-pane__lede` 说明行（设置页「独立渲染」档同款）
+ *
+ * 口径来源：docs/SPEC-SETTINGS.md §2/§2.1（标题带 60 / 列 768 / 内容 728 / 分区间距 40），
+ * 与 settings/settings.css 里的实现字面同值；本组件只负责“把业务页装进那套骨架”，
+ * 具体行/卡片/控件由 `@/settings/panes/pane-kit` 与 pages.css 的规范层提供。
+ *
+ * ⚠️ 旧版是官方 /plugins 的 slate 页头（`.cx-slate-*`，含 5 个 data-* 能力声明与
+ *    `data-scrolled` 折叠态）。那些样式类保留在 pages.css 里但已无调用方，不再使用。
+ */
 export function SlatePage({
   title,
   actions,
@@ -52,75 +55,42 @@ export function SlatePage({
   subtitle: string;
   tabs?: ReactNode;
 }) {
-  const bodyRef = useRef<HTMLDivElement | null>(null);
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const element = bodyRef.current;
-    if (!element) return;
-    const onScroll = () => setScrolled(element.scrollTop > 0);
-    onScroll();
-    element.addEventListener("scroll", onScroll, { passive: true });
-    return () => element.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
-    <div className="cx-page" data-page={`artex-${title}`}>
-      <div className="cx-page__body" ref={bodyRef}>
-        <div className="cx-slate-scroll">
-          <header
-            className="cx-slate-head"
-            data-scrolled={scrolled ? "true" : undefined}
-            {...SLATE_CAPABILITY_ATTRS}
-          >
-            <div className="cx-slate-head__content">
-              <div className="cx-slate-head__row">
-                <div className="cx-slate-head__title">
-                  <h1>{title}</h1>
-                </div>
-                <div className="cx-slate-head__actions">
-                  <div className="cx-slate-toolbar">
-                    {search ? (
-                      <div className="cx-slate-search">
-                        <label className="sr-only" htmlFor={search.id}>
-                          {search.placeholder}
-                        </label>
-                        <div className="cx-slate-search__capsule">
-                          <span aria-hidden className="cx-slate-search__icon">
-                            <CodexSearch size={16} />
-                          </span>
-                          <input
-                            id={search.id}
-                            onChange={(event) => search.onChange(event.target.value)}
-                            placeholder={search.placeholder}
-                            type="search"
-                            value={search.value}
-                          />
-                        </div>
-                      </div>
-                    ) : null}
-                    {actions ? <div className="cx-slate-pageactions">{actions}</div> : null}
+    <div className="cx-settings cx-settings--page" data-page={`artex-${title}`} data-fill={fill ? "true" : undefined}>
+      <div aria-hidden className="codex-drag-region cx-settings__dragbar" />
+      <div className="cx-settings__scroll">
+        {/* 标题带：与设置页同款（60px；只有 h1 + 右侧操作区） */}
+        <div className="cx-settings__shell">
+          <div className="cx-settings__page">
+            <header className="cx-settings__header">
+              <h1 className="cx-settings__title">{title}</h1>
+              <div className="cx-settings-page__actions">
+                {search ? (
+                  <div className="cx-settings-page__search">
+                    <label className="sr-only" htmlFor={search.id}>
+                      {search.placeholder}
+                    </label>
+                    <CodexSearch aria-hidden size={16} />
+                    <input
+                      id={search.id}
+                      onChange={(event) => search.onChange(event.target.value)}
+                      placeholder={search.placeholder}
+                      type="search"
+                      value={search.value}
+                    />
                   </div>
-                </div>
+                ) : null}
+                {tabs}
+                {actions}
               </div>
-            </div>
-          </header>
-
-          <div className="cx-slate-subtitle">
-            <div className="cx-slate-subtitle__row" data-page-subtitle="true">
-              <div className="cx-slate-subtitle__text">{subtitle}</div>
-            </div>
+            </header>
           </div>
+        </div>
 
-          {tabs}
-
-          <div
-            className={
-              fill
-                ? "cx-page__column cx-slate-content cx-slate-content--fill"
-                : "cx-page__column cx-slate-content"
-            }
-            style={{ gap: 20, maxWidth: "none" }}
-          >
+        {/* 内容列：768 列 + 20 内距（内容 728），分区间距 40 */}
+        <div className="cx-settings__page">
+          <div className="cx-settings__column">
+            {subtitle ? <p className="cx-pane__lede">{subtitle}</p> : null}
             {children}
           </div>
         </div>

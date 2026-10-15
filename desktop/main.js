@@ -120,6 +120,33 @@ function createWindow() {
     backgroundColor: dark ? "#0b0b0c" : "#ffffff",
     title: "ARTEX",
     icon: ICON_RUNNING,
+    /*
+     * ★ 2026-10-15（用户：「不要最上面的 windows 自带菜单顶栏」——指 Windows 自己画的那条标题栏）：
+     *   与官方 Codex 桌面端同一套做法：`titleBarStyle: "hidden"` + `titleBarOverlay`
+     *   （出处：codex-desktop-src/electron/menu/application-menu.ts:6 与
+     *     electron/windows/window-options.ts:215 的 `titleBarOverlay()`：
+     *       color = "#00000000"（透明，露出我们自己的顶栏）、
+     *       symbolColor = 深色 #ffffff / 浅色 #1f1f1f、
+     *       height = 36（TITLE_BAR_HEIGHT，正好等于应用菜单栏的高度））。
+     *
+     *   效果：Windows 不再画标题栏（没有 ARTEX 标题文字、没有独立的一条），
+     *   只在右上角叠三个系统按钮（最小化/最大化/关闭，颜色随深浅主题）；
+     *   窗口拖拽由页面里的 `.codex-drag-region`（顶部 36px 菜单栏）承担。
+     *   `Menu.setApplicationMenu(null)` 仍然保留 —— 原生菜单栏也不出现。
+     */
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      /*
+       * ⚠️ 官方（codex-desktop-src/electron/windows/window-options.ts:215 的 titleBarOverlay()）
+       *   给的是 `color: "#00000000"`（全透明）。**本机这套 Electron 43 不行**：
+       *   实测 A/B —— 透明色时窗口创建成功、页面也加载了，但整窗 Visible=false（用户看不到窗口）；
+       *   换成不透明色立刻恢复。所以这里用**与 backgroundColor 同值**的不透明色：
+       *   顶栏那片区域本来就透出窗口底色，填同色 = 视觉上同样"没有多余的一条"。
+       */
+      color: dark ? "#0b0b0c" : "#ffffff",
+      symbolColor: dark ? "#ffffff" : "#1f1f1f",
+      height: 36,
+    },
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
@@ -188,7 +215,13 @@ function injectUISwitcher() {
     const host = document.createElement('nav');
     host.id = 'artex-ui-switcher';
     host.setAttribute('aria-label', '界面切换');
-    host.style.cssText = 'position:fixed;top:12px;right:16px;z-index:2147483647;display:flex;gap:4px;padding:4px;border:1px solid rgba(128,128,128,.35);border-radius:10px;background:rgba(30,30,30,.86);box-shadow:0 4px 16px rgba(0,0,0,.24);font:12px system-ui,sans-serif;backdrop-filter:blur(8px)';
+    /*
+     * ★ 2026-10-15：窗口改成无标题栏（titleBarStyle:"hidden" + titleBarOverlay）之后，
+     *   右上角那片区域被**系统窗口按钮**（最小化/最大化/关闭，高 36 与顶部菜单栏同高）占了，
+     *   原先的 right:16px 会被压在按钮底下 ⇒ 右移到按钮左侧（150px，覆盖 Windows 三个按钮的
+     *   常规宽度），并把纵向位置压到 0、内距收到 2px，让它正好落在 36px 的顶部菜单栏里。
+     */
+    host.style.cssText = 'position:fixed;top:2px;right:150px;z-index:2147483647;display:flex;gap:4px;padding:2px;border:1px solid rgba(128,128,128,.35);border-radius:10px;background:rgba(30,30,30,.86);box-shadow:0 4px 16px rgba(0,0,0,.24);font:12px system-ui,sans-serif;backdrop-filter:blur(8px)';
     const make = (label, href, active) => {
       const button = document.createElement('button');
       button.type = 'button';

@@ -85,9 +85,7 @@
 /* ── 外壳根 ────────────────────────────────────────────────────────────────
    实测：padding `0px 4px 4px 0px` → 顶部栏宽 1276（=1280−4）、内容底 812（=816−4） */
 .codex-shell {
-  /* 2026-10-15：顶部菜单栏删除后，这里只剩布局容器本身的职责
-     （当年的 .codex-shell__sidebar-toggle 绝对定位槽随菜单栏一起删了，开关搬到导轨底部）。 */
-  position: relative;
+  position: relative; /* 设置页侧栏开关槽（.codex-shell__sidebar-toggle）的包含块 */
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -110,9 +108,82 @@
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
-  /* 2026-10-15：顶部 36px 菜单栏删除，这里保留 8px 只是让三区（导轨/面板/主表面）
-     不要贴死窗口上沿；官方那套 y=44（=36+8）的绝对口径见 shell/index.ts 的历史留档。 */
+  /* 36px 菜单栏之后留 8px → 三区统一从 y=44 起 */
   margin-top: 8px;
+}
+
+/* ── 顶部 36px 应用菜单栏 ──────────────────────────────────────────────────
+   实测：容器 [0,0 1276×36] padding `0 0 0 6px` bg 透明（外壳底色透出）
+
+   ★ 2026-10-15：这条菜单栏曾被误删（当时把「Windows 自带标题栏」和「应用自绘的这条」看串了），
+   现已原样恢复。同日桌面端改为 `titleBarStyle:"hidden"`（见 desktop/main.js）⇒ 这条 36px
+   就是窗口最顶上的一条，与官方窗口形态一致，并承担窗口拖拽（.codex-drag-region）。 */
+.codex-app-menu-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: var(--height-toolbar-sm); /* 36px */
+  padding: 0 0 0 6px;
+  background: transparent;
+  user-select: none;
+}
+
+/* 左簇 [6,4 102×28] gap 6px；导航组 [6,4 62×28] gap 6px；侧栏组 [74,4 28×28] + me-1.5 */
+.codex-app-menu-bar__cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+}
+
+.codex-app-menu-bar__nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.codex-app-menu-bar__sidebar {
+  display: flex;
+  align-items: center;
+  margin-inline-end: 6px;
+}
+
+/* ── 设置页的侧栏开关（用户报告 #3，**有意偏差**）────────────────────────────
+ * 用户原话：「收起历史聊天列表栏后设置页面的栏也会被收起，所以我希望设置页面也要有
+ *           一样的收起/展开按钮」。
+ *
+ * 现状（改前实测 @1280×816，/settings）：左簇 [6,4 62×28]、menubar x=68、
+ * aria-label=「隐藏/显示侧边栏」的按钮 **0 个** —— AppMenuBar.tsx 在 `/settings*`
+ * 上整组不渲染；而设置导航（.codex-panel__settings-*）就在同一个 .codex-panel 里，
+ * panel 一旦收起（宽度过渡到 0 + visibility:hidden）设置页就只剩 Ctrl+B 这种隐藏入口 ⇒ **死胡同**。
+ *
+ * 官方对照（实测，captures/blocks-settings.json）：
+ *   blocks[5] 左簇 `div.flex.items-center.gap-1.5` [6,4 **62**×28]
+ *   blocks[7] menubar `div.flex.items-center.gap-0.5.ps-1.pe-2` [**68**,6.3 215.33×23.3]
+ *   blocks[8] 「文件」trigger [72,6.3 49.33×23.3]
+ *   ⇒ 官方 /settings 那屏**确实没有**侧栏开关（左簇 62、menubar x=68）。
+ *   本工程在这里**有意偏离官方**：设置页把同一个 28×28 开关放回官方会话页的槽位
+ *   [74,4 28×28]（= 官方会话页侧栏开关坐标，SPEC §4 左簇 102），menubar 因此从 68
+ *   排到 **108**（= 官方会话页 menubar 的 x）而不是 68。
+ *   代价：/settings 的 menubar x 由 68 → 108（+40），与官方 /settings 实测值不同。
+ *   收益：设置页有了唯一的、始终可见（收起态也在）的展开入口，不再有死胡同。
+ */
+.codex-shell__sidebar-toggle {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-start: 74px; /* 官方会话页侧栏开关槽位（SPEC §4：左簇 6..108） */
+  /* 10：高于顶栏内容（z auto），低于应用菜单浮层（#application-menu-content z 50）。
+     用 60 会盖住菜单顶部 2px（菜单 y=30 起、开关到 y=32）—— 实测过的坑。 */
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag; /* 顶栏是 drag 区，开关必须能点（app.css:10-16） */
+}
+
+/* 出现这个开关时 menubar 让位 40px（68 → 108），与官方会话页同起点 */
+.codex-shell:has(.codex-shell__sidebar-toggle) .codex-app-menu-bar__menubar {
+  margin-inline-start: 40px;
 }
 
 /* 28×28 图标按钮：r 12.5px（--radius-lg）、cs SE1.5、色 rgba(255,255,255,.498)
@@ -150,6 +221,86 @@
 .codex-icon-button[aria-disabled="true"] {
   opacity: 0.4;
   cursor: default;
+}
+
+/* menubar [108,6 215.33×23.33] padding `0 8px 0 4px` gap 2px */
+.codex-app-menu-bar__menubar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 0 4px;
+}
+
+/* 触发钮：49.33×23.33（作者值 24 高）padding `4px 10px` 字号 14px/14px/400
+   圆角 10px（--radius-md） cs SE1.5  默认色 rgba(255,255,255,.498)
+   hover / 展开：bg rgba(255,255,255,.03) + 色 #dfdfdf
+   ⚠️ height 必须显式给 24px：border-box 下 24 = 14(行高) + 4×2(padding) + 1×2(border)，
+      这样即使 dpr 变化也稳定落在 y=6、菜单锚点稳定落在 y=30 */
+.codex-app-menu-bar__trigger {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md); /* 10px */
+  corner-shape: superellipse(1.5);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 14px;
+  white-space: nowrap;
+  outline: none;
+  cursor: default;
+  /* ⚠️ 不写 transition：官方同一元素 computed transition = `all`（即 `all 0s ease 0s`，**无过渡**），
+     且官方 className 里没有任何 `transition-*` 工具类 ⇒ 官方 hover / open 是**瞬时**切换。
+     出处：captures/recon-official/official-menu-01-trigger-hover.json 的
+           probe.results['#application-menu-trigger-file-menu'].first.style.transition = "all"。
+     2026-10-11 Lead 裁决：删掉我们自造的 background-color / color 各 0.15s 过渡。 */
+}
+
+/* ── 触发钮三态：官方 App 实机采集（2026-10-11）──────────────────────────
+   证据：captures/recon-official/official-menu-{00-trigger-rest,01-trigger-hover,02-open}.json
+         字段 probe.results['#application-menu-trigger-file-menu'].first.{cls,style,attrs}
+
+   · rest  cls = "… outline-none text-tertiary hover:bg-text/5 hover:text-codex-description
+                  focus-visible:bg-text/5 focus-visible:text-codex-description"
+           computed  bg rgba(0, 0, 0, 0)（透明） · color rgba(255, 255, 255, 0.498)
+   · hover bg = bg-text/5 = color-mix(in oklab, var(--color-text) 5%, transparent)
+           computed  oklab(0.903646 0.0000412762 0.0000180602 / 0.05)
+                     （L=0.9036 正是 --color-text #dfdfdf 的 oklab 明度，确认取的是 --color-text 而非 #fff）
+           color     **不变** —— text-codex-description 与 text-tertiary 同值（都是 rgba(255,255,255,0.498)），
+                     所以 hover:text-codex-description 在视觉上是 no-op。不要改成 --color-text-emphasis(#dfdfdf)。
+   · focus-visible 与 hover 用同两条 token，且官方 cls 是 "outline-none" —— **没有任何 outline 环**
+   · open  cls 把 hover:/focus-visible: 两条**整组摘掉**，换成
+                  "bg-[var(--color-codex-application-menu-selection)] text-[var(--color-text)]"
+           computed  bg rgba(255, 255, 255, 0.03) · color rgb(223, 223, 223)
+           取值出处：--color-codex-application-menu-selection = var(--color-background-primary-soft-alpha)
+                     （官方 CSS shell-shared.css:4458，块链 @layer theme > :where(:root,[data-theme])；
+                       本仓库 tokens.css:76 同款声明）= rgba(255, 255, 255, 0.032)。
+                     实测显示 0.03 不是另一个值：Edge 实测 rgba(255,255,255,0.032) 的 computed
+                     就是 rgba(255, 255, 255, 0.03)（Chromium 把 rgba 的 alpha 序列化成两位小数）。
+                     所以这里写 token 名，而不是抄 0.03 字面量。
+           文字色出处：--color-text（本仓库实测 #dfdfdf = rgb(223,223,223)）
+
+   ⚠️ 不写 [data-highlighted] 分支：官方 CSS 里没有针对它的规则，且官方 rest/hover/open 三张采集里该属性**都不存在**。
+      我们这侧实测（Edge headless + CDP 打 dev server，"鼠标点击展开 → 再点击收起 → 指针移开"）：
+        data-state=closed · data-highlighted=true · :hover=false · :focus-visible=false
+      保留该分支会让这一刻画出 rgba(255,255,255,.03) 底色 + #dfdfdf 字色，而官方同一时刻是透明 + 0.498 —— 真偏差。
+      键盘路径不受影响：Tab 到触发钮时 data-highlighted=true **且** :focus-visible=true，
+      删掉分支后由下面第一条规则接管，视觉态不变。
+   ⚠️ open 规则必须放在 hover/focus-visible **之后**：三条选择器同权重 (0,2,0)，靠源序决胜；
+      官方 open 态 className 既然把 hover:/focus-visible: 整组摘掉了，就说明 open 压过 hover。 */
+.codex-app-menu-bar__trigger:hover,
+.codex-app-menu-bar__trigger:focus-visible {
+  background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
+  color: var(--color-codex-description);
+  outline: none;
+}
+
+.codex-app-menu-bar__trigger[data-state="open"] {
+  background-color: var(--color-codex-application-menu-selection);
+  color: var(--color-text);
 }
 
 /* ── 应用菜单下拉（#application-menu-content 的还原）───────────────────────

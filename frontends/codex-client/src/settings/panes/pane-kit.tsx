@@ -226,7 +226,13 @@ export function PaneTabs({
   );
 }
 
-/** 下拉（§5：高 28 / 圆角 12.5 / bg rgba(255,255,255,.03) / padding 0 12px / 13px 430） */
+/**
+ * 下拉（§5：高 28 / 圆角 12.5 / bg rgba(255,255,255,.03) / padding 0 12px / 13px 430）。
+ *
+ * `option.description` 是**列表里的第二行**，永远不进触发器 —— Radix 会把选中项的
+ * `ItemText` 内容 portal 进触发器，28px 高的按钮里放两行会顶出边框（2026-10-15 用户截图）。
+ * 所以说明走 `SelectItem` 的 `description` 槽（`ItemText` 的兄弟节点，见 @/ui/select.tsx）。
+ */
 export function PaneSelect({
   value,
   onChange,
@@ -244,20 +250,26 @@ export function PaneSelect({
   disabled?: boolean;
   placeholder?: string;
 }) {
+  /**
+   * 值为空时会渲染成一个**空触发器**（Radix 的 SelectValue 对 "" 直接走 placeholder 分支，
+   * 没给 placeholder 就什么都没有）。所以这里兜底：选项表里如果有 `value: ""` 的项，
+   * 就拿它的 label 当占位文案 —— 「不发送（端点默认）」这种语义本来就在选项里写着，
+   * 不该让用户对着一个空白下拉猜当前是什么。（2026-10-16 高级区实测发现）
+   */
+  const emptyOptionLabel = options.find((option) => option.value === "")?.label;
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger className={cn("cx-pane__select", className)} aria-label={ariaLabel}>
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder ?? emptyOptionLabel} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            <span className="cx-pane__option">
-              <span className="cx-pane__option-label">{option.label}</span>
-              {option.description ? (
-                <span className="cx-pane__option-description">{option.description}</span>
-              ) : null}
-            </span>
+          <SelectItem
+            description={option.description}
+            key={option.value}
+            value={option.value}
+          >
+            {option.label}
           </SelectItem>
         ))}
       </SelectContent>
@@ -350,7 +362,15 @@ export function PaneTextBlock({
   );
 }
 
-/** 单行输入行（分支前缀 / 自动删除限制这类短值） */
+/**
+ * 单行输入行（分支前缀 / 自动删除限制这类短值）。
+ *
+ * ★ 2026-10-16：`suffix` 必须放在**定宽包裹层之外**。
+ *   包裹层是 `width:<N>px` + 内层 `.cx-input { width: 100% }`，把按钮/单位塞进去
+ *   会让内容宽度 = N + gap + 按钮，直接顶出卡片右缘（实测：模型与 API 的「输出上限」
+ *   后缀被裁；同样的隐患也在「Python 解释器」「任务并发上限」两行的按钮上）。
+ *   所以后缀与输入框是**兄弟节点**，共同组成行内动作组。
+ */
 export function PaneInputRow({
   label,
   description,
@@ -375,15 +395,17 @@ export function PaneInputRow({
       label={label}
       description={description}
       control={
-        <span className="cx-pane__input-group" data-fixed-width="" style={{ width }}>
-          <Input
-            className="cx-pane__input"
-            size="sm"
-            aria-label={ariaLabel}
-            value={value}
-            placeholder={placeholder}
-            onChange={(event) => onChange(event.target.value)}
-          />
+        <span className="cx-pane__row-actions">
+          <span className="cx-pane__input-group" data-fixed-width="" style={{ width }}>
+            <Input
+              className="cx-pane__input"
+              size="sm"
+              aria-label={ariaLabel}
+              value={value}
+              placeholder={placeholder}
+              onChange={(event) => onChange(event.target.value)}
+            />
+          </span>
           {suffix}
         </span>
       }

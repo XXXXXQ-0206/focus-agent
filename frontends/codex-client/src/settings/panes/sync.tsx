@@ -32,7 +32,6 @@ export function SyncPane({ section }: SettingsPaneProps) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,12 +53,10 @@ export function SyncPane({ section }: SettingsPaneProps) {
 
   const save = async () => {
     setBusy(true);
-    setNotice("");
     try {
       await artexApi.ssDatasource({ url: url.trim(), ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}) });
       setApiKey("");
       await load();
-      setNotice("数据源已保存");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "保存失败");
     } finally {
@@ -95,7 +92,6 @@ export function SyncPane({ section }: SettingsPaneProps) {
           tone="danger"
         />
       ) : null}
-      {notice ? <PaneBanner title={notice} tone="success" /> : null}
 
       <PaneSection
         description={

@@ -50,7 +50,6 @@ export function useArtexSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,16 +68,16 @@ export function useArtexSettings() {
   }, [load]);
 
   const save = useCallback(
-    async (
-      patch: Partial<ArtexSystemSettings> & Record<string, unknown>,
-      success = "已保存",
-    ): Promise<boolean> => {
+    /**
+     * ★ 2026-10-15（用户：「这样的组件不要弹出，因为我勾选了配置之后我自己知道」）：
+     *   保存成功后**不再弹绿色成功横幅** —— 勾选/选择本身就是反馈。
+     *   第二个参数（成功文案）已删除；失败仍然弹红条（那才是需要读的信息）。
+     */
+    async (patch: Partial<ArtexSystemSettings> & Record<string, unknown>): Promise<boolean> => {
       setSaving(true);
       setError("");
-      setNotice("");
       try {
         setSettings(await artexApi.saveSystemSettings(patch));
-        setNotice(success);
         return true;
       } catch (caught) {
         setError(errorText(caught));
@@ -90,21 +89,22 @@ export function useArtexSettings() {
     [],
   );
 
-  /** 本地校验失败等不进服务端的提示。 */
+  /** 本地校验失败等不进服务端的提示（错误档，仍然要弹）。 */
   const fail = useCallback((message: string) => {
-    setNotice("");
     setError(message);
   }, []);
 
-  return { settings, loading, saving, error, notice, load, save, fail };
+  return { settings, loading, saving, error, load, save, fail };
 }
 
-export function Feedback({ error, loading, notice }: { error: string; loading: boolean; notice: string }) {
-  if (!error && !notice && !loading) return null;
+/**
+ * 服务端设置分区的反馈位：**只报错与加载**，成功一律不弹（用户 2026-10-15 口径）。
+ */
+export function Feedback({ error, loading }: { error: string; loading: boolean }) {
+  if (!error && !loading) return null;
   return (
     <PaneSection>
       {error ? <PaneBanner description={error} title="操作失败" tone="danger" /> : null}
-      {notice ? <PaneBanner title={notice} tone="success" /> : null}
       {loading ? <PaneBanner title="正在读取服务端设置…" /> : null}
     </PaneSection>
   );
@@ -127,7 +127,7 @@ export function ReloadButton({ onClick, disabled }: { onClick: () => void; disab
 
 /** Agent 运行（/settings/artex-agents）。 */
 export function ArtexAgentsSettingsPane({ section }: SettingsPaneProps) {
-  const { settings, loading, saving, error, notice, load, save, fail } = useArtexSettings();
+  const { settings, loading, saving, error, load, save, fail } = useArtexSettings();
   const [workers, setWorkers] = useState("3");
   const [taskLimit, setTaskLimit] = useState("5");
   const unavailable = loading || saving || !settings;
@@ -139,7 +139,7 @@ export function ArtexAgentsSettingsPane({ section }: SettingsPaneProps) {
   }, [settings]);
 
   const toggle = (field: keyof ArtexSystemSettings, value: boolean, label: string) => {
-    void save({ [field]: value }, `${label}已${value ? "开启" : "关闭"}`);
+    void save({ [field]: value });
   };
 
   const saveNumber = (field: "workers" | "task_concurrency_limit", value: string) => {
@@ -148,7 +148,7 @@ export function ArtexAgentsSettingsPane({ section }: SettingsPaneProps) {
       fail("请输入大于 0 的整数。");
       return;
     }
-    void save({ [field]: parsed }, "并发配置已保存");
+    void save({ [field]: parsed });
   };
 
   return (
@@ -158,7 +158,7 @@ export function ArtexAgentsSettingsPane({ section }: SettingsPaneProps) {
       section={section}
       title="Agent 运行"
     >
-      <Feedback error={error} loading={loading && !settings} notice={notice} />
+      <Feedback error={error} loading={loading && !settings} />
       <PaneSection title="约束注入">
         <PaneCard>
           <PaneRow
@@ -287,7 +287,7 @@ export function ArtexAgentsSettingsPane({ section }: SettingsPaneProps) {
 
 /** 网络搜索（/settings/artex-search）。 */
 export function ArtexSearchPane({ section }: SettingsPaneProps) {
-  const { settings, loading, saving, error, notice, load, save } = useArtexSettings();
+  const { settings, loading, saving, error, load, save } = useArtexSettings();
   const [searchProxy, setSearchProxy] = useState("");
   const [braveKey, setBraveKey] = useState("");
   const [tavilyKey, setTavilyKey] = useState("");
@@ -327,7 +327,7 @@ export function ArtexSearchPane({ section }: SettingsPaneProps) {
       section={section}
       title="网络搜索"
     >
-      <Feedback error={error} loading={loading && !settings} notice={notice} />
+      <Feedback error={error} loading={loading && !settings} />
       <PaneSection title="搜索服务">
         <PaneCard>
           <PaneRow
@@ -337,7 +337,7 @@ export function ArtexSearchPane({ section }: SettingsPaneProps) {
                 disabled={unavailable}
                 label="启用网络搜索"
                 onChange={(value) =>
-                  void save({ web_search_enabled: value }, `网络搜索已${value ? "开启" : "关闭"}`)
+                  void save({ web_search_enabled: value })
                 }
               />
             }
@@ -349,7 +349,7 @@ export function ArtexSearchPane({ section }: SettingsPaneProps) {
               <PaneSelect
                 ariaLabel="网络搜索来源"
                 disabled={unavailable}
-                onChange={(value) => void save({ web_search_backend: value }, "搜索来源已保存")}
+                onChange={(value) => void save({ web_search_backend: value })}
                 options={SEARCH_BACKENDS}
                 value={settings?.web_search_backend ?? "ddgs"}
               />
@@ -372,7 +372,7 @@ export function ArtexSearchPane({ section }: SettingsPaneProps) {
                 <Button
                   color="secondary"
                   disabled={unavailable || searchProxy === (settings?.web_search_proxy ?? "")}
-                  onClick={() => void save({ web_search_proxy: searchProxy.trim() }, "搜索代理已保存")}
+                  onClick={() => void save({ web_search_proxy: searchProxy.trim() })}
                   size="sm"
                   variant="soft"
                 >
@@ -400,7 +400,7 @@ export function ArtexSearchPane({ section }: SettingsPaneProps) {
                   color="secondary"
                   disabled={unavailable || !braveKey}
                   onClick={async () => {
-                    if (await save({ brave_search_api_key: braveKey }, "Brave API Key 已保存")) {
+                    if (await save({ brave_search_api_key: braveKey })) {
                       setBraveKey("");
                     }
                   }}
@@ -427,7 +427,7 @@ export function ArtexSearchPane({ section }: SettingsPaneProps) {
                   color="secondary"
                   disabled={unavailable || !tavilyKey}
                   onClick={async () => {
-                    if (await save({ tavily_search_api_key: tavilyKey }, "Tavily API Key 已保存")) {
+                    if (await save({ tavily_search_api_key: tavilyKey })) {
                       setTavilyKey("");
                     }
                   }}

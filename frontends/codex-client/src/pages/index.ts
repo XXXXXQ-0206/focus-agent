@@ -1,7 +1,7 @@
 /**
  * 其余 rail 页面（src/pages）—— 定时任务 / 插件 / 探索 / 代码审查。
  *
- * 对外只暴露四个路由组件（供 src/shell/routes.tsx 接线）：
+ * 对外只暴露四个路由组件（接线在 App.tsx 的路由表；这些页面的 rail 入口已先后并入设置/左侧栏）：
  *   ScheduledRoute  /scheduled   官方 /scheduled（同页也挂 /automations）
  *   PluginsRoute    /plugins     官方 /plugins（与 /skills 共用浏览外壳）
  *   ExploreRoute    /explore     官方 /explore 是重定向到 /；见 ExplorePage.tsx 头部说明

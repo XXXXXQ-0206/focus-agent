@@ -3,8 +3,10 @@ import { useEffect, useMemo } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useTheme } from "@/app/theme-provider";
+import { CodexSidebar, CodexSidebarHidden } from "@/icons";
 import { useCommandHost } from "@/settings/commands";
 
+import { AppMenuBar } from "./AppMenuBar";
 import { PageSurface } from "./PageSurface";
 import { pageLayoutFor } from "./page-layouts";
 import { SearchDialog } from "./SearchDialog";
@@ -15,7 +17,7 @@ import { useWindowChromeAttributes } from "./window-attributes";
 import "./shell.css";
 
 /**
- * 外壳骨架：三区（52px 导轨 / 浮层面板 / 圆角主表面）。
+ * 外壳骨架：顶部 36px 菜单栏 + 三区（52px 导轨 / 浮层面板 / 圆角主表面）。
  *
  * 面板是「浮」在主表面之上的（不占布局宽度）：主表面从 x=52 起，
  * 面板叠在 [52,340] 区间上，主内容面由 `--codex-surface-inset` 让位面板宽度，
@@ -29,16 +31,16 @@ import "./shell.css";
  * 菜单里的「新聊天 / 设置」是渲染层动作（见 desktop-bridge.ts 注释），
  * 在这里统一落成路由跳转（事件可能由托盘菜单等外部入口派发）。
  *
- * ★ 2026-10-15（用户：「不要最上面的 windows 自带菜单顶栏」）：
- *   顶部 36px 应用菜单栏（原 `<AppMenuBar />` —— DOM 自绘的 Radix Menubar：← → + 侧栏开关 +
- *   文件/编辑/视图/帮助）整条**已删除**，AppMenuBar.tsx 与 app-menus.ts 一并移除。随之而来的安置：
- *     · 返回 / 前进：菜单栏没了就没有按钮入口（键盘 Alt+← / 鼠标侧键 / 系统手势仍在）；
- *     · 侧栏开关：搬到导轨底部组最上面一枚（SidebarRail.tsx 的 RailSidebarToggle）——
- *       不放在面板头，是因为面板收起后它自己的开关随之消失 ⇒ 死胡同，而导轨始终可见。
- *   历史说明（当年为什么在 /settings 上单独补开关）保留在 shell.css 的对应段落里。
+ * ★ 2026-10-15（用户澄清）：当初那句「不要最上面的 windows 自带菜单顶栏」指的是
+ *   **Windows 自己画的标题栏**（带 ARTEX 标题与最小化/最大化/关闭那条），不是这条应用菜单栏。
+ *   我先前误删了 `<AppMenuBar />`（当晚已按构建产物原样恢复，见 AppMenuBar.tsx 文件头），
+ *   真正要关掉的 Windows 标题栏改在桌面端做：desktop/main.js 的
+ *   `titleBarStyle: "hidden"` + `titleBarOverlay` —— 标题栏连同 ARTEX 字样一起消失，
+ *   只留右上角三个系统按钮，本条 36px 菜单栏成为窗口最顶上的一条（与官方窗口形态一致，
+ *   见 evidence/codex-desktop/reference-shots/ref-01-chat-home.png）。
  */
 export function AppShell() {
-  const { inset, resizing } = useSidebar();
+  const { inset, resizing, collapsed, narrow, toggle } = useSidebar();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { resolved, setMode } = useTheme();
@@ -53,6 +55,15 @@ export function AppShell() {
     [navigate, resolved, setMode],
   );
   useCommandHost(commandContext);
+  // 设置页的侧栏开关（用户报告 #3）：官方在 /settings 上整组摘掉这个开关，而设置导航就在
+  // 同一个面板里 ⇒ 收起后没有任何入口能展开（死胡同）。这里在设置路由上把**同一个**开关
+  // （同 aria-label、同图标、同 disabled 语义）渲染到官方会话页的槽位 [74,4 28×28]，
+  // 见 shell.css 的 .codex-shell__sidebar-toggle（含有意偏差说明）。
+  const settingsRoute =
+    pathname === "/settings" ||
+    pathname.startsWith("/settings/") ||
+    pathname === "/system/settings" ||
+    pathname.startsWith("/system/settings/");
   // task-28：主表面三档 + 面板内容档，**同一处**（page-layouts.ts）按路由取，
   // 官方出处逐条写在那个文件头（/review full-bleed、/plugins|/explore inline header、/scheduled 46px + 列表进面板）。
   const layout = pageLayoutFor(pathname);
@@ -80,6 +91,24 @@ export function AppShell() {
       data-resizing={resizing ? "true" : "false"}
       style={{ "--codex-surface-inset": `${surfaceInset}px` } as CSSProperties}
     >
+      <AppMenuBar />
+      {/* 设置路由下的同款侧栏开关（用户报告 #3）。这里**不重复渲染**：AppMenuBar 在
+          `/settings*` 上自己就不渲染那一组，所以任何时刻这个 aria-label 只对应一个按钮。 */}
+      {settingsRoute ? (
+        <div className="codex-shell__sidebar-toggle">
+          <button
+            aria-label={narrow ? "窗口过窄，侧边栏已自动收起" : collapsed ? "显示侧边栏" : "隐藏侧边栏"}
+            className="codex-icon-button"
+            data-settings-sidebar-toggle=""
+            disabled={narrow}
+            onClick={toggle}
+            title={narrow ? "窗口过窄，侧边栏已自动收起" : undefined}
+            type="button"
+          >
+            {collapsed ? <CodexSidebarHidden size={16} /> : <CodexSidebar size={16} />}
+          </button>
+        </div>
+      ) : null}
       <div className="codex-shell__row">
         <SidebarRail />
         {fullBleed ? null : <SidebarPanel />}

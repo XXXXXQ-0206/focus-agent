@@ -12,6 +12,7 @@ import {
   CodexSettingsSkills,
   CodexTerminalShield,
   CodexWrench,
+  CodexShieldCheck,
 } from "@/icons";
 
 export interface RailItem {
@@ -62,6 +63,11 @@ export interface RailItem {
 export const RAIL_PRIMARY_ITEMS: RailItem[] = [
   { id: "home", label: "首页", to: "/new", icon: CodexRailHome, iconActive: CodexRailHomeActive },
   { id: "tasks", label: "任务", to: "/function/tasks", icon: CodexRailScheduled },
+  /**
+   * ★ 2026-10-15（产品重排）：审批是**待办**而不是配置 ⇒ 从设置搬到导轨，与「任务」同级。
+   *   设置里只剩策略（临时自动放行 / 拦截规则），见 settings/panes/approvals.tsx。
+   */
+  { id: "approvals", label: "审批", to: "/approvals", icon: CodexShieldCheck },
 ];
 
 /**

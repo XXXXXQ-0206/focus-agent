@@ -6,7 +6,7 @@ import { ActivityGroup } from "./blocks";
 import { Markdown } from "./Markdown";
 // 显式收 runtime 的消息类型：它继承 @/lib/types 的 Message，多出 error / phase / aborted …
 // 只认基类的话 message.error 在类型上不存在，错误条就永远接不上（见 RuntimeMessage.error 的注释）。
-import { type RuntimeMessage, toDisplayErrorNode } from "./runtime";
+import { type RuntimeMessage, toDisplayErrorNode } from "./types";
 
 /**
  * 消息（用户 / 助手）。

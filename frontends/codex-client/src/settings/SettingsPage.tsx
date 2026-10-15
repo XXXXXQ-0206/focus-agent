@@ -4,7 +4,6 @@ import { SettingsBadge } from "./controls";
 import { DEFAULT_SETTINGS_SECTION, findSettingsSection } from "./nav-model";
 import { SETTINGS_PANES } from "./panes";
 import { AboutSection } from "./sections/AboutSection";
-import { ApiSection } from "./sections/ApiSection";
 import { GeneralSection } from "./sections/GeneralSection";
 import "./settings.css";
 
@@ -33,11 +32,13 @@ function renderSection(slug: string, rawSection?: string) {
   if (rawSection === "controls") {
     return <Navigate replace to="/controls" />;
   }
+  // 2026-10-15：「LLM 配置」与「自定义 API」合并为「模型与 API」；旧深链重定向。
+  if (rawSection === "llm" || rawSection === "api") {
+    return <Navigate replace to="/settings/model-api" />;
+  }
   switch (slug) {
     case "general":
       return <GeneralSection />;
-    case "api":
-      return <ApiSection />;
     case "about":
       return <AboutSection />;
     default: {
