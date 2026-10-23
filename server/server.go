@@ -985,7 +985,7 @@ func (s *Server) Handler() http.Handler {
 
 	// /api/* goes through CORS + JWT; everything else is served by the embedded
 	// frontend (public — auth is enforced client-side and on the API). With the
-	// no-embed build the webui handler just 404s (run `next dev` separately).
+	// No-embed builds 404 the web UI; run Vite separately during development.
 	// 伪装门控(F14)包在最外层:静态 SPA、/api/*(含 /api/health)、SSE、favicon
 	// 全部在门控后,未过门控一律返回假 nginx 欢迎页而不是 JSON 401。
 	// /s/ 是唯一例外:暂存下载面目标机器不可能有门控 cookie,gate 对该前缀放行(见 gate.go)。

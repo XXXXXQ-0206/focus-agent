@@ -126,16 +126,8 @@ type visionImageURL struct {
 }
 
 type visionMessage struct {
-	Role    string             `json:"role"`
+	Role    string              `json:"role"`
 	Content []visionContentPart `json:"content"`
-}
-
-type visionRequest struct {
-	Model       string          `json:"model"`
-	Messages    []visionMessage `json:"messages"`
-	MaxTokens   int             `json:"max_tokens"`
-	Temperature float64         `json:"temperature"`
-	Stream      bool            `json:"stream"`
 }
 
 type visionResponse struct {
@@ -144,7 +136,15 @@ type visionResponse struct {
 			Content string `json:"content"`
 		} `json:"message"`
 	} `json:"choices"`
-	Error *struct {
+	Output []struct {
+		Type    string `json:"type"`
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	} `json:"output"`
+	OutputText string `json:"output_text"`
+	Error      *struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
@@ -165,9 +165,47 @@ func visionPrompt(question string) string {
 	return b.String()
 }
 
-// visionReadImages sends the images + question to an OpenAI-compatible endpoint and
-// returns the model's textual reading. Empty when there is nothing to read.
-func (s *Server) visionReadImages(ctx context.Context, cfg agent.Config, question string, images []visionImage) (string, error) {
+func visionEndpoint(baseURL, format string) string {
+	suffix := "/chat/completions"
+	if format == "openai-responses" {
+		suffix = "/responses"
+	}
+	endpoint := strings.TrimSuffix(strings.TrimRight(strings.TrimSpace(baseURL), "/"), suffix)
+	if !strings.HasSuffix(endpoint, "/v1") && !strings.Contains(endpoint, "/v1/") {
+		endpoint += "/v1"
+	}
+	return endpoint + suffix
+}
+
+func visionResponseText(parsed visionResponse) string {
+	if len(parsed.Choices) > 0 {
+		if text := strings.TrimSpace(parsed.Choices[0].Message.Content); text != "" {
+			return text
+		}
+	}
+	if text := strings.TrimSpace(parsed.OutputText); text != "" {
+		return text
+	}
+	var parts []string
+	for _, item := range parsed.Output {
+		for _, content := range item.Content {
+			if content.Text != "" && (content.Type == "output_text" || content.Type == "text") {
+				parts = append(parts, content.Text)
+			}
+		}
+	}
+	return strings.TrimSpace(strings.Join(parts, "\n"))
+}
+
+// visionReadImages sends the images + question to the provider's native
+// multimodal endpoint and returns the model's textual reading.
+func (s *Server) visionReadImages(
+	ctx context.Context,
+	cfg agent.Config,
+	question string,
+	images []visionImage,
+	sessionID string,
+) (string, error) {
 	if len(images) == 0 {
 		return "", nil
 	}
@@ -178,14 +216,10 @@ func (s *Server) visionReadImages(ctx context.Context, cfg agent.Config, questio
 	if baseURL == "" {
 		return "", fmt.Errorf("该服务商没有填写 API 地址，无法直连读图")
 	}
-	endpoint := strings.TrimSuffix(baseURL, "/chat/completions")
-	if !strings.HasSuffix(endpoint, "/v1") && !strings.Contains(endpoint, "/v1/") {
-		// 兼容只填了根地址的网关：与 llm 适配器一致，补 /v1。
-		endpoint += "/v1"
-	}
-	endpoint += "/chat/completions"
+	endpoint := visionEndpoint(baseURL, string(cfg.Format))
 
-	parts := []visionContentPart{{Type: "text", Text: visionPrompt(question)}}
+	prompt := visionPrompt(question)
+	dataURLs := make([]string, 0, min(len(images), maxVisionImages))
 	names := make([]string, 0, len(images))
 	for i, img := range images {
 		if i >= maxVisionImages {
@@ -208,10 +242,7 @@ func (s *Server) visionReadImages(ctx context.Context, cfg agent.Config, questio
 		if len(raw) > maxVisionImageBytes {
 			return "", fmt.Errorf("图片 %s 超过 %d MiB 上限", img.Name, maxVisionImageBytes>>20)
 		}
-		parts = append(parts, visionContentPart{
-			Type:     "image_url",
-			ImageURL: &visionImageURL{URL: "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(raw)},
-		})
+		dataURLs = append(dataURLs, "data:"+mime+";base64,"+base64.StdEncoding.EncodeToString(raw))
 		names = append(names, img.Name)
 	}
 	if len(names) == 0 {
@@ -226,12 +257,30 @@ func (s *Server) visionReadImages(ctx context.Context, cfg agent.Config, questio
 	if maxTokens < minVisionMaxTokens {
 		maxTokens = minVisionMaxTokens
 	}
-	body := visionRequest{
-		Model:       cfg.Model,
-		Messages:    []visionMessage{{Role: "user", Content: parts}},
-		MaxTokens:   maxTokens,
-		Temperature: 0,
-		Stream:      false,
+	body := map[string]any{"model": cfg.Model}
+	if cfg.Format == "openai-responses" {
+		content := []map[string]any{{"type": "input_text", "text": prompt}}
+		for _, imageURL := range dataURLs {
+			content = append(content, map[string]any{"type": "input_image", "image_url": imageURL})
+		}
+		body["input"] = []map[string]any{{"role": "user", "content": content}}
+		body["max_output_tokens"] = maxTokens
+	} else {
+		parts := []visionContentPart{{Type: "text", Text: prompt}}
+		for _, imageURL := range dataURLs {
+			parts = append(parts, visionContentPart{
+				Type:     "image_url",
+				ImageURL: &visionImageURL{URL: imageURL},
+			})
+		}
+		body["messages"] = []visionMessage{{Role: "user", Content: parts}}
+		body["temperature"] = 0
+		body["stream"] = false
+		maxTokensField := "max_tokens"
+		if cfg.MaxTokensField == "max_completion_tokens" {
+			maxTokensField = "max_completion_tokens"
+		}
+		body[maxTokensField] = maxTokens
 	}
 	blob, err := json.Marshal(body)
 	if err != nil {
@@ -245,12 +294,16 @@ func (s *Server) visionReadImages(ctx context.Context, cfg agent.Config, questio
 		}
 	}
 	client := &http.Client{Transport: transport, Timeout: 120 * time.Second}
+	defer client.CloseIdleConnections()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(blob))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+	if key := strings.TrimSpace(cfg.SessionHeaderKey); key != "" && strings.TrimSpace(sessionID) != "" {
+		req.Header.Set(key, sessionID)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -271,7 +324,8 @@ func (s *Server) visionReadImages(ctx context.Context, cfg agent.Config, questio
 		}
 		return "", fmt.Errorf("读图失败（HTTP %d）: %s", resp.StatusCode, truncateForLog(string(raw), 300))
 	}
-	if len(parsed.Choices) == 0 || strings.TrimSpace(parsed.Choices[0].Message.Content) == "" {
+	text := visionResponseText(parsed)
+	if text == "" {
 		return "", fmt.Errorf("读图没有返回内容")
 	}
 
@@ -281,7 +335,7 @@ func (s *Server) visionReadImages(ctx context.Context, cfg agent.Config, questio
 		fmt.Fprintf(&out, "\n\n<img %d · %s>\n", i+1, name)
 	}
 	out.WriteString("\n\n")
-	out.WriteString(strings.TrimSpace(parsed.Choices[0].Message.Content))
+	out.WriteString(text)
 	return out.String(), nil
 }
 
@@ -295,7 +349,7 @@ func (s *Server) withVisionReading(ctx context.Context, c *db.Conversation, msg 
 	if !ok {
 		return msg + "\n\n【图片附件】当前没有可用的服务商配置，无法读图。"
 	}
-	reading, err := s.visionReadImages(ctx, cfg, msg, images)
+	reading, err := s.visionReadImages(ctx, cfg, msg, images, s.convBusyKey(c.ID))
 	if err != nil {
 		return msg + "\n\n【图片附件】读图失败：" + err.Error()
 	}

@@ -53,6 +53,16 @@ export interface Task {
   coverage_enabled?: boolean;
 }
 
+export interface TaskLLMResolution {
+  profile_id?: number;
+  name: string;
+  format: string;
+  model: string;
+  source: "agent_binding" | "task_chain" | "global_profile" | "environment" | "global" | string;
+  available: boolean;
+  reason?: string;
+}
+
 export interface Activity {
   id?: number | string;
   seq?: number | string;

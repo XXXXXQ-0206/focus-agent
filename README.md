@@ -43,13 +43,7 @@ Focus Agent 只保留一套 renderer：[`frontends/codex-client/`](frontends/cod
 <details>
 <summary>界面预览</summary>
 
-| 控制台 | 资产图 |
-| --- | --- |
-| ![任务控制台](screenshots/dashboard.png) | ![资产图](screenshots/graph.png) |
-
-| 资产 | 发现结果 |
-| --- | --- |
-| ![资产列表](screenshots/assets.png) | ![发现结果](screenshots/findings.png) |
+![Focus 桌面客户端](screenshots/focus-home.png)
 
 </details>
 
@@ -106,7 +100,8 @@ docker compose logs -f artex
 cd frontends/codex-client && npm ci && npm run dev -- --port 3000
 ```
 
-开发服务器默认把 `/api/*` 反代到 `http://localhost:8787`；可通过 `AUTOPENTEST_API` 覆盖后端地址。
+开发服务器默认把 `/api/*` 反代到 `http://127.0.0.1:8787`；可通过
+`AUTOPENTEST_API=http://<host>:<port>` 覆盖后端地址。
 
 首次启动时查看日志中的门控入口路径，再按[首次访问](#首次访问)打开界面。
 
@@ -182,7 +177,7 @@ Docker Compose 部署会启动 PostgreSQL。自行运行二进制时，可编辑
 
 ## 开发与构建
 
-源码构建需要 Go 1.26.3 或更新版本、Node.js 20 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中编译 `frontends/codex-client/`，再由 Go 宿主挂载到 `/`。
+源码构建需要 Go 1.26.3 或更新版本、Node.js 22 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中编译 `frontends/codex-client/`，再由 Go 宿主挂载到 `/`。
 
 <details>
 <summary>从源码构建单体程序</summary>

@@ -133,7 +133,7 @@ func (m *encMock) dispatch(req *encRequest) encResponse {
 		code, _ := base64.StdEncoding.DecodeString(req.Code)
 		var out string
 		if m.php != nil {
-			out = m.php.eval(string(code)) // phpenc:eval PHP 代码段(复用期 1a 模拟)
+			out = m.php.respond(string(code)) // phpenc:eval PHP 代码段(复用期 1a 模拟)
 		} else {
 			out, _ = m.fs.run(string(code)) // jspenc:sh -c
 		}

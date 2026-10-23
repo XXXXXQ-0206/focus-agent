@@ -13,11 +13,6 @@ __pycache__/
 frontends/codex-client/node_modules/
 frontends/codex-client/dist/
 frontends/codex-client/*.tsbuildinfo
-frontends/artex-web/node_modules/
-frontends/artex-web/.next/
-frontends/artex-web/out/
-frontends/artex-web/tsconfig.tsbuildinfo
-frontends/artex-web/next-env.d.ts
 *.local
 
 # development tools
@@ -47,7 +42,8 @@ Thumbs.db
 /artex.failed
 /artex.upgrade.json
 /server/webui/dist/
-/dist/
+/dist/*
+!/dist/go.mod
 
 # JWT 签名密钥（运行时生成，存项目根，绝不提交）
 /jwt.key

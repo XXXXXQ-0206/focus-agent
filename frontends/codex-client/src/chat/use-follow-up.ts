@@ -28,9 +28,14 @@ import type { ChatStatus } from "./use-chat";
 export interface QueuedMessage {
   id: string;
   text: string;
+  attachments?: File[];
 }
 
-export function useFollowUp(status: ChatStatus, send: (text: string) => void, stop: () => void) {
+export function useFollowUp(
+  status: ChatStatus,
+  send: (text: string, attachments?: File[], fromQueue?: boolean) => void,
+  stop: () => void,
+) {
   const { followUpMode } = useSettings();
   const [queue, setQueue] = useState<QueuedMessage[]>([]);
   const statusRef = useRef(status);
@@ -41,22 +46,27 @@ export function useFollowUp(status: ChatStatus, send: (text: string) => void, st
   const queueRef = useRef(queue);
   queueRef.current = queue;
 
-  const enqueue = useCallback((text: string, steerNow: boolean): string => {
+  const enqueue = useCallback((text: string, attachments: File[], steerNow: boolean): string => {
     seqRef.current += 1;
-    const item: QueuedMessage = { id: `queued-${seqRef.current}`, text };
+    const item: QueuedMessage = {
+      id: `queued-${seqRef.current}`,
+      text,
+      ...(attachments.length ? { attachments } : {}),
+    };
     setQueue((current) => (steerNow ? [item, ...current] : [...current, item]));
     return item.id;
   }, []);
 
-  const submit = (text: string) => {
+  const submit = (text: string, attachments: File[] = []) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
     if (statusRef.current !== "streaming") {
-      send(trimmed);
-      return;
+      send(trimmed, attachments);
+      return false;
     }
-    enqueue(trimmed, followUpMode === "steer");
+    enqueue(trimmed, attachments, followUpMode === "steer");
     if (followUpMode === "steer") stop();
+    return true;
   };
 
   /** 轮次一结束就把队首那条发出去（FIFO；一次只发一条，剩下等下一轮空闲）。 */
@@ -64,7 +74,7 @@ export function useFollowUp(status: ChatStatus, send: (text: string) => void, st
     if (status === "streaming" || queue.length === 0) return;
     const [head] = queue;
     setQueue((current) => current.slice(1));
-    send(head.text);
+    send(head.text, head.attachments, true);
   }, [queue, send, status]);
 
   /** 引导：立即打断当前生成，并把这条插到队首（它会先于其它排队消息发出）。 */

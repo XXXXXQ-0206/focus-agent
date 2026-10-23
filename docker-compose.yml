@@ -16,11 +16,11 @@ services:
 
   artex:
     # 从源码构建二开版镜像(Dockerfile.source 自包含构建:前端+Go+工具层)。
-    # 不要用 autumn27/artex 官方镜像——那是上游原版,不含二开代码。
+    # 这是 Focus Agent 的源码构建镜像，不是上游原版镜像。
     build:
       context: .
       dockerfile: Dockerfile.source
-    image: artex-ymh:local
+    image: focus-agent:local
     depends_on:
       postgres:
         condition: service_healthy

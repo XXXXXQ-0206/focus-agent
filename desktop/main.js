@@ -18,6 +18,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const backend = require("./lib/backend");
+const { legacyUserDataPath, migrateLegacyUserData } = require("./lib/user-data");
 const {
   APP_ORIGIN,
   UI_ROUTES,
@@ -26,6 +27,16 @@ const {
   isSafeExternalWebURL,
   uiModeForURL,
 } = require("./lib/ui-navigation");
+
+const appDataPath = app.getPath("appData");
+const userDataMigration = migrateLegacyUserData({
+  appData: appDataPath,
+  current: app.getPath("userData"),
+  legacy: legacyUserDataPath(appDataPath),
+});
+if (userDataMigration.fallback) {
+  app.setPath("userData", userDataMigration.userDataPath);
+}
 
 const SILENT = process.argv.includes("--silent"); // 开机自启：只亮托盘，不弹窗
 const ICON_RUNNING = path.join(__dirname, "assets", "artex_running.ico");
@@ -328,6 +339,11 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
+    if (userDataMigration.migrated) {
+      log("[user-data] migrated legacy ARTEX profile to Focus");
+    } else if (userDataMigration.fallback) {
+      log(`[user-data] could not migrate legacy profile; using it in place: ${userDataMigration.error}`);
+    }
     const execPath = app.isPackaged ? process.execPath : path.join(__dirname, "node_modules", "electron", "dist", "electron.exe");
     const installDir = backend.resolveInstallDir(execPath);
     ctrl = backend.createController(installDir, log);

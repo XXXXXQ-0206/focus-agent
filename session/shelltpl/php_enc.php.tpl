@@ -17,7 +17,7 @@
  *     先验 MAC 再解密;子密钥由主密钥加域分隔串派生 sha256(key || 域)。
  * 模式标识写死于生成时(见下),运行时按 openssl_get_cipher_methods() 复核。
  */
-${{.VKey}} = base64_decode('{{.KeyB64}}');
+{{.VKey}} = base64_decode('{{.KeyB64}}');
 {{.VMethods}} = openssl_get_cipher_methods();
 {{.VMode}} = in_array('aes-256-gcm', {{.VMethods}}, true) ? 'gcm' : 'cbc';
 

@@ -246,6 +246,8 @@ export interface ComposerSelection {
   /** 模型选择器只读（agent 已绑定模型） */
   modelLocked?: boolean;
   modelLockedReason?: string;
+  /** 模型/强度保存中 */
+  savingModel?: boolean;
   /** 选择/保存失败时的一行提示（宿主写入） */
   notice?: string;
   /** 待发送附件 */
@@ -524,6 +526,7 @@ export function Composer({
             models={selection.models}
             onSelectEffort={selection.setEffort}
             onSelectModel={selection.setModelId}
+            saving={selection.savingModel}
           />
           <div className="cx-composer__send-slot">
             <button

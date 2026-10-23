@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -221,6 +222,9 @@ func (s *Server) pgDeleteConversation(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, err.Error())
 		return
 	}
+	if err := removeConversationUploads(s.m.dir, c.ID); err != nil {
+		log.Printf("[conv %d] remove uploads: %v", c.ID, err)
+	}
 	writeJSON(w, 200, map[string]any{"deleted": c.ID})
 }
 
@@ -285,6 +289,9 @@ func (s *Server) pgDeleteConversationsBatch(w http.ResponseWriter, r *http.Reque
 	deletedSet := make(map[int64]struct{}, len(deleted))
 	for _, id := range deleted {
 		deletedSet[id] = struct{}{}
+		if err := removeConversationUploads(s.m.dir, id); err != nil {
+			log.Printf("[conv %d] remove uploads: %v", id, err)
+		}
 	}
 	items := make([]conversationDeleteItem, 0, len(ids))
 	for _, id := range ids {
@@ -299,6 +306,13 @@ func (s *Server) pgDeleteConversationsBatch(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) convBusyKey(id int64) string { return "conv-" + strconv.FormatInt(id, 10) }
+
+func removeConversationUploads(dataDir string, id int64) error {
+	if strings.TrimSpace(dataDir) == "" || id <= 0 {
+		return nil
+	}
+	return os.RemoveAll(filepath.Join(dataDir, "sessions", "conv-"+strconv.FormatInt(id, 10), "uploads"))
+}
 
 // pgConversationMessages returns steps after ?since=cursor plus whether a turn is
 // still running (so the client knows to keep polling). Same item shape as the task

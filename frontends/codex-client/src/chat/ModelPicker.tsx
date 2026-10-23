@@ -1,5 +1,5 @@
 import { Popover as PopoverPrimitive, Slider as SliderPrimitive } from "radix-ui";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CodexCheck, CodexChevronDown, CodexChevronRight, CodexLock } from "@/icons";
 import { cn } from "@/lib/utils";
@@ -54,6 +54,7 @@ export function ModelPickerChip({
   models = CHAT_MODELS,
   onSelectEffort,
   onSelectModel,
+  saving = false,
 }: {
   className?: string;
   effort: string;
@@ -70,6 +71,7 @@ export function ModelPickerChip({
   models?: ChatModelOption[];
   onSelectEffort?: (id: string) => void;
   onSelectModel: (id: string) => void;
+  saving?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -79,11 +81,14 @@ export function ModelPickerChip({
 
   const onOpenChange = (next: boolean) => {
     setOpen(next);
+    setDraftEffortIndex(effortIndex);
     // 每次重新打开都回到折叠态，与参考端采集帧（254×84）一致
     if (!next) setExpanded(false);
   };
 
   const effortIndex = Math.max(0, efforts.indexOf(effort));
+  const [draftEffortIndex, setDraftEffortIndex] = useState(effortIndex);
+  useEffect(() => setDraftEffortIndex(effortIndex), [effortIndex]);
 
   return (
     <PopoverPrimitive.Root onOpenChange={onOpenChange} open={open}>
@@ -93,6 +98,7 @@ export function ModelPickerChip({
           className={cn("cx-chip cx-chip--model", className)}
           data-codex-intelligence-trigger="true"
           data-composer-navigation-target="reasoning"
+          disabled={saving}
           type="button"
         >
           <span className="cx-chip__value cx-chip__value--model">{model.label}</span>
@@ -154,16 +160,20 @@ export function ModelPickerChip({
                   aria-keyshortcuts="ArrowLeft ArrowRight"
                   aria-label="强度"
                   className="cx-mp__slider"
+                  disabled={saving}
                   max={efforts.length - 1}
                   min={0}
                   onValueChange={([i]) => {
-                    const next = efforts[i];
+                    if (typeof i === "number") setDraftEffortIndex(i);
+                  }}
+                  onValueCommit={([i]) => {
+                    const next = efforts[i ?? -1];
                     if (next) onSelectEffort?.(next);
                   }}
                   role="menuitem"
                   step={1}
                   tabIndex={-1}
-                  value={[effortIndex]}
+                  value={[draftEffortIndex]}
                 >
                   <SliderPrimitive.Track className="cx-mp__slider-track">
                     <SliderPrimitive.Range className="cx-mp__slider-range" />
@@ -188,7 +198,7 @@ export function ModelPickerChip({
                   <button
                     aria-checked={option.id === model.id}
                     className="cx-mp__item"
-                    disabled={modelLocked}
+                    disabled={modelLocked || saving}
                     key={option.id}
                     onClick={() => {
                       onSelectModel(option.id);

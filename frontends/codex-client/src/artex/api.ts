@@ -61,6 +61,7 @@ import type {
   SSTask,
   Task,
   TaskCoverage,
+  TaskLLMResolution,
   TaskNode,
   TaskSteerResult,
   TaskSteerStatus,
@@ -277,6 +278,10 @@ export const artexApi = {
       `/assets?task_id=${encodeURIComponent(id)}&limit=${limit}&offset=0`,
     ).then((result) => ({ assets: result.assets ?? [], total: result.total ?? result.count ?? 0 })),
   taskCoverage: (id: string) => get<TaskCoverage>(`/tasks/${encodeURIComponent(id)}/coverage`),
+  taskLLMResolution: (id: string) =>
+    get<Record<"mainagent" | "planner" | "worker", TaskLLMResolution>>(
+      `/tasks/${encodeURIComponent(id)}/llm/resolution`,
+    ),
   taskCoverageGraph: (id: string) => get<CoverageGraph>(`/tasks/${encodeURIComponent(id)}/coverage-graph`),
   taskReport: (id: string) =>
     request<string>(`/report?task=${encodeURIComponent(id)}`, undefined, false, "text"),

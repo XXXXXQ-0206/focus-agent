@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ComposerSelection } from "@/chat/Composer";
 import {
@@ -70,8 +70,15 @@ export interface ArtexComposerSelection extends ComposerSelection {
 export interface ArtexComposerSelectionOptions {
   /** 会话 pin（PATCH /conversations/{id}/profile） */
   pinnedProfileId?: number | null;
+  /** 宿主从服务端解析出的最终档案（任务链等客户端无法自行推断的状态） */
+  resolvedProfileId?: number | null;
+  /** 没有档案 id 的宿主配置（如环境变量）仍可显示真实模型名 */
+  resolvedModelLabel?: string;
   /** 当前 agent key —— agent 绑定在服务端优先级最高 */
   agentKey?: string;
+  /** 宿主明确要求只读（例如任务使用独立 LLM 链） */
+  modelLocked?: boolean;
+  modelLockedReason?: string;
   /** 有会话时：选模型写会话 pin，而不是切全局激活 */
   onSelectModel?: (profileId: number) => Promise<void> | void;
   /** 切换失败时把原因交给宿主（输入区/提示条）显示 */
@@ -85,6 +92,7 @@ export function useArtexComposerSelection(
   const [agents, setAgents] = useState<ArtexAgent[]>([]);
   const [permissionId, setPermissionId] = useState(DEFAULT_PERMISSION_ID);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const reloadProfiles = useCallback(async () => {
     const [profileList, agentList] = await Promise.all([
@@ -102,7 +110,11 @@ export function useArtexComposerSelection(
     return () => window.removeEventListener("artex:llm-changed", onChanged);
   }, [reloadProfiles]);
 
-  const globalActive = profiles.find((profile) => profile.is_default) ?? profiles[0] ?? null;
+  const globalActive = profiles.find((profile) => profile.is_default) ?? null;
+  const resolvedProfile =
+    options.resolvedProfileId != null
+      ? profiles.find((profile) => String(profile.id) === String(options.resolvedProfileId))
+      : undefined;
   const agentBinding = options.agentKey
     ? (agents.find((agent) => agent.key === options.agentKey)?.llm_profile_id ?? null)
     : null;
@@ -115,6 +127,7 @@ export function useArtexComposerSelection(
       ? profiles.find((profile) => String(profile.id) === String(agentBinding))
       : undefined;
   const activeProfile =
+    resolvedProfile ??
     boundProfile ??
     profiles.find((profile) => String(profile.id) === String(options.pinnedProfileId)) ??
     globalActive;
@@ -123,6 +136,12 @@ export function useArtexComposerSelection(
    * 写进一个永不生效的 pin。把选择器置为只读并给出原因（去 Agent 设置里改绑定）。
    */
   const lockedByAgent = boundProfile != null;
+  const modelLocked = lockedByAgent || Boolean(options.modelLocked);
+  const modelLockedReason = options.modelLocked
+    ? options.modelLockedReason
+    : lockedByAgent
+      ? "该 Agent 已绑定模型，请在「Agent 运行」里修改绑定"
+      : undefined;
 
   const models: ChatModelOption[] = useMemo(
     () =>
@@ -138,7 +157,9 @@ export function useArtexComposerSelection(
 
   const setModelId = useCallback(
     (id: string) => {
-      if (!id || lockedByAgent) return;
+      if (!id || modelLocked || savingRef.current) return;
+      savingRef.current = true;
+      options.onError?.("");
       setSaving(true);
       void (async () => {
         try {
@@ -150,16 +171,19 @@ export function useArtexComposerSelection(
           if (options.onError) options.onError(message);
           else console.error("[model-selection] switch failed:", caught);
         } finally {
+          savingRef.current = false;
           setSaving(false);
         }
       })();
     },
-    [lockedByAgent, options.onSelectModel, options.onError, reloadProfiles],
+    [modelLocked, options.onSelectModel, options.onError, reloadProfiles],
   );
 
   const setEffort = useCallback(
     (next: string) => {
-      if (!activeProfile) return;
+      if (!activeProfile || savingRef.current) return;
+      savingRef.current = true;
+      options.onError?.("");
       const raw = next === DEFAULT_EFFORT ? "" : next;
       setSaving(true);
       void artexApi
@@ -173,7 +197,10 @@ export function useArtexComposerSelection(
           if (options.onError) options.onError(message);
           else console.error("[model-selection] effort save failed:", caught);
         })
-        .finally(() => setSaving(false));
+        .finally(() => {
+          savingRef.current = false;
+          setSaving(false);
+        });
     },
     [activeProfile, options.onError, reloadProfiles],
   );
@@ -187,12 +214,12 @@ export function useArtexComposerSelection(
     setPermissionId,
     model: {
       id: activeProfile ? String(activeProfile.id) : "",
-      label: activeProfile?.model || "未配置模型",
+      label: activeProfile?.model || options.resolvedModelLabel || "未配置模型",
       effort,
     },
     models,
-    modelLocked: lockedByAgent,
-    modelLockedReason: lockedByAgent ? "该 Agent 已绑定模型，请在「Agent 运行」里修改绑定" : undefined,
+    modelLocked,
+    modelLockedReason,
     efforts: PROVIDER_EFFORT_LEVELS,
     maxEffort: "max",
     effort,
@@ -205,5 +232,6 @@ export function useArtexComposerSelection(
     effectiveProfile: activeProfile,
     reloadProfiles,
     savingSelection: saving,
+    savingModel: saving,
   };
 }

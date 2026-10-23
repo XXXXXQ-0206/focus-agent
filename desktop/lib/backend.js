@@ -22,6 +22,7 @@ function resolveInstallDir(execPath) {
   const candidates = [];
   if (process.env.ARTEX_HOME) candidates.push(process.env.ARTEX_HOME);
   const selfDir = execPath ? path.dirname(execPath) : null;
+  const selfExe = execPath ? path.basename(execPath).toLowerCase() : "";
   if (execPath) {
     candidates.push(path.dirname(execPath));
     candidates.push(path.dirname(path.dirname(execPath)));
@@ -35,7 +36,16 @@ function resolveInstallDir(execPath) {
       const full = path.resolve(dir);
       if (seen.has(full)) continue;
       seen.add(full);
-      if (selfDir && full.toLowerCase() === path.resolve(selfDir).toLowerCase()) continue;
+      // Only the legacy executable name can collide with backend artex.exe.
+      // Focus.exe and Electron's own binary must be allowed to share a folder
+      // with a portable backend.
+      if (
+        selfDir &&
+        selfExe === "artex.exe" &&
+        full.toLowerCase() === path.resolve(selfDir).toLowerCase()
+      ) {
+        continue;
+      }
       const exe = path.join(full, "artex.exe");
       const cfg = path.join(full, "config.json");
       if (fs.existsSync(exe) && fs.existsSync(cfg)) return full;

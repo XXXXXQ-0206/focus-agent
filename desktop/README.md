@@ -13,6 +13,7 @@ Electron 主进程负责拉起本机后端、展示 Focus renderer，并提供�
 | 退出 | 停 Focus（进程树 + 端口占用者兜底）→ **只停自己拉起的 PostgreSQL** |
 | 单实例 | `app.requestSingleInstanceLock()`，第二次启动只是把已有窗口调到前台 |
 | 静默自启 | `Focus.exe --silent` 只亮托盘、不弹窗 |
+| 升级 | 首次启动自动把旧 `%APPDATA%\ARTEX` 迁移到 `%APPDATA%\Focus`；迁移失败时继续使用旧目录 |
 
 `ARTEX_HOME`、`artex.exe` 和健康响应中的 `service: "artex"` 是现有部署协议标识；产品界面与窗口标题统一显示 Focus。
 
@@ -26,7 +27,9 @@ npm test
 npm run pack
 ```
 
-`npm run pack` 会生成 `build\Focus-win32-x64\Focus.exe`。桌面宿主只向 renderer 暴露白名单 IPC，主要能力是本机文件或目录选择；页面不会获得 Node.js 权限。
+`npm run pack` 会生成 `build\Focus-win32-x64\Focus.exe`。若 `artex.exe` 与
+`config.json` 位于 `Focus.exe` 同目录，桌面端会直接使用这组便携后端。桌面宿主只向
+renderer 暴露白名单 IPC，主要能力是本机文件或目录选择；页面不会获得 Node.js 权限。
 
 ## 窗口与导航
 

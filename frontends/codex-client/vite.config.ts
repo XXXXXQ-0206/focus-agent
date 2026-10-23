@@ -5,6 +5,8 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // Focus renderer 沿用 Vite 8（Rolldown）构建链。
+const apiTarget = process.env.AUTOPENTEST_API?.trim() || "http://127.0.0.1:8787";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -19,7 +21,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8787",
+        target: apiTarget,
         changeOrigin: false,
       },
     },

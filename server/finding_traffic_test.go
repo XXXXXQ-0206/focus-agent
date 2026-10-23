@@ -24,6 +24,9 @@ func trafficEvidenceServer(t *testing.T) (*Server, *db.RecordedFinding, func(str
 	t.Helper()
 	m, err := NewManager(t.TempDir(), "")
 	if err != nil {
+		if strings.Contains(err.Error(), "未找到数据库配置") {
+			t.Skipf("postgres not configured (%v) — skipping", err)
+		}
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { m.Close() })

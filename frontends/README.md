@@ -15,7 +15,7 @@
 
 ## 本地启动
 
-先启动 Go 服务（默认 `:8787`），再启动 renderer：
+先启动 Go 服务（默认 `:8787`），再使用 Node.js 22 或更新版本启动 renderer：
 
 ```bash
 cd frontends/codex-client
@@ -23,7 +23,8 @@ npm ci
 npm run dev -- --port 3000
 ```
 
-开发服务器把 `/api` 反代到 `127.0.0.1:8787`。如后端不在默认地址，可设置 `AUTOPENTEST_API`。
+开发服务器把 `/api` 反代到 `127.0.0.1:8787`。如后端不在默认地址，可设置
+`AUTOPENTEST_API=http://<host>:<port>`。
 
 生产构建：
 
