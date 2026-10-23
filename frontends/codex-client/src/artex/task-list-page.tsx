@@ -94,7 +94,7 @@ export function ArtexTaskListPage() {
       {/* 任务清单进侧栏（官方 /scheduled 的 IA：列表在左栏、主区是选中项的会话）。
           行点击直接进会话页；主区只在没有选中项时给一个入口空态。 */}
       <PanelPortal>
-        <div aria-label="ARTEX 任务列表" className="artex-task-list-panel" role="region">
+        <div aria-label="Focus 任务列表" className="artex-task-list-panel" role="region">
           {loading ? (
             <div className="artex-task-list-state" role="status">
               <Spinner size="sm" />
@@ -165,7 +165,7 @@ export function ArtexTaskListPage() {
           placeholder: "搜索任务",
           onChange: setQuery,
         }}
-        subtitle="ARTEX 任务会话：左侧选择任务，或新建一个任务。"
+        subtitle="Focus 任务会话：左侧选择任务，或新建一个任务。"
         title="任务"
       >
         {error ? (
@@ -204,7 +204,7 @@ export function ArtexTaskListPage() {
               visible.length === 0
                 ? query
                   ? "调整搜索条件，或清空搜索。"
-                  : "从「新建任务」开始：首条消息会创建 ARTEX 任务。"
+                  : "从「新建任务」开始：首条消息会创建 Focus 任务。"
                 : "左侧任务列表中的会话会显示在这里；点击任一任务打开它的会话。"
             }
             icon={CodexGrid}

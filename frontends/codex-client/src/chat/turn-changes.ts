@@ -10,7 +10,7 @@ import type { RuntimeMessage } from "./types";
  *     （同一路径多次编辑只算一个文件，与官方「N 个文件」语义一致）；
  *   · `+a −d` = 各 `file-edit` 块里 `added`/`deleted` 的求和；
  *     若块里没有这两个字段、但有 diff 行，则按行类型数（add / del）现算；
- *   · 两者都没有（ARTEX 的适配层目前就填不出行数，见 chat/block-adapter.ts 的诚实边界）时
+ *   · 两者都没有（Focus 的适配层目前就填不出行数，见 chat/block-adapter.ts 的诚实边界）时
  *     返回 0 —— 调用方据此只显示「N 个文件已更改」，**不摆一个假的 +0 −0**。
  */
 export interface TurnChanges {

@@ -29,9 +29,9 @@ const TRANSPORT_OPTIONS: PaneOption[] = [
  *
  * ── 2026-10-14 重做（用户口径：能做就做、做不了就删）────────────────────────
  * 官方这一页是「插件 / 技能」两 tab 的 ChatGPT 插件市场 + MCP 应用列表（SPEC §4.2.9），
- * 本工程没有插件市场也没有账号域 —— 但**有真实等价物**：ARTEX 后端自己管理 MCP 服务器
+ * 本工程没有插件市场也没有账号域 —— 但**有真实等价物**：Focus 后端自己管理 MCP 服务器
  * （`/api/mcp`：列表 / 保存 / 删除 / 刷新工具，见 server/server.go 的 mcp 路由）。
- * 所以这一页不再摆一排装饰性的假开关，而是照 Codex 的 pane 规格渲染 **ARTEX 的 MCP 服务器**：
+ * 所以这一页不再摆一排装饰性的假开关，而是照 Focus 的 pane 规格渲染 **Focus 的 MCP 服务器**：
  *   · 每台服务器一行：名称 + 传输/命令（或 URL）+ 工具数；
  *   · 右侧：启用开关（`saveMcpServer`，真实写库）+「刷新工具」（`refreshMcpTools`）
  *     + 删除（确认框，`deleteMcpServer`）；
@@ -216,7 +216,7 @@ export function PluginsPane({ section }: SettingsPaneProps) {
           </Button>
         </>
       }
-      lede="连接 ARTEX 的 MCP 服务器：查看传输方式与可用工具，启停或移除连接。"
+      lede="连接 Focus 的 MCP 服务器：查看传输方式与可用工具，启停或移除连接。"
       section={section}
       title="插件"
     >
@@ -243,7 +243,7 @@ export function PluginsPane({ section }: SettingsPaneProps) {
       >
         <PaneCard>
           {loading && servers.length === 0 ? (
-            <PaneEmpty description="正在读取 ARTEX 的 MCP 配置。" title="正在加载…" />
+            <PaneEmpty description="正在读取 Focus 的 MCP 配置。" title="正在加载…" />
           ) : servers.length === 0 ? (
             <PaneEmpty
               description="点右上角「添加服务器」连接一个 MCP 服务器（stdio 命令或 http/sse 端点），保存后即在此启停与刷新工具。"
@@ -289,7 +289,7 @@ export function PluginsPane({ section }: SettingsPaneProps) {
                       <PaneConfirmAction
                         confirmLabel="删除"
                         danger
-                        description="删除后 ARTEX 不会再加载这台服务器的工具，需要时可重新添加。"
+                        description="删除后 Focus 不会再加载这台服务器的工具，需要时可重新添加。"
                         onConfirm={() => void remove(server)}
                         title={`删除 MCP 服务器「${server.name}」？`}
                         trigger={
@@ -320,7 +320,7 @@ export function PluginsPane({ section }: SettingsPaneProps) {
         open={dialogOpen}
       >
         <DialogContent
-          description="写入 ARTEX 的 MCP 配置（/api/mcp）；stdio 走命令 + 参数，http/sse 走 URL。"
+          description="写入 Focus 的 MCP 配置（/api/mcp）；stdio 走命令 + 参数，http/sse 走 URL。"
           footer={
             <>
               <Button color="secondary" onClick={() => setDialogOpen(false)} size="sm" variant="ghost">

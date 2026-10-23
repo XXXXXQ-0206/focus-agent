@@ -261,6 +261,7 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
     setBusy(`activate-${profile.id}`);
     try {
       await artexApi.activateLLMProfile(profile.id);
+      window.dispatchEvent(new CustomEvent("artex:llm-changed"));
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "激活失败");
@@ -273,6 +274,7 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
     setBusy(`delete-${profile.id}`);
     try {
       await artexApi.deleteLLMProfile(profile.id);
+      window.dispatchEvent(new CustomEvent("artex:llm-changed"));
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "删除失败");
@@ -401,6 +403,7 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
         streaming: draftStreaming,
       });
       resetForm();
+      window.dispatchEvent(new CustomEvent("artex:llm-changed"));
       await load();
     } catch (caught) {
       setFormError(caught instanceof Error ? caught.message : "保存失败");
@@ -435,7 +438,7 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
 
   return (
     <PaneShell
-      lede="服务商与故障转移池：ARTEX 服务端用它跑任务与会话。密钥只写、不回显。"
+      lede="服务商与故障转移池：Focus 服务端用它跑任务与会话。密钥只写、不回显。"
       section={section}
       title="模型与 API"
     >

@@ -44,7 +44,7 @@ function _severityLabel(value: Finding["severity"]) {
 }
 
 function loadError(caught: unknown) {
-  return caught instanceof Error ? caught.message : "无法加载 ARTEX 数据";
+  return caught instanceof Error ? caught.message : "无法加载 Focus 数据";
 }
 
 function redactSensitiveText(value?: string) {
@@ -425,7 +425,7 @@ function OpsLoading() {
   return (
     <div className="ops-loading">
       <Spinner size="md" />
-      <span>正在加载 ARTEX 数据</span>
+      <span>正在加载 Focus 数据</span>
     </div>
   );
 }

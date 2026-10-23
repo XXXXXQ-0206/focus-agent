@@ -125,7 +125,7 @@ export interface CodexSettings {
   /**
    * 行距密度档（写 --height-token-settings-row；官方 4rem，shell-shared:2946）。
    * ⚠️ SPEC §7.1：该 token 属另一套（ChatGPT 网页侧）设置行，
-   * **不是** Codex 桌面「常规」页行高的来源（真值 60.5625 / 44 / 76.5625 / 92.5625；SPEC 原记的
+   * **不是** Focus 桌面「常规」页行高的来源（真值 60.5625 / 44 / 76.5625 / 92.5625；SPEC 原记的
    * 61 / 44 / 77 / 93 是 E2 采集器整数取整，更正见 docs/FORENSICS-F1-F2-F3.md「F2 收口」）——
    * 设置行已改成内容自适应，
    * 这个档位只影响仍在使用该 token 的列表/对话行。
@@ -153,8 +153,8 @@ export interface CodexSettings {
   cornerScale: CornerScale;
 }
 
-/** SPEC §4.1 行 3 实测值（参考端与本工程同一台机器：C:\Users\熊骞\Documents\Codex） */
-export const DEFAULT_PROJECTLESS_CHAT_FOLDER = "C:\\Users\\熊骞\\Documents\\Codex";
+/** SPEC §4.1 行 3 实测值（参考端与本工程同一台机器：C:\Users\熊骞\Documents\Focus） */
+export const DEFAULT_PROJECTLESS_CHAT_FOLDER = "C:\\Users\\熊骞\\Documents\\Focus";
 
 export const DEFAULT_SETTINGS: CodexSettings = {
   /* 官方「常规」页：默认 = 参考端实测当前值（SPEC §4.1「当前值」列） */

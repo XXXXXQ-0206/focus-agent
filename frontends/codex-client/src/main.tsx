@@ -22,7 +22,7 @@ document.documentElement.setAttribute("data-theme", "dark");
 document.documentElement.lang = "zh-CN";
 
 const root = document.getElementById("root");
-if (!root) throw new Error("ARTEX renderer missing #root");
+if (!root) throw new Error("Focus renderer missing #root");
 createRoot(root).render(
   <StrictMode>
     <App />

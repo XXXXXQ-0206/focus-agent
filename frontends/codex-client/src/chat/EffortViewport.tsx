@@ -28,17 +28,27 @@ import { EFFORT_LEVELS, MAX_EFFORT } from "./options";
  *
  * 根元素保留旧的 `.cx-chip__effort` 类名，避免 audit 的 [C22]/[C23] 命令取不到值。
  */
-export function EffortViewport({ value }: { value?: string }) {
-  const current = value ?? MAX_EFFORT;
+export function EffortViewport({
+  value,
+  levels = EFFORT_LEVELS,
+  maxLevel = MAX_EFFORT,
+}: {
+  value?: string;
+  /** 可选的档位集合（Focus 用真实档 low/high/max，见 options.ts） */
+  levels?: readonly string[];
+  /** 最高档的标签（用于紫色高亮） */
+  maxLevel?: string;
+}) {
+  const current = value ?? maxLevel;
   return (
     <span className="cx-chip__effort cx-effort">
       <span className="cx-effort__viewport">
         <span className="cx-effort__layers">
-          {EFFORT_LEVELS.map((level) => (
+          {levels.map((level) => (
             <span
               className="cx-effort__text"
               data-active={level === current}
-              data-max-effort={level === MAX_EFFORT}
+              data-max-effort={level === maxLevel}
               key={level}
             >
               {level}

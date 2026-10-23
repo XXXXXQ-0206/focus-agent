@@ -32,10 +32,10 @@ import "./shell.css";
  * 在这里统一落成路由跳转（事件可能由托盘菜单等外部入口派发）。
  *
  * ★ 2026-10-15（用户澄清）：当初那句「不要最上面的 windows 自带菜单顶栏」指的是
- *   **Windows 自己画的标题栏**（带 ARTEX 标题与最小化/最大化/关闭那条），不是这条应用菜单栏。
+ *   **Windows 自己画的标题栏**（带 Focus 标题与最小化/最大化/关闭那条），不是这条应用菜单栏。
  *   我先前误删了 `<AppMenuBar />`（当晚已按构建产物原样恢复，见 AppMenuBar.tsx 文件头），
  *   真正要关掉的 Windows 标题栏改在桌面端做：desktop/main.js 的
- *   `titleBarStyle: "hidden"` + `titleBarOverlay` —— 标题栏连同 ARTEX 字样一起消失，
+ *   `titleBarStyle: "hidden"` + `titleBarOverlay` —— 标题栏连同 Focus 字样一起消失，
  *   只留右上角三个系统按钮，本条 36px 菜单栏成为窗口最顶上的一条（与官方窗口形态一致，
  *   见 evidence/codex-desktop/reference-shots/ref-01-chat-home.png）。
  */

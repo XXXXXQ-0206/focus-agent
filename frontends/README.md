@@ -1,38 +1,34 @@
 # Focus Agent 前端
 
-仓库保留两套可以连接同一 Go API 的前端：
+仓库只有一个 renderer：[`codex-client`](codex-client)。同一套 React 页面同时运行在 Web 与 Electron 宿主中，业务页面、状态管理、API 客户端和视觉规范完全共享。
 
-| 目录 | 定位 | 状态 |
-| --- | --- | --- |
-| [`codex-client`](codex-client) | Focus Agent 的类 Codex 风格 Web/Electron renderer，包含任务对话、实时插话和 Codex 式工作区外壳。 | **开发中**，是当前单体构建默认嵌入的前端。 |
-| [`artex-web`](artex-web) | 原始 ARTEX Web 控制台，保留任务、资产、发现、系统设置等传统控制台布局。 | 从 `artex-ymh/upstream/main` 固定提取，作为独立前端维护。 |
+## 结构
 
-两套前端共用仓库根目录的 Go API，默认反代地址为 `http://localhost:8787`。Codex renderer 是 Vite + React，原生 ARTEX 是 Next.js；源码、依赖和构建产物互不复用。旧根目录 Codex Web 已移除，未迁移的 ARTEX 业务页面通过 `/artex/` 原生前端继续提供。
+| 层 | 实现 |
+| --- | --- |
+| Renderer | Vite + React，源码位于 `frontends/codex-client` |
+| Web 宿主 | Go 服务在 `/` 提供静态资源与 SPA 回落 |
+| Desktop 宿主 | Electron 在 `127.0.0.1:8787` 加载同一 renderer，并额外提供本机路径选择等窗口能力 |
+| API | 仓库根目录的 Go 服务，默认地址 `http://127.0.0.1:8787` |
 
-## 来源
-
-`artex-web` 在 2026-10-13 从本地 `artex-ymh` 的 `upstream/main` 提取，固定源提交为：
-
-```text
-1e0ebcc5b58e69d2b5893578d18dd58a674a9146
-```
-
-这是未引入 Codex 壳层的 ARTEX Web 基线。`artex-ymh` 自己的 `origin/main` 已包含后续 Codex 适配提交，因此本目录没有使用它作为“原始 Web”来源。
+产品界面统一使用 **Focus** 品牌。源码中的 `artex` API 路径、数据库字段和 Go 包名属于服务端兼容标识，不面向用户展示。
 
 ## 本地启动
 
-先启动 Focus Agent Go 服务（默认 `:8787`），再在对应目录安装依赖并启动前端：
+先启动 Go 服务（默认 `:8787`），再启动 renderer：
 
 ```bash
-# Codex 风格 Web（开发中）
 cd frontends/codex-client
 npm ci
 npm run dev -- --port 3000
-
-# 原始 ARTEX Web
-cd ../artex-web
-npm ci
-npm run dev -- --port 3001
 ```
 
-如 Go API 不在 `localhost:8787`，可设置 `AUTOPENTEST_API` 指向实际地址。`NEXT_PUBLIC_MOCK=1` 可用于只验证界面，不连接后端。
+开发服务器把 `/api` 反代到 `127.0.0.1:8787`。如后端不在默认地址，可设置 `AUTOPENTEST_API`。
+
+生产构建：
+
+```bash
+npm run build
+```
+
+构建产物位于 `frontends/codex-client/dist`，由 `build.sh` 同步到 `server/webui/dist/codex` 并以 `embedui` 标签编译进单二进制。

@@ -1,9 +1,9 @@
 {
-  "name": "artex-codex-client",
+  "name": "focus-agent-renderer",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ARTEX shared Codex-style renderer for Web and Electron",
+  "description": "Focus Agent renderer shared by Web and Electron hosts",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=22"

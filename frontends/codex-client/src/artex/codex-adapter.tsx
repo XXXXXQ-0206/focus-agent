@@ -19,8 +19,8 @@ import {
   type ChatStatus,
   Composer,
   ConversationView,
+  type ComposerAttachment,
   Markdown,
-  useComposerSelection,
   useFollowUp,
 } from "@/chat";
 import type { RuntimeMessage } from "@/chat";
@@ -42,6 +42,7 @@ import {
 import type { ToolCall } from "@/lib/types";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
 import { type ArtexAgent, artexApi, openActivityStream } from "./api";
+import { useArtexComposerSelection } from "./model-selection";
 import { ARTEXTaskTabs, type TaskTabId } from "./task-workbench";
 import type {
   Activity,
@@ -98,7 +99,7 @@ function activityText(activity: Activity): string {
     activity.content ||
     activity.text ||
     activity.detail ||
-    "ARTEX 活动已更新"
+    "Focus 活动已更新"
   );
 }
 
@@ -140,7 +141,7 @@ function userActivityText(activity: Activity): string {
 }
 
 function activityToolSummary(activity: Activity, status: ToolCall["status"]): string {
-  const tool = activity.tool || "ARTEX 工具";
+  const tool = activity.tool || "Focus 工具";
   if (!/bash|shell|exec|command|terminal|run/i.test(tool)) return tool;
 
   let command = "";
@@ -177,7 +178,8 @@ function toTaskTranscript(
   streamWorker = "mainagent",
 ): TaskTranscriptEntry[] {
   const entries: TaskTranscriptEntry[] = [];
-  const toolUses = new Map<string, TaskTranscriptEntry>();
+  /** tool_use_id → 条目 + 起始时间（算「已在 Ns 内运行」） */
+  const toolUses = new Map<string, { entry: TaskTranscriptEntry; startedAt: number }>();
   let lastRenderableIndex = -1;
   for (let index = activities.length - 1; index >= 0; index -= 1) {
     const kind = activities[index].kind || activities[index].type;
@@ -221,14 +223,20 @@ function toTaskTranscript(
       const existing = useId ? toolUses.get(useId) : undefined;
       const output = activity.detail || activity.summary || "";
       if (existing) {
-        existing.message = {
-          ...existing.message,
-          toolCalls: existing.message.toolCalls?.map((call) =>
+        const finishedAt = Date.parse(activityCreatedAt(activity));
+        const elapsedMs =
+          Number.isFinite(finishedAt) && existing.startedAt > 0
+            ? Math.max(0, finishedAt - existing.startedAt)
+            : undefined;
+        existing.entry.message = {
+          ...existing.entry.message,
+          toolCalls: existing.entry.message.toolCalls?.map((call) =>
             call.id === useId
               ? {
                   ...call,
                   status: activity.is_error ? "error" : "success",
                   output,
+                  ...(elapsedMs !== undefined ? { elapsedMs } : {}),
                 }
               : call,
           ),
@@ -239,8 +247,8 @@ function toTaskTranscript(
       const callId = useId || key;
       const call: ToolCall = {
         id: callId,
-        name: activity.tool || "ARTEX 工具",
-        summary: activity.tool || "ARTEX 工具结果",
+        name: activity.tool || "Focus 工具",
+        summary: activity.tool || "Focus 工具结果",
         status: activity.is_error ? "error" : "success",
         output,
       };
@@ -256,17 +264,25 @@ function toTaskTranscript(
       const status: ToolCall["status"] = taskRunning ? "running" : "pending";
       const call: ToolCall = {
         id: callId,
-        name: activity.tool || "ARTEX 工具",
+        name: activity.tool || "Focus 工具",
         summary: activityToolSummary(activity, status),
         status,
-        input: activity.detail,
+        // 列表接口不带 detail（详情按需拉）；summary 里带着工具入参 JSON（如 `Bash {"command": …}`），
+        // 命令提取靠它（block-adapter 的 commandOf 会剥掉工具名前缀）。
+        input: activity.detail || activity.summary,
       };
       const entry = {
         key,
         message: makeMessage(activity, key, { role: "assistant", content: "", toolCalls: [call] }),
       };
       entries.push(entry);
-      if (activity.tool_use_id) toolUses.set(activity.tool_use_id, entry);
+      if (activity.tool_use_id) {
+        const startedAt = Date.parse(activityCreatedAt(activity));
+        toolUses.set(activity.tool_use_id, {
+          entry,
+          startedAt: Number.isFinite(startedAt) ? startedAt : 0,
+        });
+      }
       return;
     }
 
@@ -337,6 +353,56 @@ function taskStatusLabel(task: Task): string {
   return "已创建";
 }
 
+/**
+ * 输入区的待发送附件（2026-10-20）。图片会先由服务端读图再交给 Agent
+ * （norma 的消息模型没有 image 块，见 server/vision.go 的说明）。
+ */
+function useComposerFiles() {
+  const [files, setFiles] = useState<ComposerAttachment[]>([]);
+  /**
+   * 卸载时清理：remove/clear 已经 revoke 过，但用户带着未发送的图片直接离开页面时
+   * 组件没有机会释放 object URL（大图会一直占着内存）。这里读 ref 里的**最新**列表。
+   */
+  const filesRef = useRef<ComposerAttachment[]>([]);
+  filesRef.current = files;
+  useEffect(
+    () => () => {
+      for (const file of filesRef.current) {
+        if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);
+      }
+    },
+    [],
+  );
+  const addFiles = (incoming: File[]) => {
+    setFiles((current) => [
+      ...current,
+      ...incoming.map((file) => ({
+        id: `${String(Date.now())}-${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name,
+        size: file.size,
+        previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+        file,
+      })),
+    ]);
+  };
+  const removeFile = (id: string) => {
+    setFiles((current) => {
+      const target = current.find((file) => file.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((file) => file.id !== id);
+    });
+  };
+  const clearFiles = () => {
+    setFiles((current) => {
+      for (const file of current) {
+        if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);
+      }
+      return [];
+    });
+  };
+  return { files, addFiles, removeFile, clearFiles };
+}
+
 export function ArtexHomePage() {
   const navigate = useNavigate();
   const mode = useArtexMode();
@@ -344,7 +410,13 @@ export function ArtexHomePage() {
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [error, setError] = useState("");
-  const selection = useComposerSelection();
+  // 模式 = agent key：agent 若绑定了档案，芯片应显示那个档案（服务端绑定优先）
+  const [modelNotice, setModelNotice] = useState("");
+  const selection = useArtexComposerSelection({
+    agentKey: mode,
+    onError: (message) => setModelNotice(message),
+  });
+  const composerFiles = useComposerFiles();
 
   useEffect(() => {
     let active = true;
@@ -354,7 +426,7 @@ export function ArtexHomePage() {
         if (!active) return;
         // 「模式」= 对话型 agent：原版站点 chat 页只列 role=assistant 的（Auto / 渗透测试 /
         // 自定义），编排内置（goals/planner/mainagent/worker）不出现在这里 —— 同
-        // frontends/artex-web/src/app/(main)/chat/page.tsx:1196-1198 的 chatAgents。
+        // 迁移前 ARTEX Web 聊天页的 chatAgents 逻辑。
         setModes(list.filter((agent) => agent.role === "assistant" && agent.enabled !== false));
       })
       .catch((caught) => {
@@ -384,7 +456,16 @@ export function ArtexHomePage() {
       // 原版站点同一条链路（chat/page.tsx:391-401）：先按模式建对话，再把这条消息发进去。
       const created = await artexApi.createConversation(mode);
       try {
-        await artexApi.sendConversationMessage(created.id, message);
+        // 附件先落到这次会话的聊天目录（sessions/conv-<id>/uploads），随消息带引用过去。
+        const attachments = composerFiles.files.length
+          ? await artexApi.uploadChatAttachments(
+              "session",
+              `conv-${created.id}`,
+              composerFiles.files.flatMap((file) => (file.file ? [file.file] : [])),
+            )
+          : [];
+        await artexApi.sendConversationMessage(created.id, message, attachments);
+        composerFiles.clearFiles();
       } catch (caught) {
         // 回滚刚建出来的空会话（最常见：后端没配 LLM ⇒ 503，"尚未配置 LLM…"）。
         // 只在**服务端确认这条会话一条消息都没有**时才删 —— 避免把"其实已经收下这条消息"
@@ -443,7 +524,7 @@ export function ArtexHomePage() {
                 <div className="cx-project-rail artex-task-rail">
                   <div className="cx-project-rail__row">
                     {/*
-                      ARTEX 模式选择器（= Codex 首页「选择项目」芯片那一槽）。
+                      Focus 模式选择器（= Focus 首页「选择项目」芯片那一槽）。
                       形态照官方芯片（28px / r9999 / padding 0 8px / gap 6px / 13px 430），
                       点开是应用同款菜单浮层（.codex-app-menu）：16px 图标 + 名称 + 当前项打勾。
                       这里**不再**内嵌原生 <select>（旧做法把 select 铺满芯片、opacity 0，
@@ -452,7 +533,7 @@ export function ArtexHomePage() {
                     <Popover.Root onOpenChange={setModeMenuOpen} open={modeMenuOpen}>
                       <Popover.Trigger asChild>
                         <button
-                          aria-label={`切换 ARTEX 模式，当前 ${modeName}`}
+                          aria-label={`切换 Focus 模式，当前 ${modeName}`}
                           className="cx-chip cx-project-rail__chip artex-mode-chip"
                           data-mode-key={mode}
                           type="button"
@@ -510,7 +591,13 @@ export function ArtexHomePage() {
                 <Composer
                   onSend={(message) => followUp.submit(message)}
                   onStop={stop}
-                  selection={selection}
+                  selection={{
+                    ...selection,
+                    notice: modelNotice,
+                    attachments: composerFiles.files,
+                    onAddFiles: composerFiles.addFiles,
+                    onRemoveAttachment: composerFiles.removeFile,
+                  }}
                   status={status}
                   steer={followUp.allowSteer}
                 />
@@ -529,7 +616,7 @@ export function ArtexHomePage() {
 }
 
 /**
- * 模式对话页（`/c/:conversationId`）—— 原版站点 `chat` 页会话视图的 Codex 化。
+ * 模式对话页（`/c/:conversationId`）—— 原版站点 `chat` 页会话视图的 Focus 化。
  *
  * 数据链路（三个接口都在 server/server.go:858-867 注册、原版站点同款调用）：
  *   · 元信息：`GET /api/conversations` 列表里按 id 找（后端没有单条 GET，原版也是列表里找）；
@@ -546,6 +633,7 @@ export function ArtexConversationPage() {
   const { conversationId: rawId } = useParams();
   const id = Number(rawId);
   const navigate = useNavigate();
+  const composerFiles = useComposerFiles();
   const [conversation, setConversation] = useState<ArtexConversation | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [running, setRunning] = useState(false);
@@ -554,6 +642,20 @@ export function ArtexConversationPage() {
   const [error, setError] = useState("");
   const cursorRef = useRef(0);
   const invalid = !Number.isFinite(id) || id <= 0;
+  /**
+   * 芯片显示**实际生效**的档案：agent 绑定 → 会话 pin → 全局激活（与 resolveChatAgent 一致）。
+   * 在这个会话里换模型 = 写会话 pin（PATCH /conversations/{id}/profile），而不是只切全局。
+   */
+  const [modelNotice, setModelNotice] = useState("");
+  const selection = useArtexComposerSelection({
+    pinnedProfileId: conversation?.llm_profile_id ?? null,
+    agentKey: conversation?.agent_key,
+    onError: (message) => setModelNotice(message),
+    onSelectModel: async (profileId) => {
+      await artexApi.setConversationProfile(id, profileId);
+      setConversation((current) => (current ? { ...current, llm_profile_id: profileId } : current));
+    },
+  });
 
   useEffect(() => {
     if (invalid) return;
@@ -616,7 +718,15 @@ export function ArtexConversationPage() {
     setSending(true);
     setError("");
     try {
-      await artexApi.sendConversationMessage(id, message);
+      const attachments = composerFiles.files.length
+        ? await artexApi.uploadChatAttachments(
+            "session",
+            `conv-${id}`,
+            composerFiles.files.flatMap((file) => (file.file ? [file.file] : [])),
+          )
+        : [];
+      await artexApi.sendConversationMessage(id, message, attachments);
+      composerFiles.clearFiles();
       // 立刻拉一次，让用户那条消息不用等下一个轮询周期。
       const page = await artexApi.conversationMessages(id, cursorRef.current);
       setActivities((current) => [...current, ...page.items]);
@@ -631,7 +741,7 @@ export function ArtexConversationPage() {
   };
 
   const modeKey = conversation?.agent_key ?? "";
-  const modeName = modeKey ? (modeKey === ARTEX_DEFAULT_MODE ? "Auto" : modeKey) : "ARTEX";
+  const modeName = modeKey ? (modeKey === ARTEX_DEFAULT_MODE ? "Auto" : modeKey) : "Focus";
   const ModeIcon = modeIconFor(modeKey);
   const status: ChatStatus = sending || running ? "streaming" : "idle";
   const transcript = useMemo(
@@ -659,7 +769,7 @@ export function ArtexConversationPage() {
         onSend={() => undefined}
         onStop={() => undefined}
         status="idle"
-        title="ARTEX 模式对话"
+        title="Focus 模式对话"
       />
     );
   }
@@ -673,7 +783,7 @@ export function ArtexConversationPage() {
             {modeName}
           </span>
           <button
-            aria-label="返回 ARTEX 工作台"
+            aria-label="返回 Focus 工作台"
             className="codex-icon-button"
             onClick={() => navigate("/new")}
             title="返回工作台"
@@ -700,6 +810,13 @@ export function ArtexConversationPage() {
       showMessageActions={false}
       steer={followUp.allowSteer}
       status={status}
+      selection={{
+        ...selection,
+        notice: modelNotice,
+        attachments: composerFiles.files,
+        onAddFiles: composerFiles.addFiles,
+        onRemoveAttachment: composerFiles.removeFile,
+      }}
       title={title}
       onQueuedEdit={followUp.edit}
       onQueuedRemove={followUp.remove}
@@ -713,6 +830,12 @@ export function ArtexTaskPage() {
   const { taskId: rawTaskId } = useParams();
   const taskId = rawTaskId ? decodeURIComponent(rawTaskId) : "";
   const navigate = useNavigate();
+  const [modelNotice, setModelNotice] = useState("");
+  // 任务主对话由 mainagent 执行：它的 agent 绑定优先于全局激活，芯片必须跟着它显示。
+  const selection = useArtexComposerSelection({
+    agentKey: "mainagent",
+    onError: (message) => setModelNotice(message),
+  });
   const [task, setTask] = useState<Task | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activeTab, setActiveTab] = useState<TaskTabId>("activity");
@@ -871,7 +994,7 @@ export function ArtexTaskPage() {
           if (!cancelled) setReport(result);
         }
       } catch (caught) {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : "ARTEX 数据加载失败");
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "Focus 数据加载失败");
       } finally {
         if (!cancelled) setTabLoading(false);
       }
@@ -932,7 +1055,7 @@ export function ArtexTaskPage() {
     }
   };
 
-  const title = useMemo(() => (task ? taskLabel(task) : "ARTEX 任务"), [task]);
+  const title = useMemo(() => (task ? taskLabel(task) : "Focus 任务"), [task]);
   const statusLabel = task ? taskStatusLabel(task) : "正在加载";
   /**
    * 任务在跑 ⇒ 会话态就是 streaming（用户 2026-10-15 的官方截图口径）：
@@ -994,7 +1117,7 @@ export function ArtexTaskPage() {
             <CodexRows size={16} />
           </button>
           <button
-            aria-label="返回 ARTEX 工作台"
+            aria-label="返回 Focus 工作台"
             className="codex-icon-button"
             onClick={() => navigate("/new")}
             type="button"
@@ -1011,7 +1134,7 @@ export function ArtexTaskPage() {
             <summary>
               <CodexRows aria-hidden className="artex-task-transcript__raw-icon" size={16} />
               <span className="artex-task-transcript__label">
-                查看原始 ARTEX 事件 · {activities.length}
+                查看原始 Focus 事件 · {activities.length}
               </span>
               <CodexChevronRight aria-hidden className="artex-task-transcript__chevron" size={16} />
             </summary>
@@ -1026,7 +1149,7 @@ export function ArtexTaskPage() {
           </p>
         ) : null
       }
-      emptyText={error ? "无法加载 ARTEX 任务活动。" : "等待 ARTEX 活动流返回任务进展。"}
+      emptyText={error ? "无法加载 Focus 任务活动。" : "等待 Focus 活动流返回任务进展。"}
       main={
         activeTab !== "activity" ? (
           <TaskWorkbenchPanel
@@ -1083,6 +1206,7 @@ export function ArtexTaskPage() {
       showMessageActions={false}
       steer={followUp.allowSteer}
       status={chatStatus}
+      selection={{ ...selection, notice: modelNotice }}
       title={`${title} · ${statusLabel}`}
       onQueuedEdit={followUp.edit}
       onQueuedRemove={followUp.remove}
@@ -1177,7 +1301,7 @@ function TaskWorkbenchPanel({
   if (tabLoading)
     return (
       <section className="artex-workbench">
-        <p className="cx-thread__empty">正在加载 ARTEX 数据...</p>
+        <p className="cx-thread__empty">正在加载 Focus 数据...</p>
       </section>
     );
   if (activeTab === "sessions")

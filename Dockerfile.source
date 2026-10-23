@@ -17,17 +17,6 @@ RUN npm config set registry "$NPM_REGISTRY" && npm ci
 COPY frontends/codex-client/ ./
 RUN npm run build
 
-FROM node:22-alpine AS artex-fe
-ARG NPM_REGISTRY=https://registry.npmjs.org
-WORKDIR /src/frontends/artex-web
-COPY frontends/artex-web/package.json frontends/artex-web/package-lock.json ./
-RUN npm config set registry "$NPM_REGISTRY" && npm ci
-COPY frontends/artex-web/ ./
-# NEXT_EXPORT is exported at the process level instead of relying on the
-# POSIX-style `VAR=... command` npm script, which is not portable to Windows.
-ENV NEXT_EXPORT=1
-RUN npm run build
-
 # ---------- ② Go 编译(内嵌前端) ----------
 FROM golang:1.26-alpine AS gobuild
 ARG GOPROXY=https://proxy.golang.org,direct
@@ -36,9 +25,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN mkdir -p server/webui/dist/codex server/webui/dist/artex
+RUN mkdir -p server/webui/dist/codex
 COPY --from=codex-fe /src/frontends/codex-client/dist/ server/webui/dist/codex/
-COPY --from=artex-fe /src/frontends/artex-web/out/ server/webui/dist/artex/
 # CGO_ENABLED=0 纯静态产物,alpine(musl)构建的二进制在 bookworm 运行时同样可跑
 RUN CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags "-s -w" -o /out/artex ./cmd/artex
 

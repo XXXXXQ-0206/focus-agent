@@ -153,7 +153,7 @@ export const PLUGINS: PluginCard[] = [
     id: "p-github",
     name: "GitHub",
     author: "OpenAI",
-    description: "读取仓库、issue 与 Pull Request，让 Codex 直接参与代码审查与修复。",
+    description: "读取仓库、issue 与 Pull Request，让 Focus 直接参与代码审查与修复。",
     category: "开发",
     state: "installed",
     connected: true,
@@ -273,18 +273,18 @@ export const EXPLORE_CATEGORIES: ExploreCategory[] = [
   },
   {
     id: "setup",
-    label: "上手 Codex",
-    description: "官方 Explore 菜单里的 Setup Codex：打开云环境设置。",
+    label: "上手 Focus",
+    description: "官方 Explore 菜单里的 Setup Focus：打开云环境设置。",
     icon: "rocket",
   },
   {
     id: "plugins",
     label: "插件",
-    description: "把外部工具接进来，让 Codex 在你的工具链里工作。",
+    description: "把外部工具接进来，让 Focus 在你的工具链里工作。",
     icon: "puzzle",
   },
   { id: "skills", label: "技能", description: "可复用的任务指令集，按场景组织。", icon: "lightbulb" },
-  { id: "automations", label: "定时任务", description: "让 Codex 按计划自己跑起来。", icon: "clock" },
+  { id: "automations", label: "定时任务", description: "让 Focus 按计划自己跑起来。", icon: "clock" },
   { id: "review", label: "代码审查", description: "在 GitHub 上审查并跟踪工作。", icon: "code" },
 ];
 
@@ -409,15 +409,15 @@ export interface ReviewRepository {
 
 export const REVIEW_REPOSITORIES: ReviewRepository[] = [
   { id: "all", name: "所有仓库", openCount: 4 },
-  { id: "r1", name: "artex/codex-desktop-src", openCount: 2 },
-  { id: "r2", name: "artex/artex-web", openCount: 1 },
-  { id: "r3", name: "artex/design-tokens", openCount: 1 },
+  { id: "r1", name: "focus-agent/renderer", openCount: 2 },
+  { id: "r2", name: "focus-agent/desktop", openCount: 1 },
+  { id: "r3", name: "focus-agent/design-tokens", openCount: 1 },
 ];
 
 export const PULL_REQUESTS: PullRequestRow[] = [
   {
     id: "pr-1180",
-    repository: "artex/codex-desktop-src",
+    repository: "focus-agent/renderer",
     number: 1180,
     title: "把侧栏折叠改成位移，去掉宽度动画",
     author: "xiongqian",
@@ -434,7 +434,7 @@ export const PULL_REQUESTS: PullRequestRow[] = [
   },
   {
     id: "pr-1177",
-    repository: "artex/artex-web",
+    repository: "focus-agent/desktop",
     number: 1177,
     title: "补齐 rail 四个页面的路由与空态",
     author: "lin",
@@ -451,7 +451,7 @@ export const PULL_REQUESTS: PullRequestRow[] = [
   },
   {
     id: "pr-1164",
-    repository: "artex/design-tokens",
+    repository: "focus-agent/design-tokens",
     number: 1164,
     title: "圆角倍率 1.25 与超椭圆角形的回归修正",
     author: "chen",
@@ -468,7 +468,7 @@ export const PULL_REQUESTS: PullRequestRow[] = [
   },
   {
     id: "pr-1151",
-    repository: "artex/codex-desktop-src",
+    repository: "focus-agent/renderer",
     number: 1151,
     title: "官方 token 抽取脚本可复算化",
     author: "xiongqian",
@@ -485,7 +485,7 @@ export const PULL_REQUESTS: PullRequestRow[] = [
   },
   {
     id: "pr-1142",
-    repository: "artex/artex-web",
+    repository: "focus-agent/desktop",
     number: 1142,
     title: "会话列表虚拟滚动",
     author: "xiongqian",

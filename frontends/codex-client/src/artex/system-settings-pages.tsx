@@ -57,11 +57,11 @@ const AGENTS_SLATE_ATTRS = {
 /**
  * Agent 目录页（/system/agents）。
  *
- * 骨架 = Codex 官方「插件」页（/plugins，见 src/pages/PluginsPage.tsx）：
+ * 骨架 = Focus 官方「插件」页（/plugins，见 src/pages/PluginsPage.tsx）：
  *   slate 页头（h1 + 搜索胶囊 + 动作）→ 副标题行 → 目录 tab 行 → 两列资源行（.cx-res-grid）。
  * 行是官方 /plugins 目录行语汇：无边框行 + 32px 边框图标块 + 15/13 两行文字 + 右侧 meta/动作。
  * 点击卡片或「查看配置」进入 /system/agents/:key（同一套 slate 骨架的详情页）。
- * 数据全部来自 ARTEX 服务端 /api/agents；本页不模拟任何写入或切换状态。
+ * 数据全部来自 Focus 服务端 /api/agents；本页不模拟任何写入或切换状态。
  */
 export function ArtexAgentsPage() {
   const navigate = useNavigate();
@@ -128,7 +128,7 @@ export function ArtexAgentsPage() {
           <CodexChevronRight size={14} />
         </Button>
       }
-      description={agent.description || "ARTEX 服务端 Agent"}
+      description={agent.description || "Focus 服务端 Agent"}
       icon={<Terminal size={17} />}
       key={agent.key}
       meta={
@@ -345,7 +345,7 @@ export function ArtexAgentDetailPage() {
           <div className="cx-slate-subtitle">
             <div className="cx-slate-subtitle__row" data-page-subtitle="true">
               <div className="cx-slate-subtitle__text">
-                {currentAgent?.description || currentAgent?.role || "ARTEX 服务端 Agent"}
+                {currentAgent?.description || currentAgent?.role || "Focus 服务端 Agent"}
               </div>
             </div>
           </div>
@@ -656,7 +656,7 @@ export function ArtexSystemLogsPage() {
         placeholder: "搜索 tag 或日志内容",
         onChange: setQuery,
       }}
-      subtitle="ARTEX 服务实时输出与历史记录。"
+      subtitle="Focus 服务实时输出与历史记录。"
       tabs={
         <div className="cx-slate-tabs">
           <div aria-label="日志级别" className="cx-slate-tablist" role="tablist">
@@ -698,7 +698,7 @@ export function ArtexSystemLogsPage() {
       <section aria-label="服务端日志" className="cx-artex-logs__terminal cx-artex-logs-terminal-fixed">
         <div className="cx-artex-logs__terminal-head">
           <Terminal aria-hidden size={15} />
-          <span>ARTEX server</span>
+          <span>Focus server</span>
           <span className="cx-artex-logs__visible-count">
             {filtered.length} / {lines.length}
           </span>

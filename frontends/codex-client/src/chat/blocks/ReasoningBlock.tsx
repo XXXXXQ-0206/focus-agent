@@ -1,6 +1,5 @@
-import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode } from "react";
 
-import { ActivityDisclosure } from "./Disclosure";
 import type { ReasoningNode } from "./types";
 import { useScrollFadeMask } from "./use-scroll-fade";
 
@@ -40,20 +39,6 @@ import { useScrollFadeMask } from "./use-scroll-fade";
  * ⚠️ 实测给出两处不同的渐隐距离：§3.2 的 ScrollArea 是 1.5rem、§3.2 的 AutoHeightScroller 是
  *    `[--edge-fade-distance:1rem]`。取**内层实际滚动容器**的 **1rem**（类名直接落在它身上）。
  */
-
-/**
- * 文案：**官方 zh-CN 原文**（不再是推断译文）。
- * 出处：官方包 zh-CN 语言块 zh-CN-b05cfd55c534.js@1301169 起的三条字面量 ——
- *   "reasoningItem.thinking": "正在思考"
- *   "reasoningItem.thought": "已完成思考"
- *   "reasoningItem.thoughtWithElapsed": "已思考 {elapsed}"
- * en 文案（sites-end-resource-ecc479065e0b.js 的 Nw）：Thinking / Thought / Thought for {elapsed}
- */
-const REASONING_LABELS = {
-  thinking: "正在思考",
-  thought: "已完成思考",
-  thoughtWithElapsed: (elapsed: string) => `已思考 ${elapsed}`,
-};
 
 /** 极简 markdown：段落 / 标题 / 无序·有序列表 / 行内 code（样式出处 SPEC §3.3 + §3.4） */
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
@@ -163,94 +148,30 @@ export function ReasoningMarkdown({ content }: { content: string }) {
  *   · locale 默认 "en"（调用点没有传第二参数）⇒ 即使 zh-CN UI，官方这里也输出 "2s" 这种窄格式。
  * ⚠️ 因此本实现把 locale 钉成 "en"（与调用点一致），而不是取 document 语言 —— 取后者会 deviate。
  */
-function narrowUnit(value: number, unit: string, locale: string): string {
-  return new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "narrow" }).format(value);
-}
-
-function formatElapsed(ms: number, locale = "en"): string | null {
-  const seconds = Math.floor(Math.max(ms, 0) / 1000);
-  if (seconds < 1) return null;
-  if (seconds < 60) return narrowUnit(seconds, "second", locale);
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor(seconds / 3600) % 24;
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const rest = seconds % 60;
-  if (days > 0 || hours > 0) {
-    const parts: string[] = [];
-    if (days > 0) parts.push(narrowUnit(days, "day", locale));
-    parts.push(narrowUnit(hours, "hour", locale));
-    parts.push(narrowUnit(minutes, "minute", locale));
-    parts.push(narrowUnit(rest, "second", locale));
-    return parts.join(" ");
-  }
-  return [narrowUnit(minutes, "minute", locale), narrowUnit(rest, "second", locale)].join(" ");
-}
-
-/**
- * 官方 Fw 的等价实现（组件内计时，官方同样把它放在推理组件里）。
- * 与官方逐条对齐：挂载时若已在流式则先记一次起点；进入流式重置起点与耗时；离开流式结算一次。
- * 这段计时**不是**从 runtime 里算的 —— block-adapter 是纯函数、RuntimeMessage 也没有推理段时间戳，
- * 所以只能量到「组件看到的 streaming → completed」。官方也是组件内量，口径一致。
- */
-function useReasoningElapsed(streaming: boolean): string | null {
-  const [startedAtMs, setStartedAtMs] = useState<number | null>(() => (streaming ? Date.now() : null));
-  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
-  const wasStreaming = useRef(streaming);
-
-  useEffect(() => {
-    const previous = wasStreaming.current;
-    if (!previous && streaming) {
-      // 进入流式：起点 = 现在，上一段耗时作废
-      setStartedAtMs(Date.now());
-      setElapsedMs(null);
-    } else if (previous && !streaming && startedAtMs != null && elapsedMs == null) {
-      // 离开流式：结算一次（elapsedMs == null 保证只结算一次）
-      setElapsedMs(Date.now() - startedAtMs);
-      setStartedAtMs(null);
-    }
-    wasStreaming.current = streaming;
-  }, [streaming, startedAtMs, elapsedMs]);
-
-  if (elapsedMs == null || elapsedMs <= 0) return null;
-  return formatElapsed(elapsedMs);
-}
-
 export function ReasoningBlock({ block }: { block: ReasoningNode }) {
-  const { content, elapsed, status } = block;
+  const { content, status } = block;
   const streaming = status === "running";
   const fade = useScrollFadeMask<HTMLDivElement>("1rem", { reverse: streaming });
-  // 节点自带 elapsed（fixtures / 将来的服务端值）优先；否则用组件内实测（官方口径）。
-  const measured = useReasoningElapsed(streaming);
-  const shownElapsed = elapsed ?? measured ?? undefined;
-  const label = streaming
-    ? REASONING_LABELS.thinking
-    : shownElapsed
-      ? REASONING_LABELS.thoughtWithElapsed(shownElapsed)
-      : REASONING_LABELS.thought;
 
+  /**
+   * 2026-10-20（用户：既然默认显示了思考过程，就不用写「已完成思考」）：
+   * 去掉块头，直接把思考正文摊开显示（顶部仍是一个 140px 的滚动视口 + 渐隐）。
+   * 原来那行 `已完成思考 ⌄` 既占位置又和正文重复；折叠/展开这层交互也随之取消 ——
+   * 想看摘要的需求本来就不存在（用户要的是能读到的思考）。
+   */
+  if (content.trim() === "") return null;
   return (
-    <ActivityDisclosure
-      active={streaming}
-      bodyVariant="default"
-      indent={false}
-      itemId={block.id}
-      status={status}
-      summary={label}
-      summaryTone="dim"
-      defaultExpanded={block.defaultExpanded}
-    >
-      <div className="cx-thought">
-        <div
-          className="cx-thought__scroll"
-          data-autoscroll={streaming ? "true" : "false"}
-          ref={fade.ref}
-          style={fade.maskImage ? { maskImage: fade.maskImage } : undefined}
-        >
-          <div className="cx-thought__items">
-            <ReasoningMarkdown content={content} />
-          </div>
+    <div className="cx-thought" data-status={status}>
+      <div
+        className="cx-thought__scroll"
+        data-autoscroll={streaming ? "true" : "false"}
+        ref={fade.ref}
+        style={fade.maskImage ? { maskImage: fade.maskImage } : undefined}
+      >
+        <div className="cx-thought__items">
+          <ReasoningMarkdown content={content} />
         </div>
       </div>
-    </ActivityDisclosure>
+    </div>
   );
 }

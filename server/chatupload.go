@@ -141,11 +141,18 @@ func composeAgentMessage(msg string, atts []chatAttachment, baseDir string) stri
 }
 
 // userActivityWithAttachments builds the persisted 'user' activity. With attachments,
-// Detail holds JSON {text, attachments} so the transcript renders text + attachment
-// cards; Summary stays the plain text (the list payload omits Detail, lazy-loaded).
+// Detail holds JSON {text, attachments} so a detail-aware renderer can show attachment
+// cards; the summary carries the text **plus the attachment names**, because the list
+// payload omits Detail (lazy-loaded) and the transcript/side panel would otherwise show
+// an attachment message as if it were plain text.
 func userActivityWithAttachments(worker, text string, atts []chatAttachment) db.Activity {
-	a := db.Activity{Worker: worker, Kind: "user", Summary: text}
+	a := db.Activity{Worker: worker, Kind: "user", Summary: firstLine(text, 200)}
 	if len(atts) > 0 {
+		names := make([]string, 0, len(atts))
+		for _, att := range atts {
+			names = append(names, att.Name)
+		}
+		a.Summary = strings.TrimSpace(a.Summary + " · 📎 " + strings.Join(names, ", "))
 		blob, _ := json.Marshal(map[string]any{"text": text, "attachments": atts})
 		a.Detail = string(blob)
 	}

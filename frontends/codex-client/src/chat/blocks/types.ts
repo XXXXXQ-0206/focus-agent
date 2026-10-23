@@ -1,5 +1,5 @@
 /**
- * ARTEX · 会话块（conversation activity blocks）· 数据模型
+ * Focus · 会话块（conversation activity blocks）· 数据模型
  * ============================================================================
  * 真值来源：`docs/SPEC-CONVERSATION-BLOCKS.md`（下称 SPEC，857 行，官方逐层 DOM + 实测样式）
  *   块 2 / 3 / 5 / 6 / 11 = **完整实测**（DOM + computed style + 交互态）
@@ -31,10 +31,16 @@ export interface ExecNode {
   /** 块头摘要；缺省时按 SPEC §4.4 的 key 生成（`Running/Ran/Stopped <cmd>`） */
   summary?: string;
   /**
-   * ⚠️ **本类型刻意没有 `defaultExpanded`**（R4，docs/RULINGS.md）：
-   * 官方 exec 卡（`Jx`）的展开态是组件内 `useState("collapsed")`，恒从折叠起步、只由用户点击改，
-   * **不接受调用方给的初值**。谁想加回这个字段，请先读 R4 ——「流式自动展开」是我们要修掉的偏差。
+   * 初始是否展开。
+   *
+   * 历史：R4 曾判定「官方 exec 卡恒从折叠起步」，本类型刻意不放该字段。
+   * **2026-10-20 用户改判**：运行过程里命令和输出全被折叠，看不到在执行什么；
+   * 要求对齐原 Focus / DSH 的可见性。适配层现在对 `running` 传 true（边跑边看输出），
+   * 结束后回落到折叠、块头仍显示「已运行 <命令>」，点一下随时能再展开。
    */
+  defaultExpanded?: boolean;
+  /** 工具执行耗时（毫秒）：块头显示「已在 Ns 内运行 <命令>」 */
+  elapsedMs?: number;
 }
 
 /** 终端 ANSI 输出块（SPEC §5，包内确证）：与 exec 共用卡片外壳，但正文是纯 ANSI 文本。 */
@@ -65,6 +71,8 @@ export interface DiffLine {
 export interface FileChangeNode {
   id: string;
   path: string;
+  /** 新文件（apply_patch `*** Add File:` / diff 的 `--- /dev/null`）—— 摘要用「已创建」 */
+  created?: boolean;
   /** 增删行数；缺省时**不渲染** +N/−M（[SPEC §6.1] 实测有该统计，但我们的数据模型不总有） */
   added?: number;
   deleted?: number;

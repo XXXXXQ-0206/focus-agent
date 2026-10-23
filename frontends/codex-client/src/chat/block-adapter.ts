@@ -89,16 +89,40 @@ function toActivityStatus(status: ToolCall["status"]): ActivityStatus {
  * 所以先尝试解析取 `command`；解析不出来（或没有该字段）才退回原文 —— 不猜、不丢信息。
  */
 function commandOf(call: ToolCall): string {
-  const raw = call.input ?? "";
-  if (raw.trim().startsWith("{")) {
+  const raw = (call.input ?? "").trim();
+  /**
+   * 2026-10-20：Focus 的活动列表**不带 detail**（详情是按需拉取的），tool_use 的 summary
+   * 形如 `Bash {"command": "echo hi"}` —— 所以除了纯 JSON，还要容忍「工具名 + JSON」这种前缀。
+   * 不剥前缀的话命令位置会退化成整串 summary（实测显示成「正在运行 Bash」）。
+   */
+  const candidates = [raw];
+  const brace = raw.indexOf("{");
+  if (brace > 0) candidates.push(raw.slice(brace));
+  for (const candidate of candidates) {
+    if (!candidate.trim().startsWith("{")) continue;
     try {
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const parsed = JSON.parse(candidate) as Record<string, unknown>;
       const command = parsed.command ?? parsed.cmd ?? parsed.script;
       if (typeof command === "string" && command.trim() !== "") return command;
     } catch {
       /* 不是合法 JSON，按原文处理 */
     }
   }
+  /**
+   * 活动列表里的 summary 会被服务端截断（长命令的 JSON 因此不合法），此时退回正则抠
+   * `"command": "…"` 的值 —— 否则命令行位置会显示成 `Bash {"command": "…`（实测截图里就是这样）。
+   */
+  const matched = /"command"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(raw);
+  if (matched) {
+    const decoded = matched[1]
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\")
+      .trim();
+    if (decoded !== "") return decoded;
+  }
+  if (raw !== "" && !raw.startsWith("{")) return raw;
   return raw !== "" ? raw : call.summary;
 }
 
@@ -114,9 +138,15 @@ function tooleCallToNode(call: ToolCall, _index: number): BlockNode {
       command: commandOf(call),
       output: call.output,
       shell: "Shell",
+      elapsedMs: call.elapsedMs,
+      /**
+       * 2026-10-20：运行中**自动展开**看输出（和用户要的"命令可见"一致）；
+       * 跑完回落成折叠态、块头仍写着「已运行 <命令>」，点一下能再看输出。
+       */
+      defaultExpanded: status === "running",
       /**
        * ⚠️ **不传 `call.summary`**（2026-10-15 修的真实缺陷，mock 数据实测复现）：
-       * ARTEX 侧 `toTaskTranscript()` 在 `tool_use` 事件到达时就按**当时**的状态把摘要
+       * Focus 侧 `toTaskTranscript()` 在 `tool_use` 事件到达时就按**当时**的状态把摘要
        * 烘成了字符串（`activityToolSummary()` → 「已停止 <命令>」），`tool_result` 到达后
        * 只补了 `status` / `output`，**没有重算摘要** ⇒ 块头永远显示「已停止」，
        * 而同一张卡的展开体里状态行却写着「成功」——同一张卡自相矛盾。
@@ -176,6 +206,7 @@ function tooleCallToNode(call: ToolCall, _index: number): BlockNode {
           path: file.path,
           added: file.added,
           deleted: file.deleted,
+          created: file.created,
         })),
         defaultExpanded: false,
       };
@@ -226,23 +257,37 @@ function tooleCallToNode(call: ToolCall, _index: number): BlockNode {
  * 计数规则：补丁体内以 `+` 开头记增、`-` 开头记删；文件头那两行（`+++` / `---`）与
  * `@@` / `*** …` 之类的元信息行都不计。解析不出文件头时返回空数组（调用方走保守分支）。
  */
-export function parsePatchStats(text: string): { path: string; added: number; deleted: number }[] {
+export function parsePatchStats(
+  text: string,
+): { path: string; added: number; deleted: number; created: boolean }[] {
   if (!text) return [];
-  const files: { path: string; added: number; deleted: number }[] = [];
-  let current: { path: string; added: number; deleted: number } | null = null;
+  const files: { path: string; added: number; deleted: number; created: boolean }[] = [];
+  let current: { path: string; added: number; deleted: number; created: boolean } | null = null;
+  let previousWasDevNull = false;
   for (const line of text.split(/\r?\n/)) {
     const applyPatchHeader = /^\*\*\* (?:Update|Add|Delete) File: (.+)$/.exec(line);
     if (applyPatchHeader) {
-      current = { path: applyPatchHeader[1].trim(), added: 0, deleted: 0 };
+      current = {
+        path: applyPatchHeader[1].trim(),
+        added: 0,
+        deleted: 0,
+        created: line.startsWith("*** Add File:"),
+      };
       files.push(current);
       continue;
     }
     const unifiedHeader = /^\+\+\+ (?:b\/)?(.+)$/.exec(line);
     if (unifiedHeader) {
-      current = { path: unifiedHeader[1].trim(), added: 0, deleted: 0 };
+      current = {
+        path: unifiedHeader[1].trim(),
+        added: 0,
+        deleted: 0,
+        created: previousWasDevNull,
+      };
       files.push(current);
       continue;
     }
+    previousWasDevNull = /^--- \/dev\/null$/.test(line);
     if (!current) continue;
     if (line.startsWith("+++") || line.startsWith("---")) continue;
     if (line.startsWith("+")) current.added += 1;
@@ -255,7 +300,7 @@ export function parsePatchStats(text: string): { path: string; added: number; de
 /**
  * 工具调用的「类别 + 动作词」——给**折叠组头**用（ToolActivityGroup.tsx）。
  *
- * 参考截图（Codex 转录里的组头那一行）把组内各条的动作词直接拼起来：
+ * 参考截图（Focus 转录里的组头那一行）把组内各条的动作词直接拼起来：
  *   `编辑了文件运行了命令`
  * 所以这里返回的就是那种短语。类别三种与官方块词汇的落点一致
  * （exec = 命令卡 / file-edit = 逐文件头 / terminal = 通用工具卡）：
@@ -287,6 +332,12 @@ export function messageToBlocks(message: MessageModel): BlockNode[] {
       id: `${message.id}-reasoning`,
       status: message.streaming ? "running" : "completed",
       content: message.reasoning,
+      /**
+       * 2026-10-20（用户：思考过程全被折叠了）——推理块**默认展开**：
+       * 流式期间直接看得到正文（官方 Aw 也是 running 时展开），结束后保持展开，
+       * 想看摘要时点块头折叠。之前不传 defaultExpanded ⇒ 永远是折叠的。
+       */
+      defaultExpanded: true,
     });
   }
 

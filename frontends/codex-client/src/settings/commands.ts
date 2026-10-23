@@ -106,7 +106,7 @@ export const COMMANDS: AppCommand[] = [
   {
     id: "tasks",
     label: "打开任务",
-    description: "跳转到 ARTEX 任务列表",
+    description: "跳转到 Focus 任务列表",
     group: "导航",
     defaultChord: "",
     run: (context) => context.navigate("/function/tasks"),

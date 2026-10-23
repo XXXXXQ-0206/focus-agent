@@ -2,7 +2,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerE
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { artexApi } from "@/artex";
-import type { Task } from "@/artex/types";
+import type { ArtexConversation } from "@/artex/types";
 import {
   CodexBell,
   CodexChevronDown,
@@ -36,7 +36,7 @@ import "./sidebar-panel.css";
  *   面板头        [52,44 288×**90**]   padding `0 8px`
  *     导航头      [68,44 264×52]       margin-left 8px  padding-right 4px
  *       应用名钮  [62,54 84.2×**32**] padding `0 6px`  margin-left -6px  gap 6px
- *                 r **12.5px** cs SE1.5；内容是 **Codex 字标 SVG 53.22×18**（不是文字）
+ *                 r **12.5px** cs SE1.5；内容是 **Focus 字标 SVG 53.22×18**（不是文字）
  *       动作组    [268,56 60×28]       ms-auto  gap **4px** 两个 **28×28**（铃铛 / 放大镜）
  *                 色 rgba(255,255,255,.498)  r **9.375px** cs SE1.5
  *     新聊天钮    [60,96 **272×30**]   bg rgba(255,255,255,.08)  r 12.5px cs SE1.5
@@ -58,67 +58,54 @@ import "./sidebar-panel.css";
 const SETTINGS_LANDING_PATHS = ["/controls"];
 const ARTEX_TASK_LIST_PATHS = ["/function/tasks"];
 
-function taskLabel(task: Task): string {
-  return task.name?.trim() || task.description?.trim() || task.goal?.trim() || task.id;
-}
-
-function taskTimestamp(task: Task): string {
-  if (typeof task.last_activity_unix === "number" && task.last_activity_unix > 0) {
-    return new Date(task.last_activity_unix * 1000).toISOString();
-  }
-  if (typeof task.created_at === "string" && task.created_at.trim()) return task.created_at;
-  if (typeof task.created_at === "number" && Number.isFinite(task.created_at)) {
-    return new Date(
-      task.created_at < 10_000_000_000 ? task.created_at * 1000 : task.created_at,
-    ).toISOString();
-  }
-  return new Date(0).toISOString();
-}
-
-function taskStatusLabel(task: Task): string {
-  if (task.paused || task.status === "paused") return "已暂停";
-  if (task.queued || task.status === "queued") return "排队中";
-  if (task.status === "running" || task.in_flight) return "运行中";
-  if (task.status === "done") return "已完成";
-  if (task.status === "failed") return "失败";
-  return "已创建";
-}
-
 export function SidebarPanel() {
   const { collapsed, effective, setState, setWidth, resetWidth, setResizing, width } = useSidebar();
-  const [artexTasks, setArtexTasks] = useState<Task[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
-  const [tasksError, setTasksError] = useState("");
-  const loadArtexTasks = useCallback(async () => {
-    setTasksLoading(true);
+  /**
+   * 「最近」= **对话历史**（2026-10-20 用户：正在进行的会话在历史里找不到）。
+   * 之前这里列的是 Focus **任务**（`/task/<id>`），所以 `/c/<id>` 起的对话永远不出现。
+   * 任务有自己的左侧栏页（任务列表），不放这里。
+   */
+  const [conversations, setConversations] = useState<ArtexConversation[]>([]);
+  const [convLoading, setConvLoading] = useState(true);
+  const [convError, setConvError] = useState("");
+  const loadConversations = useCallback(async () => {
     try {
-      const result = await artexApi.tasks();
-      setArtexTasks(result.tasks);
-      setTasksError("");
+      setConversations(await artexApi.conversations());
+      setConvError("");
     } catch (caught) {
-      setTasksError(caught instanceof Error ? caught.message : "任务列表加载失败");
+      setConvError(caught instanceof Error ? caught.message : "对话列表加载失败");
     } finally {
-      setTasksLoading(false);
+      setConvLoading(false);
     }
   }, []);
   useEffect(() => {
-    void loadArtexTasks();
-    const onTasksChanged = () => void loadArtexTasks();
-    window.addEventListener("artex:tasks-changed", onTasksChanged);
-    return () => window.removeEventListener("artex:tasks-changed", onTasksChanged);
-  }, [loadArtexTasks]);
-  const artexTaskGroups = useMemo(() => {
-    const sorted = [...artexTasks].sort(
-      (left, right) => new Date(taskTimestamp(right)).getTime() - new Date(taskTimestamp(left)).getTime(),
-    );
+    void loadConversations();
+    const onChanged = () => void loadConversations();
+    window.addEventListener("artex:conversations-changed", onChanged);
+    window.addEventListener("focus", onChanged);
+    return () => {
+      window.removeEventListener("artex:conversations-changed", onChanged);
+      window.removeEventListener("focus", onChanged);
+    };
+  }, [loadConversations]);
+  const conversationGroups = useMemo(() => {
+    const time = (conversation: ArtexConversation) => {
+      const ms = new Date(conversation.updated_at || conversation.created_at).getTime();
+      return Number.isNaN(ms) ? 0 : ms;
+    };
+    const sorted = [...conversations].sort((left, right) => time(right) - time(left));
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     return {
-      today: sorted.filter((task) => new Date(taskTimestamp(task)).getTime() >= cutoff),
-      earlier: sorted.filter((task) => new Date(taskTimestamp(task)).getTime() < cutoff),
+      today: sorted.filter((conversation) => time(conversation) >= cutoff),
+      earlier: sorted.filter((conversation) => time(conversation) < cutoff),
     };
-  }, [artexTasks]);
+  }, [conversations]);
   const navigate = useNavigate();
   const location = useLocation();
+  // 路由一变就刷新一次：新建对话后跳 /c/<id>、或从别处回到列表，都不会停在旧快照。
+  useEffect(() => {
+    void loadConversations();
+  }, [location.pathname, loadConversations]);
   /**
    * /settings 下把「项目 / 最近」会话列表**换成设置分区导航**（官方设置页的左栏就是分区导航）。
    * 判据用 pathname 前缀而不是路由 hook：面板在 AppShell 里、不属于任何 Route 元素。
@@ -240,20 +227,18 @@ export function SidebarPanel() {
     [resetWidth, setWidth, width],
   );
 
-  const renderArtexTask = (task: Task) => {
-    const label = taskLabel(task);
-    const status = taskStatusLabel(task);
-    const active = task.status === "running" || task.status === "queued" || task.in_flight;
+  /** 一行对话：标题 + 更新时间提示；正在跑的对话右侧带一枚小圆点（与原来任务行同款） */
+  const renderConversation = (conversation: ArtexConversation) => {
+    const label = conversation.title?.trim() || "新对话";
     return (
       <NavLink
         className={({ isActive }) => cn("codex-panel__row", isActive && "is-active")}
-        data-task-status={task.status ?? "created"}
-        key={task.id}
-        title={`${label} · ${status} · ${formatRelativeTime(taskTimestamp(task))}`}
-        to={`/task/${encodeURIComponent(task.id)}`}
+        key={conversation.id}
+        title={`${label} · ${formatRelativeTime(conversation.updated_at || conversation.created_at)}`}
+        to={`/c/${conversation.id}`}
       >
         <span className="codex-panel__row-label">{label}</span>
-        {active ? <span aria-hidden className="codex-panel__row-dot" /> : null}
+        {conversation.running ? <span aria-hidden className="codex-panel__row-dot" /> : null}
       </NavLink>
     );
   };
@@ -272,7 +257,7 @@ export function SidebarPanel() {
         /* 设置态面板头（官方 `._header_cpwja_2` [52,44 288×96] padding 0 8px）：
              标题「设置」[68,58 260×24] 18px/600
              搜索框     [60,96 272×36] r 9999px bg rgba(255,255,255,.08) padding 0 12px 14px/430
-           出处 docs/SPEC-SETTINGS.md §2（实测·DOM）。**没有** Codex 字标、铃铛、放大镜，也**没有**「新聊天」钮。 */
+           出处 docs/SPEC-SETTINGS.md §2（实测·DOM）。**没有** Focus 字标、铃铛、放大镜，也**没有**「新聊天」钮。 */
         <div className="codex-panel__settings-header">
           <h1 className="codex-panel__settings-title">设置</h1>
           <Input
@@ -288,7 +273,7 @@ export function SidebarPanel() {
           />
         </div>
       ) : panelMode === "page" ? (
-        /* 页面态面板头（官方 /scheduled 实测，**不是**会话态的 Codex 字标 + 新聊天）。
+        /* 页面态面板头（官方 /scheduled 实测，**不是**会话态的 Focus 字标 + 新聊天）。
            ============================================================================
            出处：C:\artex-ymh\evidence\codex-desktop\captures\recon-official\official-scheduled-aside-geom.json
                 （ctx.buildIdentity.asarSha256=11CEC09E…9F9C1）+ docs/RECON-OFFICIAL-PANELS.md §目标1
@@ -388,7 +373,7 @@ export function SidebarPanel() {
               type="button"
             >
               <CodexPlusMd size={16} />
-              <span>{isArtexTaskList ? "创建 ARTEX 任务" : "新建任务"}</span>
+              <span>{isArtexTaskList ? "创建 Focus 任务" : "新建任务"}</span>
             </button>
           </div>
         </div>
@@ -400,15 +385,10 @@ export function SidebarPanel() {
                                      > span.truncate（font-openai-sans 18px/600/lh24）
                                        > span.flex.h-lh.w-max > svg 字标 53.22×18
                                      > svg chevron 16
-                ⚠️ 审计 #17 的「期望值=文字节点」**经证据否定**：官方此处本身就是 **SVG 字标**。
-                   出处 assets/icons-raw-round3.json 的 ctx=BUTTON[al=切换模式，当前模式：Codex]
-                   → <svg width="53.225983" height="18" viewBox="0 0 53.225983 18" role="img"
-                        aria-hidden="true" class="h-[1em] w-auto">（同一份资产就是我们 CodexWordmark 的来源）。
-                   blocks-sidebar.json 实测 svg [68,61 53.21875×18] 与本工程**像素级一致**
-                   （参考截图 ref-01-chat-home.png 逐列墨迹 68.67→121.33 完全相同）。
-                   这里补的是外层三个 span（官方 DOM 深度），不把字标改成文字 —— 换文字反而会引入字体回退偏差。 */}
+               参考实现的字标资产包含旧品牌轮廓，产品化后改为用同一套界面字体渲染
+               “Focus”。外层三个 span 保留原有布局深度和点击区域。 */}
             <button
-              aria-label="切换模式，当前模式：Codex"
+              aria-label="切换模式，当前模式：Focus"
               className="codex-panel__mode"
               onClick={() => navigate("/new")}
               type="button"
@@ -520,16 +500,16 @@ export function SidebarPanel() {
               </div>
               {openSections.recent ? (
                 <div className="codex-panel__nav-list codex-panel__nav-list--body">
-                  {tasksLoading ? (
-                    <div className="codex-panel__empty">正在加载 ARTEX 任务</div>
-                  ) : tasksError ? (
-                    <div className="codex-panel__empty">{tasksError}</div>
-                  ) : artexTaskGroups.today.length + artexTaskGroups.earlier.length === 0 ? (
-                    <div className="codex-panel__empty">暂无 ARTEX 任务</div>
+                  {convLoading && conversations.length === 0 ? (
+                    <div className="codex-panel__empty">正在加载对话</div>
+                  ) : convError ? (
+                    <div className="codex-panel__empty">{convError}</div>
+                  ) : conversationGroups.today.length + conversationGroups.earlier.length === 0 ? (
+                    <div className="codex-panel__empty">还没有对话</div>
                   ) : (
                     <>
-                      {artexTaskGroups.today.map(renderArtexTask)}
-                      {artexTaskGroups.earlier.map(renderArtexTask)}
+                      {conversationGroups.today.map(renderConversation)}
+                      {conversationGroups.earlier.map(renderConversation)}
                     </>
                   )}
                 </div>

@@ -18,7 +18,7 @@ import {
 /**
  * 浏览器（官方 slug browser-use）—— 本工程重做成 **Playwright MCP 的真实管理页**。
  *
- * 为什么这页能做真：ARTEX 后端首次启动时会种入一台名为 `browser` 的 MCP 服务器
+ * 为什么这页能做真：Focus 后端首次启动时会种入一台名为 `browser` 的 MCP 服务器
  * （`npx @playwright/mcp --headless`，默认关闭，见 db/db.go:270-280），抓包开关打开时
  * 后端还会自动给它注入录制代理参数与 MITM CA 环境变量（server/manager.go 的
  * syncBrowserMCPProxy）。所以这一页不是复刻官方 ChatGPT 的浏览器权限/历史，
@@ -112,7 +112,7 @@ export function BrowserPane({ section }: SettingsPaneProps) {
       >
         <PaneCard>
           {loading && !server ? (
-            <PaneEmpty description="正在读取 ARTEX 的 MCP 配置。" title="正在加载…" />
+            <PaneEmpty description="正在读取 Focus 的 MCP 配置。" title="正在加载…" />
           ) : !server ? (
             <PaneEmpty
               description="后端首次启动会种入名为 browser 的 Playwright MCP；它可能已被改名或删除。可在「插件」页查看当前 MCP 列表。"
@@ -144,7 +144,7 @@ export function BrowserPane({ section }: SettingsPaneProps) {
               />
               <PaneRow
                 control={<PaneValueText value={server.transport} />}
-                description="stdio：浏览器作为子进程由 ARTEX 拉起"
+                description="stdio：浏览器作为子进程由 Focus 拉起"
                 label="传输方式"
               />
             </>

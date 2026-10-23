@@ -1,44 +1,33 @@
-# ARTEX 桌面端（Electron）
+# Focus 桌面端
 
-参考 `dsh-desktop`（DeepSeek Harness 桌面版）的组织方式：Electron 主进程 + 一个窗口展示本机 Web 控制台 +
-系统托盘 + 单实例。与 `C:\artex-ymh\launcher`（C# 托盘启动器）的区别只是"UI 在哪"：
-启动器用系统浏览器打开，桌面端把 UI 装进窗口并常驻托盘。
+Electron 主进程负责拉起本机后端、展示 Focus renderer，并提供系统托盘与单实例行为。桌面端与 Web 共用同一套页面，不使用第二套前端。
 
 ## 行为
 
 | 项 | 说明 |
 | --- | --- |
-| 启动 | 解析安装目录（`ARTEX_HOME` → exe 同级/上级 → `C:\artex-ymh`）→ 按需拉起 PostgreSQL → 拉起 `artex.exe` → 端口 8787 就绪后加载控制台 |
-| 托盘 | 图标存在 ⇔ ARTEX 在跑；右键 `打开 / 重启 / 退出`；单击切回窗口；后端停掉后两个心跳周期自动收摊 |
-| 窗口 | 关窗 = 收进托盘（不退出）；外链走系统浏览器；右上角可在 Codex 风格客户端与原生 ARTEX Web 间切换 |
+| 启动 | 解析安装目录（`ARTEX_HOME` → exe 同级/上级 → `C:\artex-ymh`）→ 按需拉起 PostgreSQL → 拉起 `artex.exe` → 端口 8787 就绪后加载 Focus |
+| 托盘 | 图标存在 ⇔ Focus 在跑；右键 `打开 / 重启 / 退出`；单击切回窗口；后端停掉后两个心跳周期自动收摊 |
+| 窗口 | 关窗 = 收进托盘（不退出）；外链走系统浏览器；不提供旧 Web 控制台切换入口 |
 | 服务校验 | TCP 端口就绪后还必须通过 `GET /api/health`，且响应为 `{"ok":true,"service":"artex"}` 才加载页面 |
-| 退出 | 停 ARTEX（进程树 + 端口占用者兜底）→ **只停自己拉起的 PostgreSQL** |
+| 退出 | 停 Focus（进程树 + 端口占用者兜底）→ **只停自己拉起的 PostgreSQL** |
 | 单实例 | `app.requestSingleInstanceLock()`，第二次启动只是把已有窗口调到前台 |
-| 静默自启 | `ARTEX.exe --silent` 只亮托盘、不弹窗 |
+| 静默自启 | `Focus.exe --silent` 只亮托盘、不弹窗 |
+
+`ARTEX_HOME`、`artex.exe` 和健康响应中的 `service: "artex"` 是现有部署协议标识；产品界面与窗口标题统一显示 Focus。
 
 ## 开发与打包
 
 ```powershell
-cd C:\artex-ymh\desktop
-npm install                    # electron 43.1.0 命中本机缓存 %LOCALAPPDATA%\electron\Cache
-npm start                      # 本地跑（热启动）
-npm run pack                   # @electron/packager 出 dist\ARTEX-win32-x64\ARTEX.exe
+cd desktop
+npm install
+npm start
+npm test
+npm run pack
 ```
 
-产物是自包含的 Electron 应用（约 250 MB，和 dsh-desktop 同级），不再依赖系统浏览器；
-如果只想要"极简常驻 + 用浏览器看"，用 `C:\artex-ymh\launcher\dist\ArtexLauncher.exe`（约 0.2 MB、私有内存 11 MB）。
+`npm run pack` 会生成 `build\Focus-win32-x64\Focus.exe`。桌面宿主只向 renderer 暴露白名单 IPC，主要能力是本机文件或目录选择；页面不会获得 Node.js 权限。
 
-## 双界面
+## 窗口与导航
 
-桌面端和 Web 端共用同一套 Codex renderer。启动后默认打开 `/` 的 Codex 风格客户端；窗口右上角和托盘菜单提供两个明确入口：
-
-- `Codex`：开发中的 Codex 风格客户端。
-- `ARTEX Web`：原生 ARTEX 前端（`/artex/`）。
-
-切换只是在本机 ARTEX origin 内导航，不新增 IPC，也不会把页面权限扩展到 Node.js。窗口会拒绝文件、脚本和其他未知协议；明确的 HTTP/HTTPS 外链才交给系统浏览器。
-
-## 为什么是 Electron
-
-`dsh-desktop` 本身就是 Electron（`AppData\Local\Programs\DeepSeek Harness` 下有 `LICENSE.electron.txt`、
-`icudtl.dat`、`v8_context_snapshot.bin`，主程序 233 MB）。本机已有 `electron-v43.1.0-win32-x64.zip` 缓存，
-照它的形态做，成本最低、行为最接近。
+桌面端只加载 `/`。旧 `/artex` 与 `/artex/*` URL 由 Go 服务永久重定向到 `/`，仅用于兼容旧书签。窗口拒绝文件、脚本和其他未知协议，明确的 HTTP/HTTPS 外链才交给系统浏览器。

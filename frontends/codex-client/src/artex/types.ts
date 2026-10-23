@@ -77,12 +77,22 @@ export interface Activity {
 }
 
 /**
- * ARTEX 对话（`/api/conversations`）—— 「模式」的载体。
+ * Focus 对话（`/api/conversations`）—— 「模式」的载体。
  *
- * 出处：server/conversations.go + 原版站点 frontends/artex-web/src/lib/types.ts:716。
+ * 出处：server/conversations.go + 迁移前的 ARTEX Web 类型定义。
  * `agent_key` 就是用户说的「模式」：`auto`（Auto / 操作助手）、`pentest`（渗透测试）、
  * 以及自定义 agent（报告撰写 / 漏洞复测 / 漏洞验证…）。`running` 是列表接口附带的实时态。
  */
+/** 对话附件（对应 server/chatupload.go 的 chatAttachment） */
+export interface ChatAttachment {
+  name: string;
+  /** 相对会话工作目录的路径，如 uploads/report.png */
+  path: string;
+  size: number;
+  /** 落盘绝对路径（上传响应里就有） */
+  abs?: string;
+}
+
 export interface ArtexConversation {
   id: number;
   agent_key: string;

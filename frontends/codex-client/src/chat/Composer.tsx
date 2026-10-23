@@ -5,6 +5,7 @@ import type { ModelOption, PermissionMode, Project } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/settings/store";
 import { ModelPickerChip } from "./ModelPicker";
+import type { ChatModelOption } from "./options";
 import { PermissionMenuChip } from "./PermissionMenu";
 import type { ChatStatus } from "./use-chat";
 
@@ -69,7 +70,7 @@ import type { ChatStatus } from "./use-chat";
  *   `.cx-composer__editor:focus-visible{outline:none}` —— **治因，不是遮症状**（没有动 autoFocus）。
  *
  * ── 为什么这里**没有**展开钮（audit #50 已作废）─────────────────────────────────
- * 官方 **Codex 线程**输入框根本没有 Expand/Collapse 钮 —— 本轮官方端实机采集（判决性，DOM + PNG 双证）：
+ * 官方 **Focus 线程**输入框根本没有 Expand/Collapse 钮 —— 本轮官方端实机采集（判决性，DOM + PNG 双证）：
  *   captures/recon-official/official-composer-01-multiline-draft-long.json
  *     草稿 557 字符 / lineCount 39 → composer[data-codex-composer] rect **702×400**
  *     （scrollHeight = clientHeight = 400 ⇒ 撑满上限 + 内部滚动，不是展开）
@@ -79,7 +80,7 @@ import type { ChatStatus } from "./use-chat";
  *   对应 PNG：official-composer-00-empty / 01-multiline-draft / 01-multiline-draft-long（右上角空白）
  * 配套源码证据：该按钮的 i18n 属 **chatgptConversations.composer.expand / .collapse**
  *   （zh-CN-b05cfd55c534.js），且 expansion context 为 null 或 state === "unavailable" 时**整块不渲染**
- *   ⇒ 它是 **ChatGPT 会话输入框**的能力；Codex 线程这边没有挂这个 context。
+ *   ⇒ 它是 **ChatGPT 会话输入框**的能力；Focus 线程这边没有挂这个 context。
  * 结论：本组件**不渲染** [data-composer-expand-toggle]，也**不产出** [data-expanded-composer]，
  *   因此 chat.css 里那批官方搬运规则（--composer-expanded-height / :has([data-expanded-composer])）
  *   在当前产品形态下**不可达** —— 但按 RULINGS R13 **不删**，只在 chat.css 补现况注释。
@@ -87,7 +88,7 @@ import type { ChatStatus } from "./use-chat";
  * 键位：
  *   Enter        = 发送（保持原行为）。官方在**展开态**会把 Enter 语义换成 cmdAlways
  *                  （`setEnterBehavior(_10 ? "cmdAlways" : u10)`，app-primary-2b28b2369958.js）——
- *                  但 Codex 线程 composer 没有展开钮（见上一节判决性采集），这个分支**不可达**；
+ *                  但 Focus 线程 composer 没有展开钮（见上一节判决性采集），这个分支**不可达**；
  *                  且 cmdAlways 的确切键位语义**未实测**，故本实现不擅自改 Enter 语义）
  *   Shift+Enter  = 段内软换行（<br>，等价官方 ProseMirror 的 hardBreak）
  *   粘贴         = 只取 text/plain（官方编辑器是富文本，但本工程没有富文本模型；
@@ -165,7 +166,7 @@ function normalizeEmptyBlock(editor: HTMLElement): HTMLElement {
   for (const other of children) {
     if (other !== block && other.textContent === "") other.remove();
   }
-  if (!block || block.tagName !== "P") {
+  if (block?.tagName !== "P") {
     editor.innerHTML = "";
     block = document.createElement("p");
     editor.appendChild(block);
@@ -219,12 +220,38 @@ function insertSoftBreak() {
   selection.addRange(range);
 }
 
+/** 输入区上方待发送的附件（图片会先由服务端读图再交给 Agent） */
+export interface ComposerAttachment {
+  id: string;
+  name: string;
+  size: number;
+  /** 图片预览（object URL）；非图片为空 */
+  previewUrl?: string;
+  /** 原始文件（发送时上传用；UI 不渲染） */
+  file?: File;
+}
+
 export interface ComposerSelection {
   permission: PermissionMode;
   permissionId: string;
   model: ModelOption;
   /** 强度档（模型面板滑杆 / 第一行切换），默认「Ultra」 */
   effort: string;
+  /** 真实模型列表（缺省 = 参考端 mock，见 options.ts CHAT_MODELS） */
+  models?: ChatModelOption[];
+  /** 真实强度档（缺省 = 参考端 9 档 mock） */
+  efforts?: readonly string[];
+  /** 最高档的标签（用于紫色高亮；缺省 = 参考端 "Ultra"） */
+  maxEffort?: string;
+  /** 模型选择器只读（agent 已绑定模型） */
+  modelLocked?: boolean;
+  modelLockedReason?: string;
+  /** 选择/保存失败时的一行提示（宿主写入） */
+  notice?: string;
+  /** 待发送附件 */
+  attachments?: ComposerAttachment[];
+  onAddFiles?: (files: File[]) => void;
+  onRemoveAttachment?: (id: string) => void;
   project?: Project;
   setPermissionId: (id: string) => void;
   setModelId: (id: string) => void;
@@ -262,6 +289,7 @@ export function Composer({
 }) {
   const [value, setValue] = useState("");
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   // 「发送快捷键」（设置 → 常规）：Enter / Ctrl+Enter 二选一，跟着设置实时变
   const { enterBehavior } = useSettings();
 
@@ -364,7 +392,29 @@ export function Composer({
 
   return (
     <div className={cn("cx-composer", className)} data-status={status}>
-      <div className="cx-composer__attachments" />
+      <div className="cx-composer__attachments" data-empty={selection.attachments?.length ? undefined : ""}>
+        {(selection.attachments ?? []).map((file) => (
+          <span className="cx-attachment" key={file.id} title={file.name}>
+            {file.previewUrl ? (
+              <img alt="" className="cx-attachment__thumb" src={file.previewUrl} />
+            ) : null}
+            <span className="cx-attachment__name">{file.name}</span>
+            <button
+              aria-label={`移除附件 ${file.name}`}
+              className="cx-attachment__remove"
+              onClick={() => selection.onRemoveAttachment?.(file.id)}
+              type="button"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      {selection.notice ? (
+        <p className="cx-composer__notice" role="status">
+          {selection.notice}
+        </p>
+      ) : null}
       <div className="cx-composer__footer">
         <div className="cx-composer__input-row">
           <div className="cx-composer__input">
@@ -436,7 +486,25 @@ export function Composer({
         </div>
 
         <div className="cx-composer__group cx-composer__group--start">
-          <button aria-label="添加文件等内容" className="cx-composer__icon-button" type="button">
+          <input
+            className="cx-composer__file-input"
+            multiple
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              if (files.length > 0) selection.onAddFiles?.(files);
+              event.target.value = "";
+            }}
+            ref={fileInputRef}
+            type="file"
+          />
+          <button
+            aria-label="添加文件等内容"
+            className="cx-composer__icon-button"
+            disabled={!selection.onAddFiles}
+            onClick={() => fileInputRef.current?.click()}
+            title={selection.onAddFiles ? "添加图片或文件（图片会由模型直接读取）" : undefined}
+            type="button"
+          >
             <CodexPlusLg size={20} />
           </button>
           {/* 权限芯片 + 权限菜单弹层（audit #126 #127） */}
@@ -447,7 +515,13 @@ export function Composer({
           {/* 模型芯片 + 模型选择器弹层（audit #123 #124）+ effort 视口（#125） */}
           <ModelPickerChip
             effort={selection.effort}
+            efforts={selection.efforts}
+            locked={!selection.models?.length}
+            modelLocked={selection.modelLocked}
+            modelLockedReason={selection.modelLockedReason}
+            maxEffort={selection.maxEffort}
             model={selection.model}
+            models={selection.models}
             onSelectEffort={selection.setEffort}
             onSelectModel={selection.setModelId}
           />
@@ -468,7 +542,7 @@ export function Composer({
       {/*
         ⚠️ 这里**曾经**挂过展开钮（audit #50）：aria-label 展开/折叠、aria-pressed、
            data-composer-expand-toggle、展开时 data-expanded-composer，外层 absolute end-2.5 top-2.5。
-        本轮官方端实机采集判定它**不存在于 Codex 线程**（见文件头「为什么这里没有展开钮」：
+        本轮官方端实机采集判定它**不存在于 Focus 线程**（见文件头「为什么这里没有展开钮」：
         557 字符 / 39 行草稿下两个选择器 found:false、全页 Expand/Collapse 候选 0 个），
         故整块已移除 —— **不要**再按 audit #50 把它加回来。
         那批官方搬运 CSS 仍留在 chat.css（RULINGS R13 不删），但当前不可达。

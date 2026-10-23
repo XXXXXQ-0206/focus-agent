@@ -10,7 +10,7 @@ import type { SVGProps } from "react";
  *     建议 src/icons 的属主日后把它收编为正式组件。
  *  ⚠️ DisclosureChevron20 —— **形状未实测**。SPEC §13.8：官方折叠箭头 20×20、
  *     path 前缀 `M7.52925 3.7793…`，完整 d 未取到（在 1031 目录之外的自定义内联 SVG）。
- *     这里用等价 20×20 折线占位，**不得**当作"与 Codex 一致"。
+ *     这里用等价 20×20 折线占位，**不得**当作"与 Focus 一致"。
  *  ⚠️ WrapToggleIcon —— **形状未实测**：SPEC §11.1 只确证代码块工具条存在一个
  *     `aria-label="启用自动换行" aria-pressed` 的按钮（36×36），图标名称与路径都未取到。
  *
@@ -86,7 +86,7 @@ export function WrapToggleIcon(props: SVGProps<SVGSVGElement>) {
  * ⚠️ **形状未实测**：代码块工具条的 Preview/Code 切换图标。
  * 官方 chatgpt-code-block-b5d561b77f27.js @41200 只确证按钮存在（aria-label = Preview / Code、
  * size:"imageToolbar"、uniform），图标绑定是 {16:S,20:M} / {assets:{16:L,20:l}} 四个符号，
- * 其 SVG 字面量未取到 ⇒ 这里自绘占位，**不得**当作「与 Codex 一致」。
+ * 其 SVG 字面量未取到 ⇒ 这里自绘占位，**不得**当作「与 Focus 一致」。
  */
 export function PreviewToggleIcon({ preview, ...props }: SVGProps<SVGSVGElement> & { preview?: boolean }) {
   return (

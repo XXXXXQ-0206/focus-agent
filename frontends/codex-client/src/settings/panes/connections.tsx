@@ -21,17 +21,17 @@ import {
 } from "./pane-kit";
 
 /**
- * 连接（官方 slug connections）—— 本工程重做成 **ARTEX 远程连接**。
+ * 连接（官方 slug connections）—— 本工程重做成 **Focus 远程连接**。
  *
  * 官方这页是「ChatGPT 远程控制这台 Mac / 可控制的设备 / SSH / WSL」；本工程没有账号域，
- * 但 ARTEX 有真实的远程通道（server/server.go:970-984），这页就渲染它们：
+ * 但 Focus 有真实的远程通道（server/server.go:970-984），这页就渲染它们：
  *   · 内网会话（`GET /api/sessions`）：id / 平台 / 状态 / 心跳 + 打开内网会话（/intranet）
  *   · 隧道（`GET /api/tunnels`）：监听口 / 类型 / 状态 / 目标 + **拆除**（确认框；真实断隧道）
  *   · 凭据（`GET /api/credentials`）：类型 / 用户名@域 / **脱敏密文**（服务端只给 secret_masked，
  *     本页原样显示，绝不回显明文）
  *
  * ⚠️ 「项目 SSH 直连」**没有做**：后端没有创建 SSH 连接的通道（`rg -i ssh server` 只有
- * 凭据类型 ssh_key 与端口审计里的 22 端口说明，没有连接管理 API）；会话是由 ARTEX 运行时
+ * 凭据类型 ssh_key 与端口审计里的 22 端口说明，没有连接管理 API）；会话是由 Focus 运行时
  * 与内网会话页建立的。所以这里不摆一个点了没用的「新建 SSH 连接」按钮，
  * 只在页面上把这份限制写清楚（用户口径：做不了的不装样子）。
  */
@@ -43,7 +43,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyTunnel, setBusyTunnel] = useState<string | null>(null);
-  // 服务端设置（上游代理 / 流量捕获 / 脚本运行时）—— 与 ARTEX 服务端设置页共用同一套取数保存
+  // 服务端设置（上游代理 / 流量捕获 / 脚本运行时）—— 与 Focus 服务端设置页共用同一套取数保存
   const server = useArtexSettings();
   const [globalProxy, setGlobalProxy] = useState("");
   const [python, setPython] = useState("");
@@ -170,7 +170,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
 
       {/* ── 流量与证据（原「流量与证据」整页）────────────────────────────── */}
       <PaneSection
-        description="记录并代理 ARTEX 任务的 HTTP 流量，并决定证据是否自动关联。"
+        description="记录并代理 Focus 任务的 HTTP 流量，并决定证据是否自动关联。"
         title="流量与证据"
       >
         <PaneCard>
@@ -185,7 +185,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
                 }
               />
             }
-            description="记录并代理 ARTEX 任务的 HTTP 流量。"
+            description="记录并代理 Focus 任务的 HTTP 流量。"
             label="流量捕获"
           />
           <PaneRow
@@ -309,7 +309,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
       >
         <PaneCard>
           {loading && sessions.length === 0 ? (
-            <PaneEmpty description="正在读取 ARTEX 的会话列表。" title="正在加载…" />
+            <PaneEmpty description="正在读取 Focus 的会话列表。" title="正在加载…" />
           ) : sessions.length === 0 ? (
             <PaneEmpty
               description="任务在内网主机上开交互会话后，会显示在这里（代码执行仍在内网会话页里做）。"
@@ -341,7 +341,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
       <PaneSection description={`${String(tunnels.length)} 条隧道路由（拆除会真实断开）`} title="隧道">
         <PaneCard>
           {loading && tunnels.length === 0 ? (
-            <PaneEmpty description="正在读取 ARTEX 的隧道列表。" title="正在加载…" />
+            <PaneEmpty description="正在读取 Focus 的隧道列表。" title="正在加载…" />
           ) : tunnels.length === 0 ? (
             <PaneEmpty description="内网转发建立后，隧道路由会显示在这里。" title="没有隧道" />
           ) : (
@@ -385,7 +385,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
       >
         <PaneCard>
           {loading && credentials.length === 0 ? (
-            <PaneEmpty description="正在读取 ARTEX 的凭据库。" title="正在加载…" />
+            <PaneEmpty description="正在读取 Focus 的凭据库。" title="正在加载…" />
           ) : credentials.length === 0 ? (
             <PaneEmpty description="平台在利用过程中登记成功的凭据会显示在这里。" title="尚无凭据" />
           ) : (

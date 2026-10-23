@@ -59,20 +59,13 @@ update_local(){
   if command -v npm >/dev/null 2>&1; then
     info "重建前端静态产物…"
     ( cd frontends/codex-client && npm ci && npm run build )
-    (
-      cd frontends/artex-web
-      export NEXT_EXPORT=1
-      npm ci
-      npm run build
-    )
-    rm -rf server/webui/dist/codex server/webui/dist/artex
-    mkdir -p server/webui/dist/codex server/webui/dist/artex
+    rm -rf server/webui/dist/codex
+    mkdir -p server/webui/dist/codex
     cp -R frontends/codex-client/dist/. server/webui/dist/codex/
-    cp -R frontends/artex-web/out/. server/webui/dist/artex/
-    info "重新编译内嵌双前端二进制…"
+    info "重新编译内嵌 Focus renderer 二进制…"
     CGO_ENABLED=0 go build -tags embedui -trimpath -o artex ./cmd/artex
   else
-    warn "未检测到 npm：编译**不内嵌前端**的后端（前端需另跑两个 npm run dev）"
+    warn "未检测到 npm：编译**不内嵌前端**的后端（前端需另跑 npm run dev）"
     CGO_ENABLED=0 go build -o artex ./cmd/artex
   fi
   ok "编译完成 → ./artex"

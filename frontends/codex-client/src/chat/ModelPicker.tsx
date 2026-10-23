@@ -45,13 +45,29 @@ import { useRovingMenu } from "./use-roving-menu";
 export function ModelPickerChip({
   className,
   effort,
+  efforts = EFFORT_LEVELS,
+  locked = true,
+  maxEffort = MAX_EFFORT,
+  modelLocked = false,
+  modelLockedReason,
   model,
+  models = CHAT_MODELS,
   onSelectEffort,
   onSelectModel,
 }: {
   className?: string;
   effort: string;
+  /** 强度档（Focus 传真实 low/high/max，缺省是参考端 9 档） */
+  efforts?: readonly string[];
+  /** 是否显示「已锁定，打开访问权限」的说明（参考端有；真实服务商列表没有这回事） */
+  locked?: boolean;
+  /** agent 已绑定模型：列表只读，并显示原因 */
+  modelLocked?: boolean;
+  modelLockedReason?: string;
+  maxEffort?: string;
   model: ChatModelOption | { id: string; label: string; effort?: string };
+  /** 模型列表（Focus 传真实服务商档案） */
+  models?: ChatModelOption[];
   onSelectEffort?: (id: string) => void;
   onSelectModel: (id: string) => void;
 }) {
@@ -67,7 +83,7 @@ export function ModelPickerChip({
     if (!next) setExpanded(false);
   };
 
-  const effortIndex = Math.max(0, EFFORT_LEVELS.indexOf(effort as (typeof EFFORT_LEVELS)[number]));
+  const effortIndex = Math.max(0, efforts.indexOf(effort));
 
   return (
     <PopoverPrimitive.Root onOpenChange={onOpenChange} open={open}>
@@ -80,7 +96,7 @@ export function ModelPickerChip({
           type="button"
         >
           <span className="cx-chip__value cx-chip__value--model">{model.label}</span>
-          <EffortViewport value={effort} />
+          <EffortViewport levels={efforts} maxLevel={maxEffort} value={effort} />
           <CodexChevronDown size={16} />
         </button>
       </PopoverPrimitive.Trigger>
@@ -138,10 +154,10 @@ export function ModelPickerChip({
                   aria-keyshortcuts="ArrowLeft ArrowRight"
                   aria-label="强度"
                   className="cx-mp__slider"
-                  max={EFFORT_LEVELS.length - 1}
+                  max={efforts.length - 1}
                   min={0}
                   onValueChange={([i]) => {
-                    const next = EFFORT_LEVELS[i];
+                    const next = efforts[i];
                     if (next) onSelectEffort?.(next);
                   }}
                   role="menuitem"
@@ -160,20 +176,25 @@ export function ModelPickerChip({
               <div className="cx-mp__list" data-active={expanded}>
                 <p className="cx-mp__hint">使用左右方向键调整强度</p>
                 <p className="cx-mp__list-title">选择模型</p>
-                <div className="cx-mp__notice">
-                  <CodexLock aria-hidden size={16} />
-                  <span>已锁定，打开访问权限</span>
-                </div>
-                <p className="cx-mp__group">选项</p>
-                <p className="cx-mp__group cx-mp__group--sub">默认推荐模型集</p>
-                {CHAT_MODELS.map((option) => (
+                {locked || modelLocked ? (
+                  <div className="cx-mp__notice">
+                    <CodexLock aria-hidden size={16} />
+                    <span>{modelLocked ? (modelLockedReason ?? "该 Agent 已绑定模型") : "已锁定，打开访问权限"}</span>
+                  </div>
+                ) : null}
+                <p className="cx-mp__group">{locked ? "选项" : "服务商"}</p>
+                {locked ? <p className="cx-mp__group cx-mp__group--sub">默认推荐模型集</p> : null}
+                {models.map((option) => (
                   <button
                     aria-checked={option.id === model.id}
                     className="cx-mp__item"
+                    disabled={modelLocked}
                     key={option.id}
                     onClick={() => {
                       onSelectModel(option.id);
-                      if (option.effort) onSelectEffort?.(option.effort);
+                      // 参考端 mock：模型自带强度档，选模型时一起切。
+                      // 真实服务商：强度存在档案里，激活后由 reload 带回，不在这里改（否则会写到旧档案上）。
+                      if (locked && option.effort) onSelectEffort?.(option.effort);
                       setOpen(false);
                     }}
                     role="menuitemradio"

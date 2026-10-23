@@ -3,9 +3,10 @@ const APP_PORT = "8787";
 const APP_PROTOCOL = "http:";
 const APP_ORIGIN = `${APP_PROTOCOL}//${APP_HOST}:${APP_PORT}`;
 
+// 只有一个 renderer：Focus 客户端挂在根路径。旧 /artex/* 只作为
+// 书签兼容入口（服务端 308 重定向到根路径）。
 const UI_ROUTES = Object.freeze({
-  codex: Object.freeze({ path: "/", label: "Codex 风格客户端" }),
-  artex: Object.freeze({ path: "/artex/", label: "原生 ARTEX Web" }),
+  focus: Object.freeze({ path: "/", label: "Focus" }),
 });
 
 function parseURL(rawURL) {
@@ -43,7 +44,7 @@ function isSafeExternalWebURL(rawURL) {
 function uiModeForURL(rawURL) {
   const url = parseURL(rawURL);
   if (!url || !isLocalAppURL(rawURL)) return null;
-  return url.pathname === "/artex" || url.pathname.startsWith("/artex/") ? "artex" : "codex";
+  return "focus";
 }
 
 function hasArtexHealthIdentity(body) {

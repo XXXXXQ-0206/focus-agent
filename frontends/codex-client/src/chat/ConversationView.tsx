@@ -4,11 +4,11 @@ import { CodexScrollToBottom } from "@/icons";
 import { formatTurnDivider } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
-import { Composer } from "./Composer";
+import { isToolOnlyMessage, ToolActivityGroup } from "./ToolActivityGroup";
+import { Composer, type ComposerSelection } from "./Composer";
 import { Message } from "./Message";
 import type { RuntimeMessage } from "./types";
 import { ChatSkeleton } from "./Skeleton";
-import { isToolOnlyMessage, ToolActivityGroup } from "./ToolActivityGroup";
 import { QueuedMessageBar } from "./QueuedMessageBar";
 import { turnChangesOf } from "./turn-changes";
 import type { QueuedMessage } from "./use-follow-up";
@@ -19,7 +19,7 @@ import "./chat.css";
 /**
  * 会话态骨架（官方 blocks-conversation.json 实测复刻）。
  *
- * 这是**唯一的会话骨架**：ARTEX 会话页与 ARTEX 任务会话页都从这里渲染 ——
+ * 这是**唯一的会话骨架**：Focus 会话页与 Focus 任务会话页都从这里渲染 ——
  * 一个骨架、两套数据源，会话页不再各抄一份结构。
  * （2026-10-16 之前还有一套本机会话页共用它，那套运行时已删除，见 ./index.ts 头注释。）
  *
@@ -43,10 +43,12 @@ interface Turn {
 }
 
 /**
- * 一轮里的渲染单元：普通消息，或**连续工具活动的折叠组**。
+ * 一轮里的渲染单元：普通消息，或**连续工具活动的活动组**。
  *
- * 出处：用户 2026-10-15 给的官方截图（Codex 转录里 `✎ 编辑了文件运行了命令 ⌄` 那一行）。
- * 单条工具活动不进组（保持单行），≥2 条连续的折叠成一行 —— 见 ToolActivityGroup.tsx。
+ * 2026-10-20 按用户提供的参考截图恢复分组：
+ *   · 运行中 → 组头「正在思考」并自动展开，逐条列出「已编辑 x +3 -2」「已在 6s 内运行 …」；
+ *   · 完成后 → 组头收成「编辑了文件运行了命令」，点一下可再看明细。
+ * 单条工具活动不进组（保持单行）。
  */
 type RenderUnit =
   | { kind: "message"; key: string; message: RuntimeMessage }
@@ -90,7 +92,7 @@ function toTurns(messages: RuntimeMessage[]): Turn[] {
 }
 
 export interface ConversationViewProps {
-  /** 工作区标题栏标题（原生 = 会话标题；ARTEX = 任务标题 + 状态）。 */
+  /** 工作区标题栏标题（原生 = 会话标题；Focus = 任务标题 + 状态）。 */
   title: ReactNode;
   /** 标题栏右侧动作组（调用方决定有几颗按钮）。 */
   actions?: ReactNode;
@@ -103,17 +105,17 @@ export interface ConversationViewProps {
   loading?: boolean;
   /** 无消息时的空态文案。 */
   emptyText?: string;
-  /** false = 助手消息不渲染复制/重试动作（ARTEX 只读转录用）。 */
+  /** false = 助手消息不渲染复制/重试动作（Focus 只读转录用）。 */
   showMessageActions?: boolean;
   /** 右侧浮层内容；非 null 时 `data-artifact="open"`，整层按官方 contentShift 左移 154。 */
   panel?: ReactNode | null;
-  /** 转录区底部附加内容（ARTEX 的「原始事件」details 放这里）。 */
+  /** 转录区底部附加内容（Focus 的「原始事件」details 放这里）。 */
   contentFooter?: ReactNode;
   /** 输入区下方的附加内容（错误提示等）。 */
   composerFooter?: ReactNode;
-  /** 交付主区替代内容（如 ARTEX 工作台视图）；为空时渲染会话转录。 */
+  /** 交付主区替代内容（如 Focus 工作台视图）；为空时渲染会话转录。 */
   main?: ReactNode | null;
-  /** 追加在 `.cx-conversation` 上的类名（ARTEX 页用它挂任务面板/工作台的专属规则）。 */
+  /** 追加在 `.cx-conversation` 上的类名（Focus 页用它挂任务面板/工作台的专属规则）。 */
   className?: string;
   /**
    * 生成中是否允许「引导发送」（设置 → 常规 → 跟进方式 = 引导）。
@@ -130,6 +132,11 @@ export interface ConversationViewProps {
   onQueuedSteer?: (id: string) => void;
   onQueuedRemove?: (id: string) => void;
   onQueuedEdit?: (id: string) => void;
+  /**
+   * 输入区的选择器状态。缺省 = 参考端 mock（useComposerSelection）。
+   * Focus 会话页传入真实服务商/强度（见 artex/model-selection.ts）。
+   */
+  selection?: ComposerSelection;
 }
 
 export function ConversationView({
@@ -153,11 +160,33 @@ export function ConversationView({
   onQueuedEdit,
   onQueuedRemove,
   onQueuedSteer,
+  selection: selectionProp,
 }: ConversationViewProps) {
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const selection = useComposerSelection();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * 2026-10-20（用户：最下面的内容被输入框遮住、拉不上去）：
+   * 输入浮层是绝对定位的兄弟层，转录区原来的下内距只有 32px，最后一条消息滚到底时正好落在
+   * 输入卡后面。这里把输入卡的真实高度写成 CSS 变量，转录列据此留出等高的下内距
+   * （见 chat.css 的 .cx-thread__content）。用 ResizeObserver 跟住多行输入/排队条的变化。
+   */
+  useEffect(() => {
+    const root = rootRef.current;
+    const composer = composerRef.current;
+    if (!root || !composer) return;
+    const sync = () => {
+      root.style.setProperty("--cx-composer-height", `${Math.ceil(composer.getBoundingClientRect().height)}px`);
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(composer);
+    return () => observer.disconnect();
+  }, []);
+  const fallbackSelection = useComposerSelection();
+  const selection = selectionProp ?? fallbackSelection;
   const turns = useMemo(() => toTurns(messages), [messages]);
   /**
    * 本轮代码改动汇总（右上角那条「N 个文件已更改 +a −d」胶囊）。
@@ -190,7 +219,11 @@ export function ConversationView({
   return (
     <>
       <WorkspaceHeader actions={actions} title={title} />
-      <div className={cn("cx-conversation", className)} data-artifact={panel ? "open" : "closed"}>
+      <div
+        className={cn("cx-conversation", className)}
+        data-artifact={panel ? "open" : "closed"}
+        ref={rootRef}
+      >
         <div className="cx-conversation__main">
           {main ?? (
             <div
@@ -230,7 +263,7 @@ export function ConversationView({
                                 <span className="cx-divider__day">{day}</span> {time}
                               </time>
                             </div>
-                            {/* 连续的工具活动收成一个折叠组（toRenderUnits，出处见其注释） */}
+                            {/* 连续工具活动收成活动组（见 toRenderUnits 注释） */}
                             {toRenderUnits(turn.messages).map((unit) =>
                               unit.kind === "toolgroup" ? (
                                 <ToolActivityGroup key={unit.key} messages={unit.messages} />
@@ -271,7 +304,7 @@ export function ConversationView({
             </div>
           )}
 
-          <div className="cx-conversation__composer">
+          <div className="cx-conversation__composer" ref={composerRef}>
             {/* 回到底部浮钮：容器 = 转录列（768，padding 0 16px），水平居中于转录列；
                 纵向 bottom: calc(100% + 24px)（官方 bottom-[calc(100%+6*var(--spacing))]）。
                 参考端始终在 DOM 里（opacity 0 + pointer-events-none 表示隐藏），这里同构。 */}

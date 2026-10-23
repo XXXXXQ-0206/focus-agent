@@ -18,14 +18,14 @@ import { type ArtexSystemSettings, artexApi } from "./api";
 import "./system-settings.css";
 
 /**
- * ARTEX 服务端设置的分区页（原生设置骨架）。
+ * Focus 服务端设置的分区页（原生设置骨架）。
  *
  * 骨架与其它原生设置页完全一致（见 src/settings/panes/environment.tsx）：
  *   PaneShell（h1 由 SettingsPage 的标题带渲染，这里只出内容列）
  *     → PaneSection（分组标题）→ PaneCard（行 + 发丝分隔线）→ PaneRow/PaneInputRow。
- * 分区的左栏导航来自 src/settings/nav-model.ts 的「ARTEX（服务端）」组，
+ * 分区的左栏导航来自 src/settings/nav-model.ts 的「Focus（服务端）」组，
  * 路由是 /settings/connections（连接与流量）、/settings/artex-agents、/settings/artex-search。
- * 数据一律读写 ARTEX 服务端 /api/settings；本页不模拟保存。
+ * 数据一律读写 Focus 服务端 /api/settings；本页不模拟保存。
  *
  * ⚠️ 2026-10-15：原「流量与证据」（artex-traffic）与「上游连接」（artex-connections）两页
  * **合并进「连接与流量」**（src/settings/panes/connections.tsx，用户提议：这三页是同一条链路）。

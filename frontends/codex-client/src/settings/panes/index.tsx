@@ -43,13 +43,13 @@ export interface SettingsPaneProps {
  * section id → 页面组件。
  *
  * 2026-10-15 第二轮（用户：「这些都做不了吗？有些还是可以的」）后：
- *   · plugins    —— 真实数据页：ARTEX MCP 服务器（添加/编辑/启停/刷新工具/删除）
+ *   · plugins    —— 真实数据页：Focus MCP 服务器（添加/编辑/启停/刷新工具/删除）
  *   · browser    —— **恢复并做成真实页**：内置 Playwright MCP（状态/启停/工具清单/刷新）
  *   · connections—— 真实数据页：内网会话 / 隧道 / 凭据（远程连接的等价物，
  *                    官方『电脑操控』在这套产品里就是它，不再单开一页）
- *   · archived   —— 真实数据页：ARTEX 任务归档（查看/恢复/删除）
+ *   · archived   —— 真实数据页：Focus 任务归档（查看/恢复/删除）
  *   · shortcuts  —— **恢复并做成真绑定页**：命令分发器见 ../commands.ts（改了立刻生效）
- *   · artex-*    —— ARTEX 服务端四个分区
+ *   · artex-*    —— Focus 服务端四个分区
  * 仍然删除的（本工程没有承接能力，逐条理由见 nav-model.ts）：
  *   导入 / 语音 / 配置（并入自定义 API 的「智能体默认」）/ 个性化（并入自定义 API 的
  *   系统提示词与「关于你」）/ Mini 宠物 / 旧版连接（远程设备控制，后端无通道）/

@@ -1,16 +1,16 @@
 {
-  "name": "artex-desktop",
-  "productName": "ARTEX",
+  "name": "focus-agent-desktop",
+  "productName": "Focus",
   "version": "1.0.0",
-  "description": "ARTEX 自主渗透测试平台 · 桌面端（Electron 外壳，参考 dsh-desktop 的组织方式）",
+  "description": "Focus Agent 桌面端（Electron 外壳）",
   "main": "main.js",
   "private": true,
-  "author": "ARTEX",
+  "author": "Focus Agent",
   "license": "AGPL-3.0",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "pack": "electron-packager . --platform=win32 --arch=x64 --out=build --overwrite --asar --icon=assets/artex.ico --app-version=1.0.0 --executable-name=ARTEX"
+    "pack": "electron-packager . --platform=win32 --arch=x64 --out=build --overwrite --asar --icon=assets/artex.ico --app-version=1.0.0 --executable-name=Focus"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

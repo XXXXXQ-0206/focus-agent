@@ -1,6 +1,6 @@
-// ARTEX 桌面端（Electron 外壳）——参考 dsh-desktop 的组织方式：
+// Focus 桌面端（Electron 外壳）：
 //   主进程负责拉起本机后端 + 一个窗口展示控制台 + 托盘图标，单实例。
-// 语义与托盘启动器一致：托盘图标存在 ⇔ ARTEX 在跑；退出时回收后端（只停自己拉起的库）。
+// 语义与托盘启动器一致：托盘图标存在 ⇔ Focus 在跑；退出时回收后端（只停自己拉起的库）。
 const {
   app,
   BrowserWindow,
@@ -38,14 +38,12 @@ let downTicks = 0;
 let everUp = false;
 let ctrl = null;
 let tickTimer = null;
-let currentUI = "codex";
 
-function uiURL(mode = currentUI) {
-  const route = UI_ROUTES[mode] || UI_ROUTES.codex;
-  return `${APP_ORIGIN}${route.path}`;
+function uiURL() {
+  return `${APP_ORIGIN}${UI_ROUTES.focus.path}`;
 }
 
-/** 通过固定本机 origin 读取后端身份；TCP 端口有响应本身不足以证明是 ARTEX。 */
+/** 通过固定本机 origin 读取后端身份；TCP 端口有响应本身不足以证明是 Focus。 */
 function verifyBackendHealth(timeoutMs = 1200) {
   return new Promise((resolve) => {
     const req = http.get(`${APP_ORIGIN}/api/health`, { headers: { Accept: "application/json" } }, (res) => {
@@ -118,7 +116,7 @@ function createWindow() {
     show: false,
     // 与主题一致，避免窗口先白后黑的闪一下
     backgroundColor: dark ? "#0b0b0c" : "#ffffff",
-    title: "ARTEX",
+    title: "Focus",
     icon: ICON_RUNNING,
     /*
      * ★ 2026-10-15（用户：「不要最上面的 windows 自带菜单顶栏」——指 Windows 自己画的那条标题栏）：
@@ -172,22 +170,14 @@ function createWindow() {
     if (!isLocalAppURL(url) && isSafeExternalWebURL(url)) shell.openExternal(url).catch?.(() => {});
     return { action: "deny" };
   });
-  // 页面自身尝试跳出本机 ARTEX origin 时也交给系统浏览器；未知协议或文件路径直接拦截。
+  // 页面自身尝试跳出本机 Focus origin 时也交给系统浏览器；未知协议或文件路径直接拦截。
   win.webContents.on("will-navigate", (event, url) => {
-    const mode = uiModeForURL(url);
-    if (mode) {
-      if (mode !== currentUI) {
-        currentUI = mode;
-        if (tray) rebuildTray(everUp);
-      }
-      return;
-    }
+    if (uiModeForURL(url)) return;
     event.preventDefault();
     if (isSafeExternalWebURL(url)) shell.openExternal(url).catch?.(() => {});
   });
   // 自证：页面加载完成后回报实际生效的主题（免得"看起来是浅色"只能靠肉眼判断）
   win.webContents.on("did-finish-load", async () => {
-    injectUISwitcher();
     try {
       const state = await win.webContents.executeJavaScript(
         "({href: location.href, mode: document.documentElement.getAttribute('data-theme-mode'), dark: document.documentElement.classList.contains('dark'), desktopBridge: Boolean(window.codexDesktop), pickPath: typeof window.codexDesktop?.invoke === 'function'})",
@@ -199,49 +189,6 @@ function createWindow() {
     }
   });
   return win;
-}
-
-/**
- * 在两套 renderer 内都放置一个轻量的可见切换器。
- * 直接改 location.href，不引入 IPC，也不让页面获得主进程能力。
- */
-function injectUISwitcher() {
-  if (!win || win.isDestroyed()) return;
-  const codexActive = currentUI === "codex";
-  const artexActive = currentUI === "artex";
-  const script = `(() => {
-    const old = document.getElementById('artex-ui-switcher');
-    if (old) old.remove();
-    const host = document.createElement('nav');
-    host.id = 'artex-ui-switcher';
-    host.setAttribute('aria-label', '界面切换');
-    /*
-     * ★ 2026-10-15：窗口改成无标题栏（titleBarStyle:"hidden" + titleBarOverlay）之后，
-     *   右上角那片区域被**系统窗口按钮**（最小化/最大化/关闭，高 36 与顶部菜单栏同高）占了，
-     *   原先的 right:16px 会被压在按钮底下 ⇒ 右移到按钮左侧（150px，覆盖 Windows 三个按钮的
-     *   常规宽度），并把纵向位置压到 0、内距收到 2px，让它正好落在 36px 的顶部菜单栏里。
-     */
-    host.style.cssText = 'position:fixed;top:2px;right:150px;z-index:2147483647;display:flex;gap:4px;padding:2px;border:1px solid rgba(128,128,128,.35);border-radius:10px;background:rgba(30,30,30,.86);box-shadow:0 4px 16px rgba(0,0,0,.24);font:12px system-ui,sans-serif;backdrop-filter:blur(8px)';
-    const make = (label, href, active) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = label;
-      button.title = '切换到 ' + label;
-      button.style.cssText = 'border:0;border-radius:7px;padding:5px 9px;color:#eee;background:' + (active ? '#3b82f6' : 'transparent') + ';cursor:' + (active ? 'default' : 'pointer') + ';font:inherit';
-      button.addEventListener('mouseenter', () => { if (!active) button.style.background = 'rgba(255,255,255,.14)'; });
-      button.addEventListener('mouseleave', () => { if (!active) button.style.background = 'transparent'; });
-      if (!active) button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        window.location.href = href;
-      });
-      host.appendChild(button);
-    };
-    make('Codex', ${JSON.stringify(`${APP_ORIGIN}/`)}, ${codexActive});
-    make('ARTEX Web', ${JSON.stringify(`${APP_ORIGIN}/artex/`)}, ${artexActive});
-    document.body.appendChild(host);
-  })()`;
-  win.webContents.executeJavaScript(script, true).catch((err) => log("[ui] switcher injection failed: " + err.message));
 }
 
 function showWindow() {
@@ -259,15 +206,6 @@ function loadUI() {
   win.loadURL(target).catch((err) => log("[window] load failed: " + err.message));
 }
 
-function switchUI(mode) {
-  if (!UI_ROUTES[mode]) return;
-  currentUI = mode;
-  log(`[ui] switch to ${mode}`);
-  if (tray) rebuildTray(everUp);
-  loadUI();
-  showWindow();
-}
-
 function rebuildTray(up) {
   if (tray) {
     tray.destroy();
@@ -275,23 +213,11 @@ function rebuildTray(up) {
   }
   const icon = nativeImage.createFromPath(up ? ICON_RUNNING : ICON_STOPPED);
   tray = new Tray(icon);
-  tray.setToolTip(up ? "ARTEX 正在运行" : "ARTEX 已停止");
+  tray.setToolTip(up ? "Focus 正在运行" : "Focus 已停止");
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "打开当前界面", click: () => showWindow() },
+      { label: "打开 Focus", click: () => showWindow() },
       { type: "separator" },
-      {
-        label: "Codex 风格客户端",
-        type: "radio",
-        checked: currentUI === "codex",
-        click: () => switchUI("codex"),
-      },
-      {
-        label: "原生 ARTEX Web",
-        type: "radio",
-        checked: currentUI === "artex",
-        click: () => switchUI("artex"),
-      },
       { label: "重启", click: () => restart() },
       { type: "separator" },
       { label: "退出", click: () => quit() },
@@ -350,7 +276,7 @@ async function tick() {
     if (everUp) {
       downTicks += 1;
       if (downTicks >= 2) {
-        // 后端真的没了：按"图标存在 ⇔ ARTEX 在跑"的约定收摊
+        // 后端真的没了：按"图标存在 ⇔ Focus 在跑"的约定收摊
         log("[lifecycle] backend down twice, quitting");
         quit();
       }
@@ -424,8 +350,8 @@ if (!app.requestSingleInstanceLock()) {
         "data:text/html;charset=utf-8," +
           encodeURIComponent(
             `<body style="font:14px system-ui;background:#0b0b0c;color:#e5e5e5;padding:32px">
-               <h2>ARTEX 后端没起来</h2>
-               <p>找不到 artex.exe、端口 8787 未就绪，或 /api/health 不是 ARTEX 服务。</p>
+               <h2>Focus 后端没起来</h2>
+               <p>找不到后端可执行文件、端口 8787 未就绪，或 /api/health 不是 Focus 服务。</p>
                <p>请确认安装目录（可用 ARTEX_HOME 指定），然后从托盘菜单「重启」。</p>
              </body>`,
           ),

@@ -33,7 +33,7 @@ export function AboutSection() {
         <SettingsCard>
           <SettingsCardBody>
             <p className="cx-settings-note">
-              官方 Codex Desktop 的设置导航里**没有「关于」分区**（SPEC §6 对账表末行）。
+              官方 Focus Desktop 的设置导航里**没有「关于」分区**（SPEC §6 对账表末行）。
               这一页是本还原工程的附加页，放在「还原工程（附加）」分组里，不冒充官方分区；
               版本与许可证入口在官方那边属于「常规 → 打开源许可证」这一行。
             </p>

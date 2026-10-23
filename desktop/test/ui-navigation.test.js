@@ -50,12 +50,11 @@ test("health response must identify a healthy ARTEX service", () => {
   assert.equal(hasArtexHealthIdentity("x".repeat(8193)), false);
 });
 
-test("UI routes provide both desktop modes", () => {
-  assert.equal(UI_ROUTES.codex.path, "/");
-  assert.equal(UI_ROUTES.artex.path, "/artex/");
-  assert.equal(uiModeForURL(`${APP_ORIGIN}/`), "codex");
-  assert.equal(uiModeForURL(`${APP_ORIGIN}/artex`), "artex");
-  assert.equal(uiModeForURL(`${APP_ORIGIN}/artex/function/tasks?id=1`), "artex");
-  assert.equal(uiModeForURL(`${APP_ORIGIN}/anything`), "codex");
+test("desktop exposes a single Focus renderer", () => {
+  assert.deepEqual(Object.keys(UI_ROUTES), ["focus"]);
+  assert.equal(UI_ROUTES.focus.path, "/");
+  assert.equal(uiModeForURL(`${APP_ORIGIN}/`), "focus");
+  assert.equal(uiModeForURL(`${APP_ORIGIN}/artex`), "focus");
+  assert.equal(uiModeForURL(`${APP_ORIGIN}/function/tasks?id=1`), "focus");
   assert.equal(uiModeForURL("http://localhost:8787/artex/"), null);
 });

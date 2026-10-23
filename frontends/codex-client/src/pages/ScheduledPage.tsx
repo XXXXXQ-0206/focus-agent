@@ -49,7 +49,7 @@ import { EmptyState, RowSkeleton } from "./parts";
  *   inbox.automations.createMenu.options        创建定时任务选项
  *   inbox.automations.createMenu.setUpManually  手动设置
  *   inbox.automations.createWithChatGPT         使用 ChatGPT 创建
- *   inbox.automations.createWithCodex           使用 Codex 创建
+ *   inbox.automations.createWithCodex           使用 Focus 创建
  *   inbox.automations.statusFilter.all/active/paused     全部 / 启用 / 已暂停
  *   inbox.automations.teams.ownershipFilter.option       All / Teams / Personal → 全部 / 团队 / 个人
  *   inbox.automations.teams.personalGroup       个人
@@ -104,7 +104,7 @@ export function ScheduledRoute() {
      （见 docs/RECON-TASK80-BATCH3.md；官方面板顶部只有「定时任务」h1 + 「新建任务」行按钮 + 「即将执行」分区标题）。
      ⇒ 筛选 state（statusFilter/ownership）与随之而来的过滤分支一并撤掉，列表**恒显示全部**。
         · 若将来要保留筛选能力：必须放进**面板**并**另立官方依据**（本轮无依据，不自造）；
-        · 工具条上那个「创建」下拉（手动设置 / 使用 ChatGPT 创建 / 使用 Codex 创建）**已随工具条撤掉**：
+        · 工具条上那个「创建」下拉（手动设置 / 使用 ChatGPT 创建 / 使用 Focus 创建）**已随工具条撤掉**：
           官方没有这个入口；建任务主流程仍可从**面板「新建任务」按钮**与 hero 的「新建任务」进入
           （两处都走同一个 `setDraftName("")`，见本文件 onNewTask）。三个菜单项的去处由 Lead 决定。 */
   const [followUps, setFollowUps] = useState<string[]>([]);
@@ -670,7 +670,7 @@ export function ScheduledRoute() {
                         body    `_ComposerLayoutBody_` 440.33,698 736×98  position relative  **z-index 10**
                         footer  `_ComposerLayoutFooter_` 440.33,712 736×**76**  grid  gap `0 5px`  padding `0 8px`
                         input   `_ComposerLayoutInput_` 440.33,712 736×**44**  margin-bottom 4
-                        editor  `.ProseMirror` 452.33,712 712×**44**  14px/20px  占位「**与 Codex 协作**」
+                        editor  `.ProseMirror` 452.33,712 712×**44**  14px/20px  占位「**与 Focus 协作**」
                       我们**复用** `src/chat/Composer.tsx`（`mode="conversation"`）—— 它的盒子/页脚/编辑器
                       与上面这些官方层**同构**（chat.css 的 .cx-composer 就是 _ComposerLayoutBody_ 的映射），
                       且「贴底 + 浮在会话流之上」在 chat 侧已实现（.cx-composer-column）。
@@ -686,7 +686,7 @@ export function ScheduledRoute() {
                         mode="conversation"
                         onSend={onRunSend}
                         onStop={() => {}}
-                        placeholder="与 Codex 协作"
+                        placeholder="与 Focus 协作"
                         selection={composerSelection}
                         status="idle"
                       />

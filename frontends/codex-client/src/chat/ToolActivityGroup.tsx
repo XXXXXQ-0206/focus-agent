@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { CodexPencil, CodexTerminal } from "@/icons";
 import type { ToolCall } from "@/lib/types";
@@ -8,21 +8,18 @@ import { ActivityDisclosure, ActivityGroup, type ActivityStatus } from "./blocks
 import type { RuntimeMessage } from "./types";
 
 /**
- * 连续的工具调用 → **一个折叠组**（用户 2026-10-15 给的官方截图口径）。
- * ============================================================================
- * 参考截图（Codex 自己的转录）里那一行是：
+ * 连续的工具调用 → **一个可折叠的活动组**（2026-10-20 按用户给的参考截图恢复）。
  *
- *   ✎ 编辑了文件运行了命令 ⌄        ← 组头：一枚 16px 图标 + 各动作词**直接拼接** + 折叠箭头
- *     ▣ 已在 1s 内运行 $npm run build
- *     ✎ 已编辑 index.html +3 -0
- *     …
+ * 参考截图（Focus 转录）：
+ *   ✎ 编辑了文件运行了命令  >              ← 完成态：组头 = 各动作词直接拼接，折叠
+ *   …助手正文…
+ *   正在思考 ⌄                           ← 运行态：组头写「正在思考」，自动展开、逐条列出
+ *     ✎ 已编辑 blocks.css +3 -2
+ *     ▣ 已在 6s 内运行 cd "…"
+ *     ✎ 已创建 check-layout-fixes.mjs +70 -0
  *
- * 即：同一个助手回合里**连续若干条工具活动**收成一行；展开后逐条列出（每条仍是
- * `@/chat/blocks` 的原生行）。单条工具活动**不进组**，仍按原来的单行渲染（截图里
- * "运行了命令" 那种孤立行就是这一形态）。
- *
- * 判定「只含工具活动」的口径（`isToolOnly`）：有 toolCalls、没有正文、没有推理、没有错误、
- * 且不在流式中 —— 任何一条不满足就退回普通消息渲染，避免把文字吞进折叠组里。
+ * 运行中展开、跑完自动收起 —— 这样既能看见正在跑的命令，完成后又不会一直占版面。
+ * 单条工具活动不进组，仍按原来的单行渲染。
  */
 
 /** 一条助手消息是否"只含工具活动"（可进组）。 */
@@ -50,14 +47,28 @@ export function ToolActivityGroup({
   messages: RuntimeMessage[];
   dataTestId?: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const calls = messages.flatMap((message) => message.toolCalls ?? []);
   const blocks = messages.flatMap((message) => messageToBlocks(message));
   const status = groupStatus(calls);
-  // 组头图标取**第一条**工具活动的类别（截图里组头那枚与组内首行同族）。
+  const running = status === "running";
+  // 运行中展开看每条命令；跑完自动收起成一行（用户手动展开后不再被状态变化关掉）。
+  const [expanded, setExpanded] = useState(running);
+  useEffect(() => {
+    setExpanded(running);
+  }, [running]);
+
   const first = calls[0];
   const firstKind = first ? describeToolCall(first).kind : "exec";
   const Icon = firstKind === "exec" ? CodexTerminal : CodexPencil;
+  // 按动作归并：同类只在后面标 ×N（「运行了命令 ×2 · 编辑了文件」比把所有调用数堆在末尾准确）
+  const counts = new Map<string, number>();
+  for (const call of calls) {
+    const label = describeToolCall(call).label;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const summary = running
+    ? "正在思考"
+    : [...counts].map(([label, count]) => (count > 1 ? `${label} ×${String(count)}` : label)).join(" · ");
 
   return (
     <div className="cx-toolgroup" data-testid={dataTestId}>
@@ -68,7 +79,7 @@ export function ToolActivityGroup({
         itemId={`toolgroup-${messages[0]?.id ?? "x"}`}
         onToggle={() => setExpanded((open) => !open)}
         status={status}
-        summary={calls.map((call) => describeToolCall(call).label).join("")}
+        summary={summary}
       >
         <div className="cx-toolgroup__body">
           <ActivityGroup blocks={blocks} spacing="grouped" />

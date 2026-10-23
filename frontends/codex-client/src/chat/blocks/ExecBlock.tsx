@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { CodexTerminal } from "@/icons";
 import { AnsiText } from "./AnsiText";
 import { CopyButton } from "./CopyButton";
@@ -67,6 +65,14 @@ const ACTION_BY_STATUS: Record<ActivityStatus, string> = {
   stopped: "已停止",
 };
 
+/** 有耗时时用参考截图里的措辞：「已在 6s 内运行 <命令>」 */
+function actionFor(status: ActivityStatus, elapsedMs?: number): string {
+  if (status === "completed" && typeof elapsedMs === "number" && elapsedMs > 0) {
+    return `已在 ${Math.max(1, Math.round(elapsedMs / 1000))}s 内运行`;
+  }
+  return ACTION_BY_STATUS[status];
+}
+
 const STATUS_TEXT: Record<ActivityStatus, string> = {
   completed: "成功",
   failed: "失败",
@@ -82,11 +88,10 @@ function statusLabel(status: ActivityStatus, exitCode?: number | null) {
 export function ExecBlock({ block }: { block: ExecNode }) {
   const { command, exitCode, output, shell = "Shell", status } = block;
   /**
-   * 官方 `Jx` 的 `let [b, x] = useState("collapsed")`：**恒从折叠起步**，且这个状态
-   * **与 status 无关**（工具从 running 翻到 completed/stopped 时它不会被动过；官方同样是普通 useState）。
-   * 只有块头按钮（`onToggle`）会翻转它 —— 这就是 R4 要的语义。
+   * 2026-10-20：改用**非受控档**，展开初值取 `block.defaultExpanded`
+   * （适配层对 running 给 true = 边跑边看输出；完成后回落折叠，块头保留「已运行 <命令>」）。
+   * 用户点击仍可随时翻转（ActivityDisclosure 内部按 status 记住用户选择）。
    */
-  const [expanded, setExpanded] = useState(false);
   const fade = useScrollFadeMask<HTMLDivElement>("2rem", { reverse: true });
   const failed = status === "failed";
   const outputCopy = output ?? "";
@@ -95,13 +100,12 @@ export function ExecBlock({ block }: { block: ExecNode }) {
     <ActivityDisclosure
       active={status === "running"}
       bodyVariant="default"
-      expanded={expanded}
+      defaultExpanded={block.defaultExpanded}
       icon={<CodexTerminal size={16} />}
       indent={false}
       itemId={block.id}
-      onToggle={() => setExpanded((open) => !open)}
       status={status}
-      summary={block.summary ?? <ExecSummary action={ACTION_BY_STATUS[status]} command={command} />}
+      summary={block.summary ?? <ExecSummary action={actionFor(status, block.elapsedMs)} command={command} />}
     >
       <div className="cx-exec" data-testid="exec-shell-body">
         <div className="cx-exec__card">

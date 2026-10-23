@@ -16,12 +16,12 @@ import {
 } from "./pane-kit";
 
 /**
- * 归档（官方 slug archived-chats）—— 本工程重做成 **ARTEX 任务归档列表**。
+ * 归档（官方 slug archived-chats）—— 本工程重做成 **Focus 任务归档列表**。
  *
  * 官方这页是 ChatGPT 的「已归档聊天 / 归档所有聊天 / 导出数据」；本工程没有账号域，
- * 但 ARTEX 有真实的冷归档：任务被压成归档包后从活动列表移走，
+ * 但 Focus 有真实的冷归档：任务被压成归档包后从活动列表移走，
  * `GET /api/task-archives` 列出来，`/{id}/restore` 恢复、`DELETE /{id}` 删除
- * （server/server.go:734-741）。所以这一页就是它的 Codex 风格界面：
+ * （server/server.go:734-741）。所以这一页就是它的 Focus 风格界面：
  *   · 列表：任务名 + 原文描述、归档状态/进度、压缩前后体积、归档时间；
  *   · 行内动作：**恢复**（restore，回到活动任务列表）与**删除**（确认框，不可逆）；
  *   · 顶部搜索框按「任务名 / 描述 / 目标」过滤（服务端 ?q=，输入 300ms 去抖）。
@@ -139,7 +139,7 @@ export function ArchivedPane({ section }: SettingsPaneProps) {
           刷新
         </Button>
       }
-      lede="已归档的 ARTEX 任务：归档包在服务端，可恢复回活动列表或删除。"
+      lede="已归档的 Focus 任务：归档包在服务端，可恢复回活动列表或删除。"
       section={section}
       title="归档"
     >
@@ -174,7 +174,7 @@ export function ArchivedPane({ section }: SettingsPaneProps) {
         </div>
         <PaneCard>
           {loading && items.length === 0 ? (
-            <PaneEmpty description="正在读取 ARTEX 的任务归档。" title="正在加载…" />
+            <PaneEmpty description="正在读取 Focus 的任务归档。" title="正在加载…" />
           ) : items.length === 0 ? (
             <PaneEmpty
               description={

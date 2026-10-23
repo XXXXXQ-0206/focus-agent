@@ -12,9 +12,9 @@ import {
 import { ThemeProvider } from "@/app/theme-provider";
 import { artexApi, getAccessToken } from "@/artex";
 import { ArtexSystemPage } from "@/artex/adapted-pages";
+import { ArtexApprovalsPage } from "@/artex/approvals-page";
 import { authRouteDecision } from "@/artex/auth-gate";
 import { ArtexConversationPage, ArtexHomePage, ArtexTaskPage } from "@/artex/codex-adapter";
-import { ArtexApprovalsPage } from "@/artex/approvals-page";
 import { ArtexAgentDetailPage, ArtexAgentsPage, ArtexSystemLogsPage } from "@/artex/system-settings-pages";
 import { ArtexTaskListPage } from "@/artex/task-list-page";
 import { ArtexIntranetPage, ArtexSyncPage, ArtexWorkspacePage } from "@/artex/toolkit-pages";
@@ -28,7 +28,7 @@ import "./app.css";
 
 type AuthRouteState = "loading" | "ready" | "login" | "init" | "offline";
 
-/** ARTEX auth gate; after auth the visual shell is entirely the Codex renderer. */
+/** Focus auth gate; after auth the visual shell is entirely the Focus renderer. */
 function App() {
   return (
     <ThemeProvider>
@@ -70,7 +70,7 @@ function EntryRouter() {
         // a real 401 dispatches `artex:auth-expired` below.
         if (!getAccessToken()) {
           setState("offline");
-          setError(caught instanceof Error ? caught.message : "无法连接 ARTEX 服务");
+          setError(caught instanceof Error ? caught.message : "无法连接 Focus 服务");
         }
       }
     },
@@ -96,7 +96,7 @@ function EntryRouter() {
     void check({ showLoading: !getAccessToken() });
   }, [check]);
 
-  if (state === "loading") return <CenteredState busy label="正在连接 ARTEX 服务" />;
+  if (state === "loading") return <CenteredState busy label="正在连接 Focus 服务" />;
   if (state === "offline") {
     return (
       <CenteredState
@@ -105,7 +105,7 @@ function EntryRouter() {
             <span aria-hidden>↻</span>重试
           </Button>
         }
-        label={error || "ARTEX 服务不可用"}
+        label={error || "Focus 服务不可用"}
       />
     );
   }
@@ -123,7 +123,7 @@ function EntryRouter() {
             队列搬到导轨、策略留在设置），其余四项的数据都是"按任务"的，任务页里仍有各自的视图
             ⇒ 统一回落任务列表。 */}
         <Route element={<Navigate replace to="/function/tasks" />} path="dashboard" />
-        {/* ARTEX 模式对话页：首页选模式发消息 → 建对话 → 落到这里（见 codex-adapter 的
+        {/* Focus 模式对话页：首页选模式发消息 → 建对话 → 落到这里（见 codex-adapter 的
             ArtexConversationPage 头注释）。旧行为是重定向回任务列表，现在换成真实会话视图。 */}
         <Route element={<ArtexConversationPage />} path="c/:conversationId" />
         <Route element={<ArtexTaskPage />} path="task/:taskId" />
@@ -137,7 +137,7 @@ function EntryRouter() {
         <Route element={<Navigate replace to="/function/tasks" />} path="explore" />
         <Route element={<Navigate replace to="/function/tasks" />} path="review" />
         <Route element={<Navigate replace to="/function/tasks" />} path="pull-requests" />
-        {/* 原生设置页：/settings 走默认分区（常规），:section 为分区 slug（含 ARTEX 服务端四个分区）。 */}
+        {/* 原生设置页：/settings 走默认分区（常规），:section 为分区 slug（含 Focus 服务端四个分区）。 */}
         <Route element={<SettingsPage />} path="settings" />
         <Route element={<SettingsPage />} path="settings/:section" />
         {/* 控件库（/controls）：控件标本台，不是设置分区 —— 左栏「还原工程（附加）」里那一行
@@ -159,7 +159,7 @@ function EntryRouter() {
         <Route element={<Navigate replace to="/settings/plugins" />} path="system/mcp" />
         <Route element={<ArtexSystemPage kind="tools" />} path="system/tools" />
         <Route element={<ArtexSystemPage kind="skills" />} path="system/skills" />
-        {/* 旧 ARTEX 设置深链 → 原生设置骨架里的第一个 ARTEX 分区。 */}
+        {/* 旧 Focus 设置深链 → 原生设置骨架里的第一个 Focus 分区。 */}
         <Route element={<Navigate replace to="/settings/artex-traffic" />} path="system/settings" />
         <Route element={<Navigate replace to="/settings/artex-traffic" />} path="system/settings/*" />
         <Route element={<ArtexAgentsPage />} path="system/agents" />
@@ -188,7 +188,7 @@ function CenteredState({ label, busy, action }: { label: string; busy?: boolean;
 }
 
 function LoginPage({ onComplete }: { onComplete: () => void }) {
-  const [username, setUsername] = useState("ARTEX");
+  const [username, setUsername] = useState("Focus");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -212,12 +212,12 @@ function LoginPage({ onComplete }: { onComplete: () => void }) {
       <section className="auth-panel">
         <div className="auth-brand">
           <CodexBlossom size={28} />
-          <span>ARTEX</span>
+          <span>Focus</span>
         </div>
         <div className="auth-heading">
           <p className="auth-kicker">SECURITY WORKSPACE</p>
-          <h1>登录 ARTEX</h1>
-          <p>使用 ARTEX 服务账号继续。</p>
+          <h1>登录 Focus</h1>
+          <p>使用 Focus 服务账号继续。</p>
         </div>
         <form className="auth-form" onSubmit={submit}>
           <label htmlFor="artex-username">
@@ -288,12 +288,12 @@ function InitializePage({ onComplete }: { onComplete: () => void }) {
       <section className="auth-panel">
         <div className="auth-brand">
           <CodexBlossom size={28} />
-          <span>ARTEX</span>
+          <span>Focus</span>
         </div>
         <div className="auth-heading">
           <p className="auth-kicker">FIRST RUN</p>
           <h1>初始化服务</h1>
-          <p>设置本机 ARTEX 管理密码。</p>
+          <p>设置本机 Focus 管理密码。</p>
         </div>
         <form className="auth-form" onSubmit={submit}>
           <label htmlFor="artex-init-password">
@@ -351,9 +351,9 @@ function UnknownRoutePage() {
   return (
     <main className="cx-page artex-route-not-found">
       <section className="cx-page__column">
-        <p className="page-kicker">ARTEX / ROUTE</p>
+        <p className="page-kicker">Focus / ROUTE</p>
         <h1>此页面尚未接入客户端</h1>
-        <p>{location.pathname} 没有对应的 ARTEX 工作区页面。</p>
+        <p>{location.pathname} 没有对应的 Focus 工作区页面。</p>
         <Button onClick={() => navigate("/function/tasks")} variant="surface">
           返回任务
         </Button>

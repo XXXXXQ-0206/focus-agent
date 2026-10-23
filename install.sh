@@ -93,26 +93,19 @@ JSON
   command -v go >/dev/null 2>&1 || die "未检测到 Go，请先安装 Go（>=1.26）：https://go.dev/dl/"
   ok "Go: $(go version)"
 
-  # 内嵌双前端需要 node 先产出两套静态资源。
+  # 内嵌 Focus renderer 需要 node 先产出静态资源。
   if command -v npm >/dev/null 2>&1; then
     info "构建前端静态产物…"
     ( cd frontends/codex-client && npm ci && npm run build )
-    (
-      cd frontends/artex-web
-      export NEXT_EXPORT=1
-      npm ci
-      npm run build
-    )
     # dist 整个被 gitignore,全新克隆下父目录可能不存在,先建再拷。
     mkdir -p server/webui/dist
-    rm -rf server/webui/dist/codex server/webui/dist/artex
-    mkdir -p server/webui/dist/codex server/webui/dist/artex
+    rm -rf server/webui/dist/codex
+    mkdir -p server/webui/dist/codex
     cp -R frontends/codex-client/dist/. server/webui/dist/codex/
-    cp -R frontends/artex-web/out/. server/webui/dist/artex/
-    info "编译内嵌双前端二进制…"
+    info "编译内嵌 Focus renderer 二进制…"
     CGO_ENABLED=0 go build -tags embedui -trimpath -o artex ./cmd/artex
   else
-    warn "未检测到 npm：将编译**不内嵌前端**的后端（前端需另跑两个 npm run dev）"
+    warn "未检测到 npm：将编译**不内嵌前端**的后端（前端需另跑 npm run dev）"
     CGO_ENABLED=0 go build -o artex ./cmd/artex
   fi
   ok "编译完成 → ./artex"

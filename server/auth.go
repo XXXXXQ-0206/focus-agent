@@ -81,13 +81,13 @@ type authClaims struct {
 	jwt.RegisteredClaims
 }
 
-// signJWT issues a 2-hour HS256 access token for user ARTEX, stamped with the
+// signJWT issues a 2-hour HS256 access token for user Focus, stamped with the
 // current auth key version.
 func signJWT(key []byte, ver int64) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, authClaims{
 		Ver: ver,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   "ARTEX",
+			Subject:   "Focus",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -514,7 +514,9 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "请求格式错误")
 		return
 	}
-	if req.Username != "ARTEX" {
+	// Focus is the canonical username. ARTEX remains accepted so existing
+	// installations and API clients keep working after the product rename.
+	if req.Username != "Focus" && req.Username != "ARTEX" {
 		writeErr(w, 401, "用户名或密码错误")
 		return
 	}

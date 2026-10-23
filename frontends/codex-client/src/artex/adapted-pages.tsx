@@ -30,7 +30,7 @@ function text(value: unknown, fallback = "—"): string {
 }
 
 function failure(error: unknown): string {
-  return error instanceof Error ? error.message : "无法加载 ARTEX 数据";
+  return error instanceof Error ? error.message : "无法加载 Focus 数据";
 }
 
 function DataPage({
@@ -63,7 +63,7 @@ function Loading() {
   return (
     <div className="ops-loading" role="status">
       <Spinner size="md" />
-      <span>正在加载 ARTEX 数据</span>
+      <span>正在加载 Focus 数据</span>
     </div>
   );
 }
@@ -115,7 +115,7 @@ function Table({
   );
 }
 
-/** ARTEX task inventory, rendered in the same page surface as operations pages. */
+/** Focus task inventory, rendered in the same page surface as operations pages. */
 export function ArtexTasksPage() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -181,8 +181,8 @@ export function ArtexTasksPage() {
 
   return (
     <DataPage
-      description="查看并继续 ARTEX 的真实自主测试任务。"
-      kicker="ARTEX / FUNCTION"
+      description="查看并继续 Focus 的真实自主测试任务。"
+      kicker="FOCUS / FUNCTION"
       title="任务"
       toolbar={
         <>
@@ -205,7 +205,7 @@ export function ArtexTasksPage() {
       {!error && loading ? <Loading /> : null}
       {!error && !loading && visible.length === 0 ? (
         <EmptyState
-          description="创建任务后，ARTEX 的执行状态和活动会显示在这里。"
+          description="创建任务后，Focus 的执行状态和活动会显示在这里。"
           icon={CodexGrid}
           title="暂无任务"
         />
@@ -243,7 +243,7 @@ export function ArtexTasksPage() {
         open={createOpen}
       >
         <DialogContent
-          description="与 ARTEX 原生新建任务一致：描述是任务正文，目标是 planner 的判据。"
+          description="与 Focus 原生新建任务一致：描述是任务正文，目标是 planner 的判据。"
           footer={
             <>
               <Button onClick={() => setCreateOpen(false)} size="sm" variant="ghost">
@@ -260,7 +260,7 @@ export function ArtexTasksPage() {
               </Button>
             </>
           }
-          title="新建 ARTEX 任务"
+          title="新建 Focus 任务"
         >
           <div className="artex-task-create">
             <label className="artex-task-create__field" htmlFor="artex-task-name">
@@ -305,14 +305,14 @@ export function ArtexTasksPage() {
 }
 
 const SYSTEM_CONFIG: Record<SystemKind, { title: string; description: string }> = {
-  llm: { title: "LLM 配置", description: "读取 ARTEX 当前模型配置与配置池。" },
+  llm: { title: "LLM 配置", description: "读取 Focus 当前模型配置与配置池。" },
   mcp: { title: "MCP 服务器", description: "读取真实 MCP 服务器连接和启用状态。" },
   tools: { title: "工具", description: "查看后端可用工具目录。" },
   skills: { title: "技能", description: "查看后端可用技能及调用统计。" },
   traffic: { title: "流量", description: "查看代理捕获的真实 HTTP 交换。" },
 };
 
-/** Shared renderer for ARTEX system endpoints. Data is always fetched from the API. */
+/** Shared renderer for Focus system endpoints. Data is always fetched from the API. */
 export function ArtexSystemPage({ kind }: { kind: SystemKind }) {
   if (kind === "traffic") return <TrafficPage />;
   return <ArtexSystemDataPage kind={kind} />;
@@ -432,11 +432,11 @@ function resourceBadges(kind: Exclude<SystemKind, "traffic">, row: Row) {
 }
 
 /**
- * ARTEX 系统资源页（/system/llm、/system/mcp、/system/tools、/system/skills）。
+ * Focus 系统资源页（/system/llm、/system/mcp、/system/tools、/system/skills）。
  *
- * 骨架 = Codex 官方「插件」页（src/pages/PluginsPage.tsx）：slate 页头（标题 + 搜索胶囊 + 刷新）
+ * 骨架 = Focus 官方「插件」页（src/pages/PluginsPage.tsx）：slate 页头（标题 + 搜索胶囊 + 刷新）
  * → 副标题行 → 内容列的两列资源行（.cx-res-grid；官方 /plugins 目录行语汇）。
- * 点卡片或「查看详情」打开详情对话框（字段表 + 工具 schema），数据全部来自 ARTEX 服务端，
+ * 点卡片或「查看详情」打开详情对话框（字段表 + 工具 schema），数据全部来自 Focus 服务端，
  * 本页只读，不提供写入（写入在原生设置分区里）。
  */
 function ArtexSystemDataPage({ kind }: { kind: Exclude<SystemKind, "traffic"> }) {
@@ -591,7 +591,7 @@ function ArtexSystemDataPage({ kind }: { kind: Exclude<SystemKind, "traffic"> })
                     </Button>
                   ) : null
                 }
-                description={query ? "调整搜索条件，或清空搜索。" : "ARTEX 服务当前没有返回此类记录。"}
+                description={query ? "调整搜索条件，或清空搜索。" : "Focus 服务当前没有返回此类记录。"}
                 icon={CodexGrid}
                 title={query ? "没有匹配的项目" : "暂无数据"}
               />

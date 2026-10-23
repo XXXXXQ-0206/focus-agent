@@ -34,6 +34,7 @@ import type {
   FindingRetest,
   FindingStats,
   FindingTraffic,
+  ChatAttachment,
   FindingTrafficDetail,
   InterceptApprovalRow,
   InterceptRule,
@@ -133,6 +134,8 @@ const post = <T>(path: string, body?: unknown) =>
   request<T>(path, body === undefined ? { method: "POST" } : { method: "POST", body: JSON.stringify(body) });
 const put = <T>(path: string, body: unknown) =>
   request<T>(path, { method: "PUT", body: JSON.stringify(body) });
+const patch = <T>(path: string, body: unknown) =>
+  request<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 const del = <T>(path: string) => request<T>(path, { method: "DELETE" });
 
 export interface ArtexSystemSettings {
@@ -162,6 +165,8 @@ export type ArtexAgent = Record<string, unknown> & {
   role?: string;
   builtin?: boolean;
   enabled?: boolean;
+  /** 绑定的 LLM 档案（agent 绑定优先于会话 pin 与全局激活） */
+  llm_profile_id?: number | null;
   mcp_count?: number;
   skill_count?: number;
   tool_count?: number;
@@ -308,7 +313,7 @@ export const artexApi = {
     post<ChatResponse>(`/chat?task=${encodeURIComponent(taskId)}`, { message }),
   stopChat: (taskId: string) => post<{ ok: boolean }>(`/tasks/${encodeURIComponent(taskId)}/chat/stop`),
   /**
-   * 对话（= 「模式」会话）。原版站点的对应封装见 frontends/artex-web/src/lib/api.ts:906-937。
+   * 对话（= 「模式」会话）。接口口径沿用迁移前 ARTEX Web 的 API 封装。
    *
    * 语义：`agent_key` 是模式（auto / pentest / 自定义）；发一条消息会在服务端后端起跑
    * 该 agent，步骤落 `conversation_activities`，客户端按 `?since=<游标>` 增量轮询
@@ -324,6 +329,9 @@ export const artexApi = {
       title,
       llm_profile_id: null,
     }),
+  /** 会话级模型 pin（PATCH /conversations/{id}/profile）；null = 清除 */
+  setConversationProfile: (id: number, llmProfileId: number | null) =>
+    patch<{ ok: boolean }>(`/conversations/${id}/profile`, { llm_profile_id: llmProfileId }),
   deleteConversation: (id: number) => del<{ deleted?: number }>(`/conversations/${id}`),
   conversationMessages: (id: number, since = 0) =>
     get<{ items?: Activity[]; cursor?: number; running?: boolean }>(
@@ -333,8 +341,21 @@ export const artexApi = {
       cursor: result.cursor ?? since,
       running: Boolean(result.running),
     })),
-  sendConversationMessage: (id: number, message: string) =>
-    post<{ status?: string }>(`/conversations/${id}/messages`, { message, attachments: [] }),
+  sendConversationMessage: (id: number, message: string, attachments: ChatAttachment[] = []) =>
+    post<{ status?: string }>(`/conversations/${id}/messages`, { message, attachments }),
+  /**
+   * 上传对话附件（图片等）。`id` 用**会话的聊天目录 id**（`conv-<conversationId>`），
+   * 与 server/chatupload.go 的落盘目录（sessions/<id>/uploads）一致。
+   * 服务端会回 `{attachments:[{name,path,size,abs}]}`，原样带进 sendConversationMessage。
+   */
+  uploadChatAttachments: (scope: "task" | "session" | "staging", id: string, files: File[]) => {
+    const body = new FormData();
+    for (const file of files) body.append("file", file);
+    return request<{ attachments?: ChatAttachment[] }>(
+      `/chat/upload?scope=${scope}&id=${encodeURIComponent(id)}`,
+      { method: "POST", body },
+    ).then((result) => result.attachments ?? []);
+  },
   stopConversation: (id: number) => post<{ status?: string }>(`/conversations/${id}/stop`, {}),
   /**
    * 任务归档（冷归档：任务被压成归档包并从活动列表移走）。

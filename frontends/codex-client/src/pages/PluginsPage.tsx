@@ -80,7 +80,7 @@ const SHELL_CAPABILITY_ATTRS = {
  * 文案（官方 defaultMessage / zh-CN 译文）：
  *   skills.appsPage.browseIntro.title            插件
  *   skills.appsPage.browseIntro.subtitle         连接插件，让 ChatGPT 在你的各类工具中协同工作
- *   skills.appsPage.browseIntro.codexSubtitle    Connect plugins to let Codex work across your tools
+ *   skills.appsPage.browseIntro.codexSubtitle    Connect plugins to let Focus work across your tools
  *   skills.appsPage.browseTabs.plugins           Plugins → 插件
  *   skills.appsPage.browseToggle                 Browse plugins or skills → 浏览插件或技能
  *   skills.appsPage.search.plugins               搜索插件

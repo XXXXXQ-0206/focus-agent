@@ -7,7 +7,7 @@ import type { DiffBlockNode, DiffLine } from "./types";
 /**
  * diff / 补丁预览块（SPEC §7，**完整实测**）
  * ============================================================================
- * 官方把 Pierre 的 `<diffs-container>`（open shadow root）挂进来，并把 Codex 覆盖 CSS
+ * 官方把 Pierre 的 `<diffs-container>`（open shadow root）挂进来，并把 Focus 覆盖 CSS
  * 用 `unsafeCSS` 注入 shadow root（SPEC §7.2 已实证）。
  *
  * **我们不复刻 shadow DOM**（task-13 明确要求）：按 SPEC §7.2 的 `:host` 变量

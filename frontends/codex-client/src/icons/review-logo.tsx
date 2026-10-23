@@ -1,5 +1,5 @@
 /**
- * ARTEX · Codex Desktop 官方「代码审查」logo（生成文件，请勿手改）
+ * Focus · Focus Desktop 官方「代码审查」logo（生成文件，请勿手改）
  * =====================================================================
  * 这一支**不是**普通图标：参考端把它渲染成 <mask><image href="data:image/svg+xml,..."></mask>
  * + <rect fill="currentColor" mask="url(#id)">，而不是直接的 <path>。
@@ -30,7 +30,7 @@ export type CodexReviewLogoProps = Omit<SVGProps<SVGSVGElement>, "width" | "heig
   style?: CSSProperties;
 };
 
-/** 代码审查 / Codex 应用标识（参考端运行时实拍，逐字节复刻官方 mask 结构） */
+/** 代码审查 / Focus 应用标识（参考端运行时实拍，逐字节复刻官方 mask 结构） */
 export function CodexReviewLogo({ className, size = 20, style, ...rest }: CodexReviewLogoProps) {
   return (
     <svg

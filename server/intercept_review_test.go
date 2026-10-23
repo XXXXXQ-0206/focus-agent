@@ -51,26 +51,34 @@ func TestReviewCompletionSendsCurrentCallWithoutHistory(t *testing.T) {
 		t.Fatal("review request cannot return a complete explanation")
 	}
 	body := p.request.Messages[0].Content[0].Text
+	const (
+		untrustedPrefix = "<untrusted-data source=\"tool-input\">\n"
+		untrustedSuffix = "\n</untrusted-data>"
+	)
+	if !strings.HasPrefix(body, untrustedPrefix) || !strings.HasSuffix(body, untrustedSuffix) {
+		t.Fatalf("review input is not wrapped as untrusted data: %s", body)
+	}
+	raw := strings.TrimSuffix(strings.TrimPrefix(body, untrustedPrefix), untrustedSuffix)
 	var got intercept.ReviewInput
-	if err := json.Unmarshal([]byte(body), &got); err != nil {
+	if err := json.Unmarshal([]byte(raw), &got); err != nil {
 		t.Fatal(err)
 	}
 	var fields map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(body), &fields); err != nil {
+	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
 		t.Fatal(err)
 	}
 	if len(fields) != 5 {
-		t.Fatalf("unexpected envelope keys: %s", body)
+		t.Fatalf("unexpected envelope keys: %s", raw)
 	}
 	for _, key := range []string{"version", "working_directory", "background", "tool_name", "arguments"} {
 		if _, ok := fields[key]; !ok {
 			t.Fatalf("missing %s", key)
 		}
 	}
-	if strings.Contains(body, "file created") || strings.Contains(body, `"path"`) {
+	if strings.Contains(raw, "file created") || strings.Contains(raw, `"path"`) {
 		t.Fatal("history leaked into actual model request")
 	}
-	if got.Version != 4 || got.Background == nil || got.Background.Source != intercept.BackgroundUserMessage || got.Background.Text != "清理本次测试文件" || got.WorkingDir != "/tmp/review-fixture" || string(got.Arguments) != string(args) || strings.Contains(body, "worker speculation") || strings.Contains(body, "GLOBAL_OVERVIEW_SENTINEL") {
-		t.Fatalf("wrong model input: %s", body)
+	if got.Version != 4 || got.Background == nil || got.Background.Source != intercept.BackgroundUserMessage || got.Background.Text != "清理本次测试文件" || got.WorkingDir != "/tmp/review-fixture" || string(got.Arguments) != string(args) || strings.Contains(raw, "worker speculation") || strings.Contains(raw, "GLOBAL_OVERVIEW_SENTINEL") {
+		t.Fatalf("wrong model input: %s", raw)
 	}
 }

@@ -1,14 +1,14 @@
 /**
- * ARTEX · Codex Desktop 官方图标 · 工具调用与文件（24 个组件）
+ * Focus · Focus Desktop 官方图标 · 工具调用与文件（24 个组件）
  * =====================================================================
- * 生成文件，请勿手改。图形逐字节取自 OpenAI Codex Desktop 官方资产，未做任何重绘、缩放或路径简化；
+ * 生成文件，请勿手改。图形逐字节取自 OpenAI Focus Desktop 官方资产，未做任何重绘、缩放或路径简化；
  * 属性顺序与 d 字符串保持参考端原样（格式化工具不得改动 d 取值）。
  * 每个组件上方 JSDoc 的「出处」标注给出该图标的来源代号：
  *   <官方图标名>        官方图标目录 official-catalog（app-shared-40678a67f0e3.js）
  *   reference-runtime  参考端运行时 DOM 实拍（CDP 9222）
  *   official-source    官方 index.html 内联 SVG
  * 逐字节校验：node src/icons/verify-icons.mjs
- * 来源：Codex Desktop renderer icon source（按域拆分）
+ * 来源：Focus Desktop renderer icon source（按域拆分）
  */
 import type { CodexIconProps } from "./codex-icon-props";
 
@@ -184,7 +184,7 @@ export function CodexCode({ className, size = 16, ...rest }: CodexIconProps) {
   );
 }
 
-/** Codex 模式 — 出处 codex-light-16 · viewBox 0 0 16 16 */
+/** Focus 模式 — 出处 codex-light-16 · viewBox 0 0 16 16 */
 export function CodexGlyph({ className, size = 16, ...rest }: CodexIconProps) {
   return (
     <svg

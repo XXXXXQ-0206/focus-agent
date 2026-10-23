@@ -26,7 +26,7 @@ import type { PlanNode, PlanStep } from "./types";
  *     @13861  onOpenInSidePanel 为 null 时**不渲染**该按钮
  *   图标 = icons-plan.tsx 的三枚官方内联 SVG（逐字节，非重绘）
  *
- * 证据边界（**不得宣称与 Codex 一致**）：
+ * 证据边界（**不得宣称与 Focus 一致**）：
  *   · SPEC §13.4：计划卡的按钮组 **DOM 与几何未实测**。尺寸/圆角由官方类串 + 官方 CSS 推出：
  *     size:"icon" → `electron:p-1` + `[&>svg]:icon-sm`，.icon-sm{width:18px;height:18px}
  *     （shell-shared.css）⇒ **26×26**；radius("icon") → `rounded-full electron:rounded-md`

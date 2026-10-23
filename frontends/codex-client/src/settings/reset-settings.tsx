@@ -23,7 +23,7 @@ import { resetSettings } from "./store";
  * ── 一、官方有没有这个东西？**有**（不是本工程发明）────────────────────────────
  * 证据文件（官方发行产物，可复算）：
  *   `app/webview/assets/general-settings-c429ae79df7c.js` —— 官方的「常规 + 外观」chunk
- *   （本机路径：`C:\Users\熊骞\Documents\Codex\2026-10-09\codex-desktop-unpack\outputs\codex-desktop-electron`）
+ *   （本机路径：`C:\Users\熊骞\Documents\Focus\2026-10-09\codex-desktop-unpack\outputs\codex-desktop-electron`）
  *
  *   · 消息 id **`settings.appearance.resetToDefault`**
  *     defaultMessage `Reset to default`

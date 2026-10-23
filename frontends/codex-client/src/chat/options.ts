@@ -29,6 +29,12 @@ export const EFFORT_LEVELS = ["无", "极低", "轻度", "中", "高", "极高",
  *  + $运行端 token --color-chart-purple = #ad7bf9。参考端芯片当前档就是「Ultra」，截图 ref-06 呈紫色。 */
 export const MAX_EFFORT = "Ultra";
 
+/**
+ * 真实服务商的强度档（Focus 用）：DeepSeek 实测接受 low / high / max；
+ * 「默认」= 不发送 reasoning_effort，由模型自己决定。
+ */
+export const PROVIDER_EFFORT_LEVELS = ["默认", "low", "medium", "high", "xhigh", "max"] as const;
+
 /** 模型面板里的 7 个模型。default = 参考端实测当前档（芯片文字「5.6 Sol」+ effort「Ultra」）。 */
 export interface ChatModelOption extends ModelOption {
   /** 是否属于「默认推荐模型集」分组 */

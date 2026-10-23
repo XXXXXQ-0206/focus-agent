@@ -433,7 +433,6 @@ func (s *Server) pgSendConversationMessage(w http.ResponseWriter, r *http.Reques
 	// renders attachment cards; without, Detail is the full text (Summary is truncated,
 	// so the transcript lazy-loads Detail to show the message untruncated).
 	ua := userActivityWithAttachments(c.AgentKey, msg, req.Attachments)
-	ua.Summary = firstLine(msg, 200)
 	if ua.Detail == "" {
 		ua.Detail = msg
 	}
@@ -454,7 +453,8 @@ func (s *Server) pgSendConversationMessage(w http.ResponseWriter, r *http.Reques
 	// conv-<id>/), matching chatUpload's landing dir and agent/chat.go's sessionWorkDir
 	// — busyKey == convBusyKey(c.ID) == "conv-<id>" == that session id.
 	baseDir := filepath.Join(s.m.dir, "sessions", busyKey)
-	s.runConversation(c, composeAgentMessage(agentMessage, req.Attachments, baseDir), busyKey, msg)
+	images := imageAttachments(req.Attachments, baseDir)
+	s.runConversationWithImages(c, composeAgentMessage(agentMessage, req.Attachments, baseDir), busyKey, images, msg)
 	writeJSON(w, 202, map[string]any{"status": "accepted"})
 }
 
@@ -463,13 +463,20 @@ func (s *Server) pgSendConversationMessage(w http.ResponseWriter, r *http.Reques
 // conversation_activities. Shared by the chat HTTP handler and the P3 scheduler.
 // busyKey clears when the run ends (best-effort in-flight marker).
 func (s *Server) runConversation(c *db.Conversation, msg, busyKey string, userMessage ...string) {
+	s.runConversationWithImages(c, msg, busyKey, nil, userMessage...)
+}
+
+// runConversationWithImages is runConversation plus the images attached to this turn.
+// The images are read by the configured provider before the agent runs (see vision.go);
+// this is the only difference — the agent still gets one text message.
+func (s *Server) runConversationWithImages(c *db.Conversation, msg, busyKey string, images []visionImage, userMessage ...string) {
 	ctx, cancel := s.conversationRunContext(c.ID, busyKey)
 	// Only the human-message handler supplies this field, before adding the
 	// attachment manifest. Scheduler/retest prompts must not be labelled as users.
 	if len(userMessage) == 1 {
 		ctx = intercept.WithReviewContext(ctx, "", intercept.ReviewBackground{Source: intercept.BackgroundUserMessage, Text: userMessage[0]})
 	}
-	go s.runConversationTurn(ctx, cancel, c, msg, busyKey)
+	go s.runConversationTurn(ctx, cancel, c, msg, busyKey, images)
 }
 
 // runConversationSync runs ONE agent turn on a conversation and BLOCKS until the
@@ -478,7 +485,7 @@ func (s *Server) runConversation(c *db.Conversation, msg, busyKey string, userMe
 // for completion before starting the next queued fire for the same agent.
 func (s *Server) runConversationSync(c *db.Conversation, msg, busyKey string) {
 	ctx, cancel := s.conversationRunContext(c.ID, busyKey)
-	s.runConversationTurn(ctx, cancel, c, msg, busyKey)
+	s.runConversationTurn(ctx, cancel, c, msg, busyKey, nil)
 }
 
 // Register cancellation before returning 202, so an immediate stop/delete cannot
@@ -493,7 +500,7 @@ func (s *Server) conversationRunContext(id int64, busyKey string) (context.Conte
 	return ctx, cancel
 }
 
-func (s *Server) runConversationTurn(ctx context.Context, cancel context.CancelCauseFunc, c *db.Conversation, msg, busyKey string) {
+func (s *Server) runConversationTurn(ctx context.Context, cancel context.CancelCauseFunc, c *db.Conversation, msg, busyKey string, images []visionImage) {
 	defer func() {
 		cancel(agent.AbortChatTurnFinished)
 		s.chatMu.Lock()
@@ -575,6 +582,10 @@ func (s *Server) runConversationTurn(ctx context.Context, cancel context.CancelC
 	if ca == nil {
 		finishReason = s.chatUnavailableReason()
 		return
+	}
+	// 图片先由同一份服务商配置读成文本，再交给 agent（SDK 的消息模型没有 image 块）。
+	if len(images) > 0 {
+		msg = s.withVisionReading(ctx, c, msg, images)
 	}
 	pg := s.m.pg
 	maxTurns := s.agentMaxTurns(c.AgentKey)

@@ -7,9 +7,11 @@ import (
 	"strings"
 )
 
-func newDualWebUIHandler(codex, native fs.FS) http.Handler {
-	codexHandler := staticFrontendHandler(codex, true)
-	nativeHandler := staticFrontendHandler(native, false)
+// newWebUIHandler serves the single Focus renderer at /. The original ARTEX Next
+// app is gone; /artex and /artex/* are kept only as permanent redirects so old
+// bookmarks and desktop links still land on Focus.
+func newWebUIHandler(focus fs.FS) http.Handler {
+	handler := staticFrontendHandler(focus, true)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
@@ -20,18 +22,11 @@ func newDualWebUIHandler(codex, native fs.FS) http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if r.URL.Path == "/artex" {
-			http.Redirect(w, r, "/artex/", http.StatusPermanentRedirect)
+		if r.URL.Path == "/artex" || strings.HasPrefix(r.URL.Path, "/artex/") {
+			http.Redirect(w, r, "/", http.StatusPermanentRedirect)
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/artex/") {
-			cloned := r.Clone(r.Context())
-			cloned.URL.Path = strings.TrimPrefix(r.URL.Path, "/artex")
-			cloned.URL.RawPath = ""
-			nativeHandler.ServeHTTP(w, cloned)
-			return
-		}
-		codexHandler.ServeHTTP(w, r)
+		handler.ServeHTTP(w, r)
 	})
 }
 

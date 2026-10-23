@@ -28,7 +28,7 @@ import "./search-dialog.css";
  *
  *  - scrim：color-mix(in srgb, #000 48%, transparent)，140ms 淡入
  *  - dialog：水平居中、top 72px、width min(560px, 100%)、radius 16px、padding 10px
- *  - 结果按 ARTEX 任务 / 设置 / 操作 三类分组，取前 12 条
+ *  - 结果按 Focus 任务 / 设置 / 操作 三类分组，取前 12 条
  *  - 键盘：Esc 关闭、↑↓ 移动、Enter 执行；点 scrim 空白处关闭
  */
 
@@ -142,17 +142,17 @@ export function SearchDialog() {
       .map((task) => ({
         id: `task-${task.id}`,
         label: taskLabel(task),
-        hint: task.status || "ARTEX",
+        hint: task.status || "Focus",
         group: "任务" as const,
         icon: CodexChatBubble,
         run: () => navigate(`/task/${encodeURIComponent(task.id)}`),
       }));
 
-    const taskList: SearchEntry[] = match("ARTEX 任务 任务列表 查看所有任务 全部任务")
+    const taskList: SearchEntry[] = match("Focus 任务 任务列表 查看所有任务 全部任务")
       ? [
           {
             id: "task-list",
-            label: "查看所有 ARTEX 任务",
+            label: "查看所有 Focus 任务",
             hint: "任务列表",
             group: "任务",
             icon: CodexChatBubble,
@@ -297,13 +297,13 @@ export function SearchDialog() {
         <div className="codex-search-dialog__field">
           <CodexSearch size={16} />
           <input
-            aria-label="搜索 ARTEX 任务、设置与操作"
+            aria-label="搜索 Focus 任务、设置与操作"
             className="codex-search-dialog__input"
             onChange={(event) => {
               setQuery(event.target.value);
               setActiveIndex(0);
             }}
-            placeholder="搜索 ARTEX 任务、设置与操作"
+            placeholder="搜索 Focus 任务、设置与操作"
             ref={inputRef}
             value={query}
           />
@@ -318,20 +318,20 @@ export function SearchDialog() {
               role={tasksError ? "alert" : "status"}
             >
               {tasksError
-                ? "ARTEX 任务搜索暂不可用，关闭并重新打开搜索可重试。"
+                ? "Focus 任务搜索暂不可用，关闭并重新打开搜索可重试。"
                 : tasksLoading
-                  ? "正在加载 ARTEX 任务…"
+                  ? "正在加载 Focus 任务…"
                   : "没有匹配结果"}
             </div>
           ) : (
             <>
               {tasksError ? (
                 <div aria-live="assertive" className="codex-search-dialog__empty" role="alert">
-                  ARTEX 任务加载失败，当前只显示设置与操作。
+                  Focus 任务加载失败，当前只显示设置与操作。
                 </div>
               ) : tasksLoading ? (
                 <div aria-live="polite" className="codex-search-dialog__empty" role="status">
-                  正在加载 ARTEX 任务…
+                  正在加载 Focus 任务…
                 </div>
               ) : null}
               {entries.map((entry, index) => {

@@ -1,5 +1,5 @@
 /**
- * ARTEX · Codex Desktop 官方图标集（统一出口）
+ * Focus · Focus Desktop 官方图标集（统一出口）
  * =====================================================================
  * 161 个逐字节复刻的官方图标组件，按 11 个域拆分在同目录的 *.tsx 里；
  * 另含 CodexReviewLogo（官方 <mask><image> 结构，单独一文件原样复刻）
@@ -11,7 +11,7 @@
  *       viewBox 保持官方原值；不发起任何网络请求、不引入新依赖。
  *
  * 逐字节校验：node src/icons/verify-icons.mjs
- * 来源：Codex Desktop renderer icon source
+ * 来源：Focus Desktop renderer icon source
  */
 
 export * from "./brand";

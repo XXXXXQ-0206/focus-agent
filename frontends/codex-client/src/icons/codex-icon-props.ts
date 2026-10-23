@@ -1,11 +1,11 @@
 /**
- * ARTEX · Codex Desktop 官方图标 · 公共 props 类型
+ * Focus · Focus Desktop 官方图标 · 公共 props 类型
  * =====================================================================
  * 生成文件，请勿手改。类型定义与参考端逐字节一致，仅抽出为独立文件供 11 个域文件共享。
  * 约定：{ className?, size? } + SVGProps<SVGSVGElement>；根元素固定 fill="currentColor" /
  *       aria-hidden="true" / focusable="false"；viewBox 保持官方原值。
  * 逐字节校验：node src/icons/verify-icons.mjs
- * 来源：Codex Desktop renderer icon source
+ * 来源：Focus Desktop renderer icon source
  */
 import type { SVGProps } from "react";
 

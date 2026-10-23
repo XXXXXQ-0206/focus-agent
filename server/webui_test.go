@@ -8,20 +8,14 @@ import (
 	"testing/fstest"
 )
 
-func TestDualWebUIRoutesAreIsolated(t *testing.T) {
-	codex := fstest.MapFS{
-		"index.html":            {Data: []byte("codex root")},
-		"assets/app-abc123.js":  {Data: []byte("codex asset")},
-		"assets/app-abc123.css": {Data: []byte("codex style")},
-		"favicon.svg":           {Data: []byte("codex icon")},
+func TestWebUIServesFocusAtRoot(t *testing.T) {
+	focus := fstest.MapFS{
+		"index.html":            {Data: []byte("focus root")},
+		"assets/app-abc123.js":  {Data: []byte("focus asset")},
+		"assets/app-abc123.css": {Data: []byte("focus style")},
+		"favicon.ico":           {Data: []byte("focus icon")},
 	}
-	native := fstest.MapFS{
-		"index.html":                         {Data: []byte("native root")},
-		"function/tasks/detail/index.html":   {Data: []byte("native task detail")},
-		"_next/static/chunks/app-abc123.js":  {Data: []byte("native asset")},
-		"_next/static/chunks/app-abc123.css": {Data: []byte("native style")},
-	}
-	handler := newDualWebUIHandler(codex, native)
+	handler := newWebUIHandler(focus)
 
 	tests := []struct {
 		name        string
@@ -31,14 +25,10 @@ func TestDualWebUIRoutesAreIsolated(t *testing.T) {
 		wantCache   string
 		wantContent string
 	}{
-		{name: "codex root", path: "/", wantStatus: http.StatusOK, wantBody: "codex root", wantCache: "no-cache", wantContent: "text/html"},
-		{name: "codex deep link", path: "/task/42", wantStatus: http.StatusOK, wantBody: "codex root", wantCache: "no-cache", wantContent: "text/html"},
-		{name: "codex hashed asset", path: "/assets/app-abc123.js", wantStatus: http.StatusOK, wantBody: "codex asset", wantCache: "public, max-age=31536000, immutable", wantContent: "javascript"},
-		{name: "native root", path: "/artex/", wantStatus: http.StatusOK, wantBody: "native root", wantCache: "no-cache", wantContent: "text/html"},
-		{name: "native exported deep link", path: "/artex/function/tasks/detail/", wantStatus: http.StatusOK, wantBody: "native task detail", wantCache: "no-cache", wantContent: "text/html"},
-		{name: "native hashed asset", path: "/artex/_next/static/chunks/app-abc123.js", wantStatus: http.StatusOK, wantBody: "native asset", wantCache: "public, max-age=31536000, immutable", wantContent: "javascript"},
-		{name: "missing codex asset", path: "/assets/missing.svg", wantStatus: http.StatusNotFound},
-		{name: "missing native asset", path: "/artex/_next/static/missing.js", wantStatus: http.StatusNotFound},
+		{name: "root", path: "/", wantStatus: http.StatusOK, wantBody: "focus root", wantCache: "no-cache", wantContent: "text/html"},
+		{name: "deep link", path: "/task/42", wantStatus: http.StatusOK, wantBody: "focus root", wantCache: "no-cache", wantContent: "text/html"},
+		{name: "hashed asset", path: "/assets/app-abc123.js", wantStatus: http.StatusOK, wantBody: "focus asset", wantCache: "public, max-age=31536000, immutable", wantContent: "javascript"},
+		{name: "missing asset", path: "/assets/missing.svg", wantStatus: http.StatusNotFound},
 		{name: "API is never a UI fallback", path: "/api/health", wantStatus: http.StatusNotFound},
 	}
 
@@ -62,20 +52,22 @@ func TestDualWebUIRoutesAreIsolated(t *testing.T) {
 	}
 }
 
-func TestNativeRootRedirectsToTrailingSlash(t *testing.T) {
-	handler := newDualWebUIHandler(fstest.MapFS{"index.html": {Data: []byte("codex")}}, fstest.MapFS{"index.html": {Data: []byte("native")}})
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/artex", nil))
-	if response.Code != http.StatusPermanentRedirect {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusPermanentRedirect)
-	}
-	if got := response.Header().Get("Location"); got != "/artex/" {
-		t.Fatalf("Location = %q, want /artex/", got)
+func TestLegacyArtexPathsRedirectToFocus(t *testing.T) {
+	handler := newWebUIHandler(fstest.MapFS{"index.html": {Data: []byte("focus")}})
+	for _, path := range []string{"/artex", "/artex/", "/artex/function/tasks"} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusPermanentRedirect {
+			t.Fatalf("%s: status = %d, want %d", path, response.Code, http.StatusPermanentRedirect)
+		}
+		if got := response.Header().Get("Location"); got != "/" {
+			t.Fatalf("%s: Location = %q, want /", path, got)
+		}
 	}
 }
 
-func TestDualWebUIRejectsMethodsOtherThanGetAndHead(t *testing.T) {
-	handler := newDualWebUIHandler(fstest.MapFS{"index.html": {Data: []byte("codex")}}, fstest.MapFS{"index.html": {Data: []byte("native")}})
+func TestWebUIRejectsMethodsOtherThanGetAndHead(t *testing.T) {
+	handler := newWebUIHandler(fstest.MapFS{"index.html": {Data: []byte("focus")}})
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/", nil))
 	if response.Code != http.StatusMethodNotAllowed {

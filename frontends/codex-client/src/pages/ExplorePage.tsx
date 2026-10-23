@@ -42,10 +42,10 @@ import { Badge, EmptyState, Segmented } from "./parts";
  *
  * 因此本页按「最接近官方设计语言」实现，并在下面逐条标出哪些来自实测、哪些是推导：
  *   · 顶部来源筛选（全部 / 精选 / 常青内容 / 资料库）   ← 实测：官方 Explore feed 的来源筛选
- *   · 分类瓦片（精选 / 上手 Codex / 插件 / 技能 / 定时任务 / 代码审查）
+ *   · 分类瓦片（精选 / 上手 Focus / 插件 / 技能 / 定时任务 / 代码审查）
  *                                                    ← 推导：目的地取自官方 Explore 菜单
- *                                                      （`sidebar.explore.codex` = Codex、
- *                                                       `sidebar.explore.setupCodex` = 设置 Codex）
+ *                                                      （`sidebar.explore.codex` = Focus、
+ *                                                       `sidebar.explore.setupCodex` = 设置 Focus）
  *                                                       与官方分组名 `skills.appsPage.section.*`
  *   · 卡片流（标题 / 说明 / 角标）                     ← 实测形态：官方 Explore feed 是卡片流；
  *                                                      卡片内部几何**未实测**，按 token 推导
@@ -59,10 +59,10 @@ import { Badge, EmptyState, Segmented } from "./parts";
  *
  * 文案（官方 defaultMessage / zh-CN）：
  *   sidebarCustomization.moreMenu       Explore / 探索
- *   sidebar.explore.codex               Codex / Codex
- *   sidebar.explore.setupCodex          Setup Codex / 设置 Codex
+ *   sidebar.explore.codex               Focus / Focus
+ *   sidebar.explore.setupCodex          Setup Focus / 设置 Focus
  *   sidebar.explore.unpinDestination    Unpin from sidebar → 从侧栏取消固定
- *   sidebarOnboardingChecklist.exploreCodex   Explore what Codex can do → 探索 Codex 能做什么
+ *   sidebarOnboardingChecklist.exploreCodex   Explore what Focus can do → 探索 Focus 能做什么
  *   正在加载“探索”动态（Explore feed loading）
  *   出了点问题。（Explore feed 空或失败）
  *   无法加载选项（无卡片时的标题）
@@ -127,7 +127,7 @@ export function ExploreRoute() {
           {/* [task-24] 同 plugins：官方 h1 为 500 24px/28.8px、min-h-9（36px），见 pages.css 的 slate 规则 */}
           <h1>探索</h1>
           <p style={{ margin: "4px 0 0", color: "var(--color-text-secondary)", fontSize: "var(--text-sm)" }}>
-            挑一个方向开始：精选示例、可直接安装的插件，或者让 Codex 按计划跑起来。
+            挑一个方向开始：精选示例、可直接安装的插件，或者让 Focus 按计划跑起来。
           </p>
         </header>
 

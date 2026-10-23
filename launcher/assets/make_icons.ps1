@@ -1,7 +1,7 @@
-# 从 ARTEX 的 PNG 图标生成多尺寸 .ico：artex_app.ico / artex_running.ico / artex_stopped.ico
-# （stopped 版做灰度+压暗处理，用于"ARTEX 已停止"的托盘状态）
+# 从 Focus 图标生成多尺寸 .ico：artex_app.ico / artex_running.ico / artex_stopped.ico
+# （stopped 版做灰度+压暗处理，用于"Focus 已停止"的托盘状态）
 param(
-    [string]$Source = (Join-Path $PSScriptRoot '..\..\frontends\artex-web\public\logo.png'),
+    [string]$Source = (Join-Path $PSScriptRoot '..\..\desktop\assets\artex.ico'),
     [string]$OutDir = $PSScriptRoot
 )
 $ErrorActionPreference = 'Stop'

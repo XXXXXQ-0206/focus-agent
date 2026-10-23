@@ -83,7 +83,7 @@ import { Badge, EmptyState, RowSkeleton, SearchField, Segmented } from "./parts"
  *   codex.pullRequests.inbox.installDescription   Install GitHub CLI to view and manage your pull requests
  *   codex.pullRequests.inbox.setupDescription     Install and sign in with GitHub CLI on {executionHost}, then check again.
  *   codex.pullRequests.inbox.copyInstallCommand   Copy install command → 复制安装命令
- *   codex.pullRequests.inbox.askCodex             Ask Codex → 问 Codex
+ *   codex.pullRequests.inbox.askCodex             Ask Focus → 问 Focus
  *   codex.pullRequests.inbox.checkAgain           Check again → 再检查一次
  *   codex.pullRequests.inbox.credentialLoading    Checking GitHub access → 正在检查 GitHub 访问权限
  *   codex.pullRequests.inbox.retrySetup           Retry → 重试
@@ -94,7 +94,7 @@ import { Badge, EmptyState, RowSkeleton, SearchField, Segmented } from "./parts"
  *   codeReview.sidebar.waitingBadge               等待审查 / draftBadge 草稿
  *   codeReview.sidebar.mergedBadge                已合并 / closedBadge 已关闭
  *   codeReview.menu.*                             关闭 PR / 复制链接 / 转为草稿 / 在 GitHub 中打开 /
- *                                                 固定 PR / 标记为可审查 / 重新打开 / 用 Codex 审查 / 取消固定
+ *                                                 固定 PR / 标记为可审查 / 重新打开 / 用 Focus 审查 / 取消固定
  *   pullRequestDetail.selectPullRequest           选择要查看的 Pull Request
  *   pullRequestDetail.loading                     正在加载 Pull Request 详情
  *   pullRequestDetail.merge.title                 Merge pull request → 合并 Pull Request
@@ -284,7 +284,7 @@ export function ReviewRoute() {
                       再检查一次
                     </Button>
                     <Button size="sm" variant="ghost">
-                      问 Codex
+                      问 Focus
                     </Button>
                   </>
                 }
@@ -457,7 +457,7 @@ export function ReviewRoute() {
                     在 GitHub 中打开
                   </Button>
                   <Button size="sm" variant="ghost">
-                    用 Codex 审查
+                    用 Focus 审查
                   </Button>
                   <Button size="sm" variant="ghost">
                     压缩并合并

@@ -2,7 +2,7 @@
  * 「关于」分区用的版本信息。
  *
  * 出处：codex-desktop-electron/docs/BUILD-INFO.md（解包档案）
- *   · MSIX 包身份：OpenAI.Codex，Version 26.1002.7124.0，x64
+ *   · MSIX 包身份：OpenAI.Focus，Version 26.1002.7124.0，x64
  *   · app/package.json：name=openai-codex-electron，version=26.1002.52244，
  *     electron=42.3.0，Forge/maker-msix 7.11.2，Vite 8.2.0，
  *     codexBuildFlavor=prod，codexBuildNumber=13536

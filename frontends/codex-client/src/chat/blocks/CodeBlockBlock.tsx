@@ -37,7 +37,7 @@ import type { CodeNode } from "./types";
  *           渲染成 <按钮 className="bottom-4" label={该文案} show={…} onClick={回到最新} />
  *   同时官方在预览态隐藏复制/换行按钮：showCopyButton = !streaming && mode !== "preview"
  *
- * 证据边界（**不得宣称与 Codex 一致**）：
+ * 证据边界（**不得宣称与 Focus 一致**）：
  *   · 计划/代码块 UI 无运行时实测（SPEC §13）。**预览窗格与工具的几何未实测**，
  *     这里只搬运官方类串（min-h-24 / aspect-video / w-full overflow-hidden）与文案。
  *   · Scroll to bottom 按钮**自身的尺寸/配色/图标未取到**（官方只给出 bottom-4 与文案）。

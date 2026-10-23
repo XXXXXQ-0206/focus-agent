@@ -34,7 +34,7 @@ export function useTurnNotifications(status: ChatStatus) {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission === "granted") {
       try {
-        new Notification("Codex", { body: "这一轮回答已完成。" });
+        new Notification("Focus", { body: "这一轮回答已完成。" });
       } catch {
         // 某些环境（无系统通知服务的 Linux、Electron 未授权）会抛，忽略即可
       }

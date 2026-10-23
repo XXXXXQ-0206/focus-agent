@@ -58,7 +58,7 @@ export function FileChangeCard({ file }: { file: FileChangeNode }) {
       status="completed"
       summary={
         <>
-          <span className="cx-summary__action">已编辑</span>{" "}
+          <span className="cx-summary__action">{file.created ? "已创建" : "已编辑"}</span>{" "}
           <span className="cx-summary__detail">{file.path}</span>
         </>
       }
@@ -101,7 +101,10 @@ export function FileEditBlock({ block }: { block: FileEditNode }) {
   const { files, status } = block;
   const fade = useScrollFadeMask<HTMLDivElement>("1.5rem");
   const summary =
-    block.summary ?? (files.length === 1 ? `已编辑 ${files[0].path}` : `已编辑 ${files.length} 个文件`);
+    block.summary ??
+    (files.length === 1
+      ? `${files[0].created ? "已创建" : "已编辑"} ${files[0].path}`
+      : `已编辑 ${files.length} 个文件`);
 
   return (
     <ActivityDisclosure

@@ -14,7 +14,7 @@ import type { Conversation, Message } from "./types";
  *
  * 历史：这些「运行期记录」原本来自 `src/chat/runtime` 的 localStorage 索引
  * （2026-10-16 已随直连链路删除）。`mergeConversations()` 这个汇合点保留着 ——
- * 现在侧栏的「最近」由 ARTEX 会话列表与样例数据汇合，形状不变。
+ * 现在侧栏的「最近」由 Focus 会话列表与样例数据汇合，形状不变。
  */
 
 /**

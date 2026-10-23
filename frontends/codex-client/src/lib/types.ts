@@ -2,7 +2,7 @@
  * 领域类型。
  *
  * 命名与字段尽量对齐官方渲染层的概念（thread / turn / item / workspace / project），
- * 但去掉 Codex 专有语义，只保留通用「会话 / 轮次 / 消息」模型。
+ * 但去掉 Focus 专有语义，只保留通用「会话 / 轮次 / 消息」模型。
  */
 
 export interface Project {
@@ -50,6 +50,8 @@ export interface ToolCall {
   /** 展开后的原始输入输出 */
   input?: string;
   output?: string;
+  /** 工具执行耗时（毫秒）；块头显示「已在 Ns 内运行 …」，缺省则不显示 */
+  elapsedMs?: number;
 }
 
 export interface Turn {

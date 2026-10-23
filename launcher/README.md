@@ -1,16 +1,16 @@
-# ARTEX 托盘启动器（Windows 桌面版）
+# Focus 托盘启动器（Windows 桌面版）
 
-把 ARTEX（Go 后端 + 内置前端 + 本机 PostgreSQL）包装成一个桌面应用：
-**托盘图标存在 ⇔ ARTEX 在跑；图标消失 ⇔ 已经关了。**
+把 Focus（Go 后端 + 内置前端 + 本机 PostgreSQL）包装成一个桌面应用：
+**托盘图标存在 ⇔ Focus 在跑；图标消失 ⇔ 已经关了。**
 实现沿用 `dsh-web-launcher` 的 Windows 等价方案：WinForms + 原生 Win32 托盘菜单（Shell_NotifyIcon + DWM 深色菜单）。
 
 ## 核心行为
 
-- **图标即状态**：启动器只在 ARTEX 端口（8787）就绪后才点亮托盘图标；ARTEX 停止后启动器自动退出，图标随之消失。
+- **图标即状态**：启动器只在 Focus 端口（8787）就绪后才点亮托盘图标；Focus 停止后启动器自动退出，图标随之消失。
 - **单实例**：命名互斥量 `Local\ArtexLauncher.Singleton`；重复启动只唤醒已有实例（打开页面），不会出现第二个托盘。
 - **右键菜单只有三项**：打开 / 重启 / 退出。
 - **启动序列**：需要时先拉起本机 PostgreSQL（`pgsql\bin\pg_ctl`，127.0.0.1:5433），再启动 `artex.exe -addr 127.0.0.1:8787 -proxy 127.0.0.1:8788`，就绪后打开浏览器控制台。
-- **退出行为**：关闭标题以 `ARTEX` 开头的浏览器窗口 → 停掉 ARTEX（进程树 + 端口占用者）→ **只停"由启动器拉起"的 PostgreSQL**（你自己手动起的库不动）。
+- **退出行为**：关闭标题以 `Focus` 开头的浏览器窗口 → 停掉 Focus（进程树 + 端口占用者）→ **只停"由启动器拉起"的 PostgreSQL**（你自己手动起的库不动）。
 - **崩溃自愈**：启动阶段进程提前退出会按 4 次上限自动重试；就绪后端口连续两次探测不通则隐藏图标并退出（不留下"假死图标"）。
 
 ## 命令行
@@ -31,10 +31,10 @@
 ```powershell
 pwsh -File build.ps1                 # 依赖本机 .NET 9 运行时，产物约 0.2 MB
 pwsh -File build.ps1 -SelfContained  # 自包含单文件，约 70 MB，换机器可直接跑
-pwsh -File create_shortcut.ps1       # 桌面创建 "ARTEX" 快捷方式
+pwsh -File create_shortcut.ps1       # 桌面创建 "Focus" 快捷方式
 ```
 
-图标由 `assets\make_icons.ps1` 从 `frontends\artex-web\public\logo.png` 生成（运行态彩色 / 停止态灰度，各 7 个尺寸）。
+图标由 `assets\make_icons.ps1` 从 `desktop\assets\artex.ico` 生成（运行态彩色 / 停止态灰度，各 7 个尺寸）。
 
 ## 实测资源占用（本机，空载）
 
@@ -49,4 +49,4 @@ pwsh -File create_shortcut.ps1       # 桌面创建 "ARTEX" 快捷方式
 
 ## 与 dsh-web-launcher 的关系
 
-托盘实现、单实例信号、端口探测、菜单样式都来自 `dsh-web-launcher` 的 Windows 版（CquAutoLogin 同款技术栈），本目录是它的 ARTEX 改写版。
+托盘实现、单实例信号、端口探测、菜单样式都来自 `dsh-web-launcher` 的 Windows 版（CquAutoLogin 同款技术栈），本目录是它的 Focus 适配版。

@@ -1532,7 +1532,7 @@ func skillRelPath(file string) (string, string) {
 	}
 	// 4. Normalize and final safety re-check after Clean.
 	//    filepath.Clean removes redundant separators and resolves single dots.
-	clean := filepath.Clean(file)
+	clean := filepath.ToSlash(filepath.Clean(file))
 	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
 		return "", "invalid path"
 	}

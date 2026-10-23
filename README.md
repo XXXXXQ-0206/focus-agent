@@ -2,16 +2,16 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-Focus Agent 是基于 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 二次开发的自主安全测试平台，采用 Go 后端、Next.js 前端和 PostgreSQL。它保留 ARTEX 的 planner/worker 与双图架构，并扩展了会话管理、内网阶段编排、范围审批和部署工具链。
+Focus Agent 是基于 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 二次开发的自主安全测试平台，采用 Go 后端、React/Vite 客户端和 PostgreSQL。它保留上游的 planner/worker 与双图架构，并扩展了会话管理、内网阶段编排、范围审批和部署工具链。
 
-本仓库是独立维护的 `focus-agent` 项目，不依赖 `focus-harness`。两套前端的来源与启动方式见 [`frontends/README.md`](frontends/README.md)。
+本仓库是独立维护的 `focus-agent` 项目，不依赖 `focus-harness`。产品只有一个 renderer，同一套页面由 Web 与 Electron 两种宿主加载；实现与启动方式见 [`frontends/README.md`](frontends/README.md)。
 
 > **使用范围：**本项目仅供源码学习和本地隔离环境验证。不得用它扫描、探测或测试线上服务及其他联网系统，无论目标归谁所有、是否获得授权。详见[许可与使用限制](#许可与使用限制)。
 
 ## 目录
 
 - [项目概览](#项目概览)
-- [两套前端](#两套前端)
+- [客户端架构](#客户端架构)
 - [功能](#功能)
 - [架构](#架构)
 - [快速开始](#快速开始)
@@ -27,18 +27,18 @@ Focus Agent 是基于 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 二�
 
 Focus Agent 以任务为单位组织安全验证：planner 根据当前态势安排工作，worker 调用已配置的工具，把新发现写回资产图和探索图，再由 planner 决定后续步骤。界面用于管理任务、资产、发现结果、会话、审批和流量记录。
 
-项目以 ARTEX v0.3.10 为开发基线，吸收了部分 v0.3.11 / v0.3.12 更新。它遵循上游的 **AGPL-3.0** 许可证；前端分层和来源见 [`frontends/README.md`](frontends/README.md)。
+项目以 ARTEX v0.3.10 为开发基线，吸收了部分 v0.3.11 / v0.3.12 更新。它遵循上游的 **AGPL-3.0** 许可证；客户端分层和来源见 [`frontends/README.md`](frontends/README.md)。
 
-## 两套前端
+## 客户端架构
 
-Focus Agent 现在保留两套前端，它们共用同一个 Go API，但源码和构建入口彼此独立：
+Focus Agent 只保留一套 renderer：[`frontends/codex-client/`](frontends/codex-client)。同一份 React 页面、状态管理和 API 客户端可在浏览器与 Electron 窗口中运行，差异仅限宿主适配：
 
-| 前端 | 目录 | 状态与用途 |
+| 宿主 | 用途 | 实现 |
 | --- | --- | --- |
-| 类 Codex 风格客户端 | [`frontends/codex-client/`](frontends/codex-client) | **开发中**。默认单体构建嵌入此版本，提供任务对话、Codex 式工作区外壳和实时任务插话。 |
-| 原始 ARTEX Web | [`frontends/artex-web/`](frontends/artex-web) | 从 `artex-ymh/upstream/main@1e0ebcc5b58e69d2b5893578d18dd58a674a9146` 重新提取的传统控制台，保留任务、资产、发现和系统设置等原始页面。 |
+| Web | 在浏览器打开 `http://127.0.0.1:8787/` | Go 服务提供静态资源与 SPA 回落 |
+| Desktop | 常驻托盘的原生窗口 | Electron 加载同一 URL，并提供本机路径选择等白名单能力 |
 
-原始前端不是 Codex renderer 的覆盖替代品。`artex-ymh` 的个人 `origin/main` 已经包含后续 Codex 适配提交，因此这里固定使用 `upstream/main` 的纯 ARTEX Web 快照；来源、启动方式和端口见 [`frontends/README.md`](frontends/README.md)。旧的根目录 Codex Web 已移除，历史路由由 Codex renderer 和 `/artex/` 原生前端共同承接。
+产品界面统一使用 **Focus** 品牌。Go 包名、`/api` 路径、数据库字段和 `ARTEX_HOME` 等是兼容标识，不属于用户界面。旧 `/artex/*` 地址只做永久重定向，不再提供第二套前端。
 
 <details>
 <summary>界面预览</summary>
@@ -68,8 +68,8 @@ Focus Agent 现在保留两套前端，它们共用同一个 Go API，但源码�
 
 ```mermaid
 flowchart LR
-    A[ARTEX Web] --> API[Go API]
-    C[Codex Web（开发中）] --> API
+    A[Focus Web] --> API[Go API]
+    C[Focus Desktop] --> API
     API --> P[Planner]
     P --> I[任务意图]
     I --> W[Worker Agents]
@@ -80,7 +80,7 @@ flowchart LR
     DB --> P
 ```
 
-planner 读取任务态势并生成意图；worker 领取意图、调用工具、记录事实或发现。图数据变化后会唤醒下一轮规划。前端边界见 [`frontends/README.md`](frontends/README.md)。
+planner 读取任务态势并生成意图；worker 领取意图、调用工具、记录事实或发现。图数据变化后会唤醒下一轮规划。宿主边界见 [`frontends/README.md`](frontends/README.md)。
 
 ## 快速开始
 
@@ -99,17 +99,14 @@ docker compose up -d --build
 docker compose logs -f artex
 ```
 
-需要单独运行前端时，先启动 Go 服务，再分别在两个目录启动：
+需要单独运行客户端时，先启动 Go 服务，再启动 renderer：
 
 ```bash
-# 类 Codex 风格客户端（开发中）
+# Focus renderer（Web / Desktop 共用）
 cd frontends/codex-client && npm ci && npm run dev -- --port 3000
-
-# 原始 ARTEX Web
-cd ../artex-web && npm ci && npm run dev -- --port 3001
 ```
 
-两个开发服务器默认都把 `/api/*` 反代到 `http://localhost:8787`；可通过 `AUTOPENTEST_API` 覆盖后端地址。
+开发服务器默认把 `/api/*` 反代到 `http://localhost:8787`；可通过 `AUTOPENTEST_API` 覆盖后端地址。
 
 首次启动时查看日志中的门控入口路径，再按[首次访问](#首次访问)打开界面。
 
@@ -176,7 +173,7 @@ Docker Compose 部署会启动 PostgreSQL。自行运行二进制时，可编辑
 
 | 文档 | 内容 |
 | --- | --- |
-| [`frontends/README.md`](frontends/README.md) | 两套前端的定位、来源、启动与构建方式。 |
+| [`frontends/README.md`](frontends/README.md) | Focus renderer 与 Web、Electron 宿主的启动和构建方式。 |
 | [`HONEYPOT-DETECTION-DESIGN.md`](HONEYPOT-DETECTION-DESIGN.md) | 蜜罐识别与反 AI 蜜罐防护设计。 |
 | [`INTRANET-PIVOT-DESIGN.md`](INTRANET-PIVOT-DESIGN.md) | 内网会话、隧道和阶段移交设计。 |
 | [`CHAINS-INTEGRATION-DESIGN.md`](CHAINS-INTEGRATION-DESIGN.md) | 场景化思维链与发现验证设计。 |
@@ -185,7 +182,7 @@ Docker Compose 部署会启动 PostgreSQL。自行运行二进制时，可编辑
 
 ## 开发与构建
 
-源码构建需要 Go 1.26.3 或更新版本、Node.js 20 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中分别编译 `frontends/codex-client/` 和 `frontends/artex-web/`，再由 Go 宿主分别挂载到 `/` 与 `/artex/`。
+源码构建需要 Go 1.26.3 或更新版本、Node.js 20 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中编译 `frontends/codex-client/`，再由 Go 宿主挂载到 `/`。
 
 <details>
 <summary>从源码构建单体程序</summary>
@@ -195,10 +192,8 @@ git clone https://github.com/XXXXXQ-0206/focus-agent.git
 cd focus-agent
 
 cd frontends/codex-client && npm ci && npm run build && cd ../..
-cd frontends/artex-web && npm ci && NEXT_EXPORT=1 npm run build && cd ../..
-mkdir -p server/webui/dist/codex server/webui/dist/artex
+mkdir -p server/webui/dist/codex
 cp -r frontends/codex-client/dist/. server/webui/dist/codex/
-cp -r frontends/artex-web/out/. server/webui/dist/artex/
 
 CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 cp config.example.json config.json
@@ -209,14 +204,6 @@ cp config.example.json config.json
 Ubuntu 18.04 的 glibc 版本低于 Node.js 官方构建要求；这类旧系统需要选用兼容构建或升级系统。国内网络环境可能需要为 Git、npm、Go 模块和 Docker 配置代理或镜像。
 
 </details>
-
-原始 ARTEX Web 的独立构建：
-
-```bash
-cd frontends/artex-web
-npm ci
-npm run build:static
-```
 
 Linux 服务器也可使用 [`packaging/artex.service`](packaging/artex.service) 交由 systemd 管理。部署前请先检查服务监听范围、门控、回连地址和本机密钥权限。
 

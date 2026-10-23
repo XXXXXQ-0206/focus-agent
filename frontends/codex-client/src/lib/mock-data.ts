@@ -21,7 +21,7 @@ import type { Conversation, Message, ModelOption, PermissionMode, Project } from
  */
 export const PROJECTS: Project[] = [
   // { id: "p1", name: "codex-desktop-src", path: "C:/Users/you/Desktop/codex-desktop-src", pinned: true },
-  // { id: "p2", name: "artex-web", path: "C:/Users/you/repos/artex-web" },
+  // { id: "p2", name: "focus-agent", path: "C:/Users/you/repos/focus-agent" },
 ];
 
 function minutesAgo(minutes: number) {

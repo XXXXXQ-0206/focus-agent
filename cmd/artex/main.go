@@ -1,4 +1,4 @@
-// Command artex runs the ARTEX backend: the PostgreSQL stores (asset graph +
+// Command artex runs the Focus backend: the PostgreSQL stores (asset graph +
 // per-task exploration graphs), the event-driven exploration engine, and the
 // JSON HTTP API consumed by the shadcn/ui frontend. SQLite survives only as
 // the traffic recorder's local index (see traffic/).
@@ -52,6 +52,10 @@ func main() {
 }
 
 func run() int {
+	// Windows：桌面端以 windowsHide 拉起时本进程没有控制台，命令工具的子进程会各自
+	// 新建可见黑窗 ⇒ 先分配一个隐藏控制台，让子进程继承（见 console_windows.go）。
+	ensureHiddenConsole()
+
 	// `artex doctor` 部署预检（期 6)：只读检查，在解析服务 flag / 起任何子系统之前分流。
 	if len(os.Args) > 1 && os.Args[1] == "doctor" {
 		return runDoctor(os.Args[2:])
@@ -143,7 +147,7 @@ func run() int {
 	}
 
 	go func() {
-		log.Printf("ARTEX %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
+		log.Printf("Focus %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("serve: %v", err)
 		}

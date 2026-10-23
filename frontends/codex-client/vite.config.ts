@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// Codex Desktop 渲染层原本是 Vite 8（Rolldown）构建的，这里保持同一代构建链。
+// Focus renderer 沿用 Vite 8（Rolldown）构建链。
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -13,20 +13,12 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 3000,
-    // Do not silently move to 3001/3002 when another Vite process is running.
-    // The dual-frontend dev script reserves 3000 for this renderer and 3001
-    // for the native ARTEX frontend; fallback ports make the browser connect
-    // to a different HMR graph and appear to flash/reload indefinitely.
+    // Do not silently move to another port when another Vite process is
+    // running. A fallback port would create a second HMR graph and make the UI
+    // appear to flash or reload indefinitely.
     strictPort: true,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8787",
-        changeOrigin: false,
-      },
-      // Native ARTEX pages are mounted below /artex by the Go dual-UI host.
-      // Proxying this prefix in dev keeps the Codex renderer's fallback route
-      // on the same origin without feeding /artex/* back into Vite's SPA.
-      "/artex": {
         target: "http://127.0.0.1:8787",
         changeOrigin: false,
       },

@@ -1,5 +1,5 @@
 /**
- * ARTEX · 会话块（conversation activity blocks）· 对外 barrel
+ * Focus · 会话块（conversation activity blocks）· 对外 barrel
  * ============================================================================
  * 真值来源：docs/SPEC-CONVERSATION-BLOCKS.md（SPEC）。
  * 本目录是 task-13「A · 对话块实现」的**独占写范围**，不依赖也不修改 src/chat 下的其它文件
@@ -17,7 +17,7 @@
  *   import { ActivityGroup, type BlockNode } from "@/chat/blocks";
  *   <ActivityGroup blocks={nodes} spacing="item" />
  *
- * 每块的证据强度（**不要越级宣称"与 Codex 一致"**）
+ * 每块的证据强度（**不要越级宣称"与 Focus 一致"**）
  * -----------------------------------------------
  *   完整实测（DOM + computed style + 交互态）：exec(§4) / file-edit(§6) / diff(§7) / code(§11) / 骨架(§2)
  *   包内确证（源码字面量，未在真实会话跑到）：reasoning(§3) / 终端 ANSI(§5)

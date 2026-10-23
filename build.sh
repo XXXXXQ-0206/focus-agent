@@ -15,7 +15,7 @@
 #   ARTEX_PACKAGE_DIR=dist            Directory for release archives.
 #   ARTEX_COMPRESS=off                UPX mode: off, auto, or required.
 #   ARTEX_UPX_ARGS="--best --lzma"    Arguments passed to UPX.
-#   ARTEX_SKIP_FRONTEND=1             Reuse server/webui/dist/{codex,artex} (for CI artifact builds).
+#   ARTEX_SKIP_FRONTEND=1             Reuse server/webui/dist/codex (for CI artifact builds).
 #   ARTEX_SKIP_NPM_CI=1               Skip npm ci while rebuilding the frontend.
 #   ARTEX_GOSUMDB=sum.golang.org      Go checksum database.
 set -euo pipefail
@@ -123,28 +123,14 @@ sync_frontend_tree() {
 
 if [ "${ARTEX_SKIP_FRONTEND:-0}" = "1" ]; then
   [ -f server/webui/dist/codex/index.html ] || die "ARTEX_SKIP_FRONTEND=1 但 server/webui/dist/codex/index.html 不存在"
-  [ -f server/webui/dist/artex/index.html ] || die "ARTEX_SKIP_FRONTEND=1 但 server/webui/dist/artex/index.html 不存在"
 else
   command -v npm >/dev/null 2>&1 || die "未检测到 npm（前端静态构建需要 Node.js/npm）"
-  info "构建 Codex renderer"
+  info "构建 Focus renderer"
   if [ "${ARTEX_SKIP_NPM_CI:-0}" != "1" ]; then
     (cd frontends/codex-client && npm ci)
   fi
   (cd frontends/codex-client && npm run build)
   sync_frontend_tree frontends/codex-client/dist server/webui/dist/codex
-
-  info "构建原生 ARTEX 前端"
-  if [ "${ARTEX_SKIP_NPM_CI:-0}" != "1" ]; then
-    (cd frontends/artex-web && npm ci)
-  fi
-  # Set the export flag in the shell environment so this also works on Windows
-  # when the script is run through Git Bash (npm scripts do not parse `VAR=...`).
-  (
-    cd frontends/artex-web
-    export NEXT_EXPORT=1
-    npm run build
-  )
-  sync_frontend_tree frontends/artex-web/out server/webui/dist/artex
 fi
 
 compress_binary() {

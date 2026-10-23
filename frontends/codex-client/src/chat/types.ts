@@ -8,7 +8,7 @@ import type { ErrorNode } from "./blocks";
  * 来历：2026-10-16 清掉本工程早期的本机会话运行时（`src/chat/runtime/**` 的状态机、
  * `src/api/**` 的直连客户端、未挂路由的 ChatHome / ChatConversation）时，从
  * `runtime/types.ts` 里保留下来的**唯一还活着的一部分** —— 渲染侧（ConversationView /
- * Message / ToolActivityGroup / turn-changes）与 ARTEX 桥接侧（artex/codex-adapter）都用它。
+ * Message / ToolActivityGroup / turn-changes）与 Focus 桥接侧（artex/codex-adapter）都用它。
  *
  * 关键约定：`RuntimeMessage` **继承** `@/lib/types` 的 `Message`，
  * 所以 `src/chat/Message.tsx` / `Markdown.tsx` 不用改一行就能渲染真实消息；

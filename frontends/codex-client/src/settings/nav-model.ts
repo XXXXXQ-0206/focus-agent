@@ -92,14 +92,14 @@ export interface SettingsNavGroup {
  *
  * 官方其余 6 条（导入 / Archived chats / 语音 / 配置 / 个性化 / Mini 与虚拟宠物）删除理由：
  *   导入        —— 官方从 ChatGPT/其他 AI 应用导入设置与聊天；本工程没有账号域可导
- *   Archived chats —— 官方是 ChatGPT 已归档聊天；本工程的等价物是 **ARTEX 任务归档**
+ *   Archived chats —— 官方是 ChatGPT 已归档聊天；本工程的等价物是 **Focus 任务归档**
  *                     （`/api/task-archives`），所以**重做**成『归档』页而不是删掉入口
  *   语音        —— 实时语音/听写；本工程没有音频采集与 STT 通道
  *   配置(agent) —— **并入「自定义 API → 智能体默认」**（用户 2026-10-15 指定）：
  *                  官方那页里本工程能承接的部分 = 模型默认参数（推理强度）
  *                  + 提示词相关（系统提示词、关于你）；审批策略/沙盒/网络访问在本客户端
  *                  **没有执行侧**（请求不落本机执行），所以不搬来这里假装，改在页内指路
- *                  （ARTEX 侧的真实审批在「审批」页与节点拦截规则里）
+ *                  （Focus 侧的真实审批在「审批」页与节点拦截规则里）
  *   个性化      —— **并入「自定义 API」**：自定义指令 = 系统提示词（已有），
  *                  新增「关于你（背景与偏好）」会追加进同一条 system 消息
  *   Mini 宠物   —— 与产品无关（用户点名删除）
@@ -123,7 +123,7 @@ const PERSONAL_ITEMS: SettingsNavItem[] = [
     icon: CodexArchive,
     iconSource:
       "未解析：目视归档盒，候选 archive-light-16（SPEC §3 #4 / §8.6）；代用官方 archive-light-16 图形（src/icons CodexArchive）",
-    description: "已归档的 ARTEX 任务（恢复 / 删除）",
+    description: "已归档的 Focus 任务（恢复 / 删除）",
   },
   {
     slug: "shortcuts",
@@ -138,7 +138,7 @@ const PERSONAL_ITEMS: SettingsNavItem[] = [
 
 /**
  * 集成组 —— **插件 / 浏览器 / 连接**。
- *   插件    重做成真实数据页：ARTEX 的 MCP 服务器（/api/mcp：添加、编辑、启停、删除、刷新工具）
+ *   插件    重做成真实数据页：Focus 的 MCP 服务器（/api/mcp：添加、编辑、启停、删除、刷新工具）
  *   浏览器  2026-10-15 恢复并做成**真实页**：内置的 Playwright MCP（后端种入的 `browser`
  *           服务器，抓包开启时自动接代理 + CA）——状态/启停/工具清单/刷新都是真接口
  *   连接    真实数据页：远程连接 —— 内网会话（/api/sessions）、隧道（/api/tunnels）、
@@ -169,19 +169,19 @@ const INTEGRATION_ITEMS: SettingsNavItem[] = [
  * 编码组（官方 6 条，**整组删除**）。
  *
  * 官方这 6 项全部是「本地编码代理」域的能力，本工程没有任何一个能落到真实动作上：
- *   钩子      没有钩子执行引擎（官方接的是 Codex 宿主生命周期）
+ *   钩子      没有钩子执行引擎（官方接的是 Focus 宿主生命周期）
  *   连接      官方是 ChatGPT 远程设备/SSH/WSL 控制；本工程的对应物是
- *             「ARTEX（服务端）→ 连接」（上游代理/解释器）与内网会话页
+ *             「Focus（服务端）→ 连接」（上游代理/解释器）与内网会话页
  *   代码审查  需要仓库托管与拉取请求通道
  *   Git      需要托管工作树/分支前缀/PR 指引的执行侧
  *   环境      需要本地环境脚本与工作树
  *   Worktrees 同上
  * ⇒ 留着只能是「长得像、点了没用」的假开关，按用户口径删除（git 历史里可查回）。
  * 2026-10-15 复核（用户：「这些都做不了吗？」）后仍然全部删除，逐条给出**为什么不能真做**：
- *   钩子      没有生命周期宿主（官方钩子挂在 Codex 宿主的工具调用/提交事件上）
- *   代码审查  需要仓库托管 + 拉取请求通道，ARTEX 没有
+ *   钩子      没有生命周期宿主（官方钩子挂在 Focus 宿主的工具调用/提交事件上）
+ *   代码审查  需要仓库托管 + 拉取请求通道，Focus 没有
  *   Git       同上：没有工作树/分支/推送的执行侧
- *   环境      官方是"每个项目的工作树初始化/清理脚本"；本工程的对应物是 ARTEX 侧的
+ *   环境      官方是"每个项目的工作树初始化/清理脚本"；本工程的对应物是 Focus 侧的
  *             python 解释器与工作区设置（已在「上游连接」+ 工作区页），不重复造
  *   Worktrees 依赖 Git
  *   连接(旧)  远程设备控制需要账号域与配对通道；本工程的远程连接是内网会话（已在「连接」页）
@@ -214,7 +214,7 @@ const ARTEX_ITEMS: SettingsNavItem[] = [
     slug: "artex-agents",
     label: "Agent 运行",
     icon: Bot,
-    iconSource: "ARTEX 服务端分区（非官方 Codex 分区）；lucide Bot",
+    iconSource: "ARTEX 服务端分区（非官方 Focus 分区）；lucide Bot",
     description: "约束注入、并发上限与 LLM 故障转移",
     additional: true,
   },
@@ -233,7 +233,7 @@ const ARTEX_ITEMS: SettingsNavItem[] = [
     slug: "connections",
     label: "连接与流量",
     icon: Network,
-    iconSource: "ARTEX 服务端分区（非官方 Codex 分区）；lucide Network（原「上游连接」图标）",
+    iconSource: "ARTEX 服务端分区（非官方 Focus 分区）；lucide Network（原「上游连接」图标）",
     description: "上游代理、流量捕获、内网会话、隧道、凭据与脚本运行时",
     additional: true,
   },
@@ -263,7 +263,7 @@ const ARTEX_ITEMS: SettingsNavItem[] = [
     slug: "artex-search",
     label: "网络搜索",
     icon: Search,
-    iconSource: "ARTEX 服务端分区（非官方 Codex 分区）；lucide Search",
+    iconSource: "ARTEX 服务端分区（非官方 Focus 分区）；lucide Search",
     description: "搜索 provider、访问代理与 API Key",
     additional: true,
   },
@@ -296,7 +296,7 @@ const ADDITIONAL_ITEMS: SettingsNavItem[] = [
 export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   { id: "personal", label: "个人", items: PERSONAL_ITEMS },
   { id: "integrations", label: "集成", items: INTEGRATION_ITEMS },
-  { id: "artex", label: "ARTEX（服务端）", items: ARTEX_ITEMS, additional: true },
+  { id: "artex", label: "Focus（服务端）", items: ARTEX_ITEMS, additional: true },
   { id: "restored", label: "还原工程（附加）", items: ADDITIONAL_ITEMS, additional: true },
 ].filter((group) => group.items.length > 0);
 

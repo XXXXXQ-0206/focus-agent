@@ -1,13 +1,13 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * 当前 ARTEX「模式」（= 对话 agent key，如 `auto` / `pentest`）。
+ * 当前 Focus「模式」（= 对话 agent key，如 `auto` / `pentest`）。
  *
- * 口径（对应原版站点 frontends/artex-web/src/app/(main)/chat/page.tsx:384：
+ * 口径（对应迁移前的 ARTEX Web 聊天页：
  * `if (!agentKey && agents.some(a => a.key === "auto")) setAgentKey("auto")`）：
  *   · 默认 `auto`；
  *   · 选择落在本机 `localStorage`（键 `codex.artex.mode`），刷新/重启客户端后保持；
- *     原版站点每次进页面都回到 Auto —— 这里是**有意**的 Codex 式增强（选择要能记住），
+ *     原版站点每次进页面都回到 Auto —— 这里是**有意**的 Focus 式增强（选择要能记住），
  *     已在验收记录里声明为偏差；
  *   · 读取时不做 agent 合法性校验（agent 列表要联网取），由调用方在列表到手后回落：
  *     存着的 key 不在列表里 ⇒ 显示 Auto / 列表首项，并把选择写回。
