@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ComposerSelection } from "@/chat/Composer";
-import {
-  CHAT_PERMISSIONS,
-  type ChatModelOption,
-  DEFAULT_PERMISSION_ID,
-  PROVIDER_EFFORT_LEVELS,
-} from "@/chat/options";
+import { type ChatModelOption, providerEffortLevels } from "@/chat/options";
 
 import { type ArtexAgent, artexApi } from "./api";
 import type { LLMProfile } from "./types";
@@ -25,7 +20,7 @@ import type { LLMProfile } from "./types";
  * 只发一个字段会把 rate/priority/retry 等清空，所以 payload 必须带齐。
  */
 
-const DEFAULT_EFFORT = PROVIDER_EFFORT_LEVELS[0]; // 「默认」
+const DEFAULT_EFFORT = "默认";
 
 function effortLabel(raw?: string): string {
   const value = (raw ?? "").trim();
@@ -90,7 +85,6 @@ export function useArtexComposerSelection(
 ): ArtexComposerSelection {
   const [profiles, setProfiles] = useState<LLMProfile[]>([]);
   const [agents, setAgents] = useState<ArtexAgent[]>([]);
-  const [permissionId, setPermissionId] = useState(DEFAULT_PERMISSION_ID);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -154,6 +148,10 @@ export function useArtexComposerSelection(
   );
 
   const effort = effortLabel(activeProfile?.reasoning_effort);
+  const efforts = useMemo(() => {
+    const levels = providerEffortLevels(activeProfile);
+    return levels.includes(effort) ? levels : [...levels, effort];
+  }, [activeProfile, effort]);
 
   const setModelId = useCallback(
     (id: string) => {
@@ -181,7 +179,7 @@ export function useArtexComposerSelection(
 
   const setEffort = useCallback(
     (next: string) => {
-      if (!activeProfile || savingRef.current) return;
+      if (!activeProfile || modelLocked || savingRef.current) return;
       savingRef.current = true;
       options.onError?.("");
       const raw = next === DEFAULT_EFFORT ? "" : next;
@@ -202,16 +200,12 @@ export function useArtexComposerSelection(
           setSaving(false);
         });
     },
-    [activeProfile, options.onError, reloadProfiles],
+    [activeProfile, modelLocked, options.onError, reloadProfiles],
   );
 
-  const permission = CHAT_PERMISSIONS.find((option) => option.id === permissionId) ?? CHAT_PERMISSIONS[0];
   const setProjectId = useCallback(() => {}, []);
 
   return {
-    permission,
-    permissionId,
-    setPermissionId,
     model: {
       id: activeProfile ? String(activeProfile.id) : "",
       label: activeProfile?.model || options.resolvedModelLabel || "未配置模型",
@@ -220,7 +214,7 @@ export function useArtexComposerSelection(
     models,
     modelLocked,
     modelLockedReason,
-    efforts: PROVIDER_EFFORT_LEVELS,
+    efforts,
     maxEffort: "max",
     effort,
     setModelId,

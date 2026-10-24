@@ -38,8 +38,8 @@ export function QueuedMessageBar({
   return (
     <div className="cx-queued" data-testid="queued-message" data-queued-id={item.id}>
       <CodexQueueInsert aria-hidden className="cx-queued__icon" size={16} />
-      <span className="cx-queued__text" title={item.text}>
-        {item.text}
+      <span className="cx-queued__text" title={item.text || "附件消息"}>
+        {item.text || "附件消息"}
         {item.attachments.length ? ` · 📎 ${item.attachments.length}` : ""}
       </span>
       <div className="cx-queued__actions">
@@ -63,12 +63,7 @@ export function QueuedMessageBar({
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              aria-label="更多操作"
-              className="cx-queued__icon-button"
-              title="更多"
-              type="button"
-            >
+            <button aria-label="更多操作" className="cx-queued__icon-button" title="更多" type="button">
               <CodexEllipsis aria-hidden size={16} />
             </button>
           </DropdownMenuTrigger>

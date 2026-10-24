@@ -752,9 +752,25 @@
   background: rgb(255 255 255 / 0.08);
 }
 
+.cx-chip--static {
+  cursor: default;
+}
+
+.cx-chip--static:hover {
+  background: transparent;
+}
+
 :root[data-theme="light"] .cx-chip:hover {
   /* 同一条 hover 底是硬编码白 8%：浅色下等于没有反馈 ⇒ 换成文字色 8% */
   background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+:root[data-theme="light"] .cx-chip--static:hover {
+  background: transparent;
+}
+
+.cx-composer[data-disabled="true"] .cx-composer__editor {
+  cursor: default;
 }
 
 .cx-chip--model {

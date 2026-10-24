@@ -145,7 +145,7 @@ export function ModelPickerChip({
                     <span className="cx-mp__model-label">{model.label}</span>
                     <span
                       className="cx-mp__effort-label"
-                      data-maximum={effort === MAX_EFFORT ? "true" : undefined}
+                      data-maximum={effort === maxEffort ? "true" : undefined}
                     >
                       {effort}
                     </span>
@@ -160,7 +160,7 @@ export function ModelPickerChip({
                   aria-keyshortcuts="ArrowLeft ArrowRight"
                   aria-label="强度"
                   className="cx-mp__slider"
-                  disabled={saving}
+                  disabled={saving || modelLocked}
                   max={efforts.length - 1}
                   min={0}
                   onValueChange={([i]) => {
@@ -189,7 +189,9 @@ export function ModelPickerChip({
                 {locked || modelLocked ? (
                   <div className="cx-mp__notice">
                     <CodexLock aria-hidden size={16} />
-                    <span>{modelLocked ? (modelLockedReason ?? "该 Agent 已绑定模型") : "已锁定，打开访问权限"}</span>
+                    <span>
+                      {modelLocked ? (modelLockedReason ?? "该 Agent 已绑定模型") : "已锁定，打开访问权限"}
+                    </span>
                   </div>
                 ) : null}
                 <p className="cx-mp__group">{locked ? "选项" : "服务商"}</p>

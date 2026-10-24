@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { CodexAlertTriangle, CodexGrid, CodexRefresh, CodexSearch } from "@/icons";
 import { EmptyState, SlatePage } from "@/pages/parts";
 import { PanelPortal } from "@/shell";
-import { Button, Spinner } from "@/ui";
+import { Button, Dialog, DialogContent, Input, Spinner, Textarea } from "@/ui";
 import { artexApi } from "./api";
 import type { Task } from "./types";
+import "./adapted-pages.css";
 import "./task-list-page.css";
 
 function label(task: Task) {
@@ -41,6 +42,12 @@ export function ArtexTaskListPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [draftGoal, setDraftGoal] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,19 +74,47 @@ export function ArtexTaskListPage() {
     return () => window.removeEventListener("artex:tasks-changed", onChanged);
   }, [load]);
 
+  const openCreate = useCallback(() => {
+    setDraftName("");
+    setDraftDescription("");
+    setDraftGoal("");
+    setCreateError("");
+    setCreateOpen(true);
+  }, []);
+
+  const createTask = async () => {
+    if (creating || !draftDescription.trim()) return;
+    setCreating(true);
+    setCreateError("");
+    try {
+      const created = await artexApi.createTask({
+        name: draftName.trim(),
+        description: draftDescription.trim(),
+        goal: draftGoal.trim() || draftDescription.trim(),
+      });
+      setCreateOpen(false);
+      window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      navigate(`/task/${encodeURIComponent(created.id)}`);
+    } catch (caught) {
+      setCreateError(caught instanceof Error ? caught.message : "任务创建失败");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   useEffect(() => {
     const onSearch = (event: Event) => {
       const detail = (event as CustomEvent<{ query?: unknown }>).detail;
       setQuery(typeof detail?.query === "string" ? detail.query : "");
     };
-    const onNewTask = () => navigate("/new");
+    const onNewTask = () => openCreate();
     window.addEventListener("artex:tasks-search", onSearch);
     window.addEventListener("artex:new-task", onNewTask);
     return () => {
       window.removeEventListener("artex:tasks-search", onSearch);
       window.removeEventListener("artex:new-task", onNewTask);
     };
-  }, [navigate]);
+  }, [openCreate]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -94,7 +129,7 @@ export function ArtexTaskListPage() {
       {/* 任务清单进侧栏（官方 /scheduled 的 IA：列表在左栏、主区是选中项的会话）。
           行点击直接进会话页；主区只在没有选中项时给一个入口空态。 */}
       <PanelPortal>
-        <div aria-label="Focus 任务列表" className="artex-task-list-panel" role="region">
+        <section aria-label="Focus 任务列表" className="artex-task-list-panel">
           {loading ? (
             <div className="artex-task-list-state" role="status">
               <Spinner size="sm" />
@@ -139,7 +174,7 @@ export function ArtexTaskListPage() {
               ))}
             </ul>
           )}
-        </div>
+        </section>
       </PanelPortal>
 
       <SlatePage
@@ -154,7 +189,7 @@ export function ArtexTaskListPage() {
             >
               <CodexRefresh size={16} />
             </button>
-            <Button onClick={() => navigate("/new")} size="sm" variant="solid">
+            <Button onClick={openCreate} size="sm" variant="solid">
               新建任务
             </Button>
           </>
@@ -196,7 +231,7 @@ export function ArtexTaskListPage() {
         ) : (
           <EmptyState
             actions={
-              <Button onClick={() => navigate("/new")} size="sm" variant="surface">
+              <Button onClick={openCreate} size="sm" variant="surface">
                 新建任务
               </Button>
             }
@@ -204,7 +239,7 @@ export function ArtexTaskListPage() {
               visible.length === 0
                 ? query
                   ? "调整搜索条件，或清空搜索。"
-                  : "从「新建任务」开始：首条消息会创建 Focus 任务。"
+                  : "从「新建任务」填写描述与目标，创建后进入任务会话。"
                 : "左侧任务列表中的会话会显示在这里；点击任一任务打开它的会话。"
             }
             icon={CodexGrid}
@@ -212,6 +247,72 @@ export function ArtexTaskListPage() {
           />
         )}
       </SlatePage>
+
+      <Dialog
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) setCreateError("");
+        }}
+        open={createOpen}
+      >
+        <DialogContent
+          description="描述是任务正文，目标是 planner 的判据。"
+          footer={
+            <>
+              <Button onClick={() => setCreateOpen(false)} size="sm" variant="ghost">
+                取消
+              </Button>
+              <Button
+                color="primary"
+                disabled={creating || draftDescription.trim().length === 0}
+                onClick={() => void createTask()}
+                size="sm"
+                variant="solid"
+              >
+                {creating ? "创建中…" : "创建任务"}
+              </Button>
+            </>
+          }
+          title="新建 Focus 任务"
+        >
+          <div className="artex-task-create">
+            <label className="artex-task-create__field" htmlFor="task-list-name">
+              <span>名称（可选）</span>
+              <Input
+                id="task-list-name"
+                onChange={(event) => setDraftName(event.target.value)}
+                placeholder="例如：example.com 外部体检"
+                value={draftName}
+              />
+            </label>
+            <label className="artex-task-create__field" htmlFor="task-list-description">
+              <span>描述</span>
+              <Textarea
+                id="task-list-description"
+                onChange={(event) => setDraftDescription(event.target.value)}
+                placeholder="要测什么、边界在哪、有哪些已知信息"
+                rows={3}
+                value={draftDescription}
+              />
+            </label>
+            <label className="artex-task-create__field" htmlFor="task-list-goal">
+              <span>目标（可选）</span>
+              <Textarea
+                id="task-list-goal"
+                onChange={(event) => setDraftGoal(event.target.value)}
+                placeholder="例如：拿到可复现的证据并登记漏洞"
+                rows={2}
+                value={draftGoal}
+              />
+            </label>
+            {createError ? (
+              <p className="artex-codex-error" role="alert">
+                {createError}
+              </p>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

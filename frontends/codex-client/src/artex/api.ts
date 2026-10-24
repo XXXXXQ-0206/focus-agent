@@ -22,6 +22,7 @@ import type {
   Asset,
   AuthStatus,
   AutoAllowState,
+  ChatAttachment,
   ChatResponse,
   CommandRecord,
   ConversationTokenSummary,
@@ -34,7 +35,6 @@ import type {
   FindingRetest,
   FindingStats,
   FindingTraffic,
-  ChatAttachment,
   FindingTrafficDetail,
   InterceptApprovalRow,
   InterceptRule,
@@ -314,6 +314,8 @@ export const artexApi = {
       plan_heartbeat_seconds: 0,
       coverage_enabled: true,
     }),
+  taskChatStatus: (taskId: string) =>
+    get<{ running: boolean }>(`/tasks/${encodeURIComponent(taskId)}/chat/status`),
   chat: (taskId: string, message: string) =>
     post<ChatResponse>(`/chat?task=${encodeURIComponent(taskId)}`, { message }),
   stopChat: (taskId: string) => post<{ ok: boolean }>(`/tasks/${encodeURIComponent(taskId)}/chat/stop`),

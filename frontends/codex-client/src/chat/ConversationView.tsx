@@ -4,15 +4,15 @@ import { CodexScrollToBottom } from "@/icons";
 import { formatTurnDivider } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
-import { isToolOnlyMessage, ToolActivityGroup } from "./ToolActivityGroup";
 import { Composer, type ComposerSelection } from "./Composer";
 import { Message } from "./Message";
-import type { RuntimeMessage } from "./types";
-import { ChatSkeleton } from "./Skeleton";
 import { QueuedMessageBar } from "./QueuedMessageBar";
+import { ChatSkeleton } from "./Skeleton";
+import { isToolOnlyMessage, ToolActivityGroup } from "./ToolActivityGroup";
 import { turnChangesOf } from "./turn-changes";
-import type { QueuedMessage } from "./use-follow-up";
+import type { RuntimeMessage } from "./types";
 import { type ChatStatus, useComposerSelection } from "./use-chat";
+import type { QueuedMessage } from "./use-follow-up";
 import { useTurnNotifications } from "./use-turn-notifications";
 import "./chat.css";
 
@@ -113,6 +113,8 @@ export interface ConversationViewProps {
   contentFooter?: ReactNode;
   /** 输入区下方的附加内容（错误提示等）。 */
   composerFooter?: ReactNode;
+  /** 只读转录（如历史任务会话）：禁用输入、附件和停止操作。 */
+  composerDisabled?: boolean;
   /** 交付主区替代内容（如 Focus 工作台视图）；为空时渲染会话转录。 */
   main?: ReactNode | null;
   /** 追加在 `.cx-conversation` 上的类名（Focus 页用它挂任务面板/工作台的专属规则）。 */
@@ -153,6 +155,7 @@ export function ConversationView({
   panel = null,
   contentFooter = null,
   composerFooter = null,
+  composerDisabled = false,
   main = null,
   className,
   steer = false,
@@ -178,7 +181,10 @@ export function ConversationView({
     const composer = composerRef.current;
     if (!root || !composer) return;
     const sync = () => {
-      root.style.setProperty("--cx-composer-height", `${Math.ceil(composer.getBoundingClientRect().height)}px`);
+      root.style.setProperty(
+        "--cx-composer-height",
+        `${Math.ceil(composer.getBoundingClientRect().height)}px`,
+      );
     };
     sync();
     const observer = new ResizeObserver(sync);
@@ -361,6 +367,7 @@ export function ConversationView({
                 />
               ))}
               <Composer
+                disabled={composerDisabled}
                 mode="conversation"
                 onSend={onSend}
                 onStop={onStop}

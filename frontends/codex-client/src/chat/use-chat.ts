@@ -3,13 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMessages } from "@/lib/conversations";
 import { PROJECTS } from "@/lib/mock-data";
 import type { Message } from "@/lib/types";
-import {
-  CHAT_MODELS,
-  CHAT_PERMISSIONS,
-  DEFAULT_MODEL_ID,
-  DEFAULT_PERMISSION_ID,
-  MAX_EFFORT,
-} from "./options";
+import { CHAT_MODELS, DEFAULT_MODEL_ID, MAX_EFFORT } from "./options";
 
 /**
  * 会话状态层（本地实现，接口刻意做成「可替换成后端」的形状）。
@@ -185,27 +179,21 @@ export function useChatSession(conversationId: string | undefined) {
   return { messages, status, send, stop, retry };
 }
 
-/** 输入区里可切换的芯片状态（权限 / 模型 / 强度），本地保存。
+/** 输入区里可切换的芯片状态（模型 / 强度），本地保存。
  *
- * 数据源：./options 的 CHAT_MODELS / CHAT_PERMISSIONS（文案出处见该文件）。
- * 默认档 = 参考端采集时的当前档：模型「5.6 Sol」+ 强度「Ultra」+ 权限「完全访问（橙色）」，
+ * 数据源：./options 的 CHAT_MODELS。
+ * 默认档 = 参考端采集时的当前档：模型「5.6 Sol」+ 强度「Ultra」，
  * 出处 captures/blocks-chat-home.json（芯片 107.03125×28 / 85.333×28）。
  */
 export function useComposerSelection() {
-  const [permissionId, setPermissionId] = useState(DEFAULT_PERMISSION_ID);
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
   const [effort, setEffort] = useState<string>(MAX_EFFORT);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
 
-  const permission =
-    CHAT_PERMISSIONS.find((p) => p.id === permissionId) ?? CHAT_PERMISSIONS[CHAT_PERMISSIONS.length - 1];
   const model = CHAT_MODELS.find((m) => m.id === modelId) ?? CHAT_MODELS[0];
   const project = PROJECTS.find((p) => p.id === projectId);
 
   return {
-    permission,
-    permissionId,
-    setPermissionId,
     model,
     modelId,
     setModelId,

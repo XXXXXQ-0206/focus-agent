@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useSettings } from "@/settings/store";
 
+import { hasComposerContent } from "./can-send";
 import type { ChatStatus } from "./use-chat";
 
 /**
@@ -65,7 +66,7 @@ export function useFollowUp(
 
   const submit = (text: string, attachments: File[] = []) => {
     const trimmed = text.trim();
-    if (!trimmed) return false;
+    if (!hasComposerContent(trimmed, attachments.length)) return false;
     if (statusRef.current !== "streaming") {
       send(trimmed, attachments);
       return false;

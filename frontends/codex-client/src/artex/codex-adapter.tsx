@@ -43,6 +43,7 @@ import type { ToolCall } from "@/lib/types";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
 import { type ArtexAgent, artexApi, openActivityStream } from "./api";
 import { useArtexComposerSelection } from "./model-selection";
+import { canSendTaskMessage, taskComposerReadOnly } from "./task-chat-policy";
 import { ARTEXTaskTabs, type TaskTabId } from "./task-workbench";
 import type {
   Activity,
@@ -460,11 +461,7 @@ export function ArtexHomePage() {
         // 附件先落到这次会话的聊天目录（sessions/conv-<id>/uploads），随消息带引用过去。
         const outgoing = composerFiles.files.flatMap((file) => (file.file ? [file.file] : []));
         const attachments = outgoing.length
-          ? await artexApi.uploadChatAttachments(
-              "session",
-              `conv-${created.id}`,
-              outgoing,
-            )
+          ? await artexApi.uploadChatAttachments("session", `conv-${created.id}`, outgoing)
           : [];
         await artexApi.sendConversationMessage(created.id, message, attachments);
         composerFiles.clearFiles();
@@ -717,14 +714,9 @@ export function ArtexConversationPage() {
     setError("");
     try {
       const outgoing =
-        files ??
-        (fromQueue ? [] : composerFiles.files.flatMap((file) => (file.file ? [file.file] : [])));
+        files ?? (fromQueue ? [] : composerFiles.files.flatMap((file) => (file.file ? [file.file] : [])));
       const attachments = outgoing.length
-        ? await artexApi.uploadChatAttachments(
-            "session",
-            `conv-${id}`,
-            outgoing,
-          )
+        ? await artexApi.uploadChatAttachments("session", `conv-${id}`, outgoing)
         : [];
       await artexApi.sendConversationMessage(id, message, attachments);
       if (!fromQueue) composerFiles.clearFiles();
@@ -860,6 +852,7 @@ export function ArtexTaskPage() {
     taskLLMRequest.current += 1;
     setTaskLLM(null);
     setModelNotice("");
+    void taskId; // taskId is the reset key even though no value is read below.
   }, [taskId]);
 
   useEffect(() => {
@@ -915,6 +908,7 @@ export function ArtexTaskPage() {
   const [tabLoading, setTabLoading] = useState(false);
   const [controlBusy, setControlBusy] = useState(false);
   const [status, setStatus] = useState<ChatStatus>("idle");
+  const [chatRunning, setChatRunning] = useState(false);
   const [error, setError] = useState("");
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
 
@@ -923,6 +917,39 @@ export function ArtexTaskPage() {
     setActiveTab("activity");
     setActivitySession("main");
     setTaskPanelOpen(false);
+  }, [taskId]);
+
+  // /chat/status is the authoritative human-turn state; task.status describes the
+  // autonomous engine and must not keep the composer stuck in "streaming".
+  useEffect(() => {
+    if (!taskId) {
+      setChatRunning(false);
+      return;
+    }
+    let closed = false;
+    let timer = 0;
+    let tick = 0;
+    const poll = async () => {
+      try {
+        const [chat, refreshedTask] = await Promise.all([
+          artexApi.taskChatStatus(taskId),
+          tick % 5 === 0 ? artexApi.task(taskId) : Promise.resolve(null),
+        ]);
+        if (closed) return;
+        setChatRunning(chat.running);
+        if (refreshedTask) setTask(refreshedTask);
+      } catch {
+        // Keep the last authoritative state and retry on the next tick.
+      } finally {
+        tick += 1;
+        if (!closed) timer = window.setTimeout(() => void poll(), 1200);
+      }
+    };
+    void poll();
+    return () => {
+      closed = true;
+      window.clearTimeout(timer);
+    };
   }, [taskId]);
 
   useEffect(() => {
@@ -1065,8 +1092,8 @@ export function ArtexTaskPage() {
     };
   }, [activeTab, taskId]);
 
-  const send = async (message: string) => {
-    if (activitySession !== "main") {
+  const send = async (message: string, _files?: File[], fromQueue = false) => {
+    if (!canSendTaskMessage(activitySession, fromQueue)) {
       setError("当前查看的是历史会话。切回当前主 Agent 会话后才能发送消息。");
       return;
     }
@@ -1074,6 +1101,7 @@ export function ArtexTaskPage() {
     setError("");
     try {
       await artexApi.chat(taskId, message);
+      setChatRunning(true);
       window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "消息发送失败");
@@ -1117,18 +1145,11 @@ export function ArtexTaskPage() {
 
   const title = useMemo(() => (task ? taskLabel(task) : "Focus 任务"), [task]);
   const statusLabel = task ? taskStatusLabel(task) : "正在加载";
-  /**
-   * 任务在跑 ⇒ 会话态就是 streaming（用户 2026-10-15 的官方截图口径）：
-   *   · 转录末尾会出现「正在思考」（ConversationView 的 .cx-thread__pending）；
-   *   · 输入区显示停止键而不是发送键。
-   * 此前这里只认 send() 那几百毫秒的 sending，任务在后台跑的时候界面显示"空闲" ——
-   * 与同一页面 taskStatusLabel() 把 running / in_flight 读成「运行中」自相矛盾。
-   */
+  /** 自主引擎状态与人类聊天轮次分开：输入区只跟随 /chat/status。 */
   const taskRunning = Boolean(task && (task.status === "running" || task.in_flight));
-  const chatStatus: ChatStatus = status === "streaming" || taskRunning ? "streaming" : "idle";
+  const chatStatus: ChatStatus = status === "streaming" || chatRunning ? "streaming" : "idle";
   /**
-   * 任务页的「跟进 / 排队」执行器。挂在 **chatStatus**（含 taskRunning）而不是局部 sending 上：
-   * 任务在跑时再发一条 → 应当进入排队（官方排队行那种），而不是被后端当场拒掉或抢先发出去。
+   * 人类聊天轮次在跑时再发一条 → 进入队列，等权威状态回到 idle 后投递。
    */
   const stopTask = () => {
     void artexApi.stopChat(taskId).catch(() => undefined);
@@ -1136,13 +1157,13 @@ export function ArtexTaskPage() {
   };
   const followUp = useFollowUp(
     chatStatus,
-    (message) => void send(message),
+    (message, files, fromQueue) => void send(message, files, fromQueue),
     stopTask,
     `task:${taskId}`,
   );
   const transcript = useMemo(
-    () => toTaskTranscript(activities, taskId, taskRunning),
-    [activities, taskId, taskRunning],
+    () => toTaskTranscript(activities, taskId, taskRunning || chatRunning),
+    [activities, taskId, taskRunning, chatRunning],
   );
   const rawActivityDetails = useMemo(() => JSON.stringify(activities, null, 2), [activities]);
 
@@ -1198,9 +1219,7 @@ export function ArtexTaskPage() {
                 没有卡片描边/底色（用户 2026-10-15 的官方截图口径，样式见 task-transcript.css）。 */}
             <summary>
               <CodexRows aria-hidden className="artex-task-transcript__raw-icon" size={16} />
-              <span className="artex-task-transcript__label">
-                查看原始 Focus 事件 · {activities.length}
-              </span>
+              <span className="artex-task-transcript__label">查看原始 Focus 事件 · {activities.length}</span>
               <CodexChevronRight aria-hidden className="artex-task-transcript__chevron" size={16} />
             </summary>
             <pre>{rawActivityDetails}</pre>
@@ -1212,6 +1231,8 @@ export function ArtexTaskPage() {
           <p className="artex-codex-error" role="alert">
             {error}
           </p>
+        ) : taskComposerReadOnly(activitySession) ? (
+          <p className="cx-composer__notice">历史任务会话为只读；切回当前主 Agent 会话后可继续输入。</p>
         ) : null
       }
       emptyText={error ? "无法加载 Focus 任务活动。" : "等待 Focus 活动流返回任务进展。"}
@@ -1271,12 +1292,13 @@ export function ArtexTaskPage() {
       showMessageActions={false}
       steer={followUp.allowSteer}
       status={chatStatus}
+      composerDisabled={taskComposerReadOnly(activitySession)}
       selection={{ ...selection, notice: modelNotice }}
       title={`${title} · ${statusLabel}`}
       onQueuedEdit={followUp.edit}
       onQueuedRemove={followUp.remove}
       onQueuedSteer={followUp.steer}
-      queued={followUp.queued}
+      queued={taskComposerReadOnly(activitySession) ? [] : followUp.queued}
     />
   );
 }

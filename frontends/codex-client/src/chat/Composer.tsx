@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CodexPlusLg, CodexSend, CodexStop } from "@/icons";
-import type { ModelOption, PermissionMode, Project } from "@/lib/types";
+import type { ModelOption, Project } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/settings/store";
+import { hasComposerContent } from "./can-send";
 import { ModelPickerChip } from "./ModelPicker";
 import type { ChatModelOption } from "./options";
 import { PermissionMenuChip } from "./PermissionMenu";
@@ -232,8 +233,6 @@ export interface ComposerAttachment {
 }
 
 export interface ComposerSelection {
-  permission: PermissionMode;
-  permissionId: string;
   model: ModelOption;
   /** 强度档（模型面板滑杆 / 第一行切换），默认「Ultra」 */
   effort: string;
@@ -255,7 +254,6 @@ export interface ComposerSelection {
   onAddFiles?: (files: File[]) => void;
   onRemoveAttachment?: (id: string) => void;
   project?: Project;
-  setPermissionId: (id: string) => void;
   setModelId: (id: string) => void;
   setEffort: (effort: string) => void;
   setProjectId: (id: string | undefined) => void;
@@ -264,6 +262,7 @@ export interface ComposerSelection {
 export function Composer({
   autoFocus,
   className,
+  disabled = false,
   mode = "home",
   onSend,
   onStop,
@@ -274,6 +273,8 @@ export function Composer({
 }: {
   autoFocus?: boolean;
   className?: string;
+  /** 只读宿主（例如历史任务会话）：禁止编辑、附件与停止操作。 */
+  disabled?: boolean;
   /** 首页态 / 会话态：只影响发送钮的 aria 文案（实测见文件头） */
   mode?: "home" | "conversation";
   onSend: (text: string) => void;
@@ -296,11 +297,12 @@ export function Composer({
   const { enterBehavior } = useSettings();
 
   const streaming = status === "streaming";
-  const hasText = value.trim().length > 0;
-  // 生成中 + 允许引导 + 有文字 ⇒ 发送键先于停止键（官方在生成中也会把「有草稿」显示成发送）。
-  const steerable = streaming && steer && hasText;
-  const showStop = streaming && !steerable;
-  const canSend = (!streaming || steerable) && hasText;
+  const attachmentCount = selection.attachments?.length ?? 0;
+  const hasContent = hasComposerContent(value, attachmentCount);
+  // 生成中 + 允许引导 + 有内容 ⇒ 发送键先于停止键。
+  const steerable = !disabled && streaming && steer && hasContent;
+  const showStop = !disabled && streaming && !steerable;
+  const canSend = !disabled && (!streaming || steerable) && hasContent;
   const sendLabel = showStop ? "停止" : mode === "conversation" ? "继续" : "发送";
 
   /** 把 DOM 读回 state，并维护官方占位符挂点（placeholder 类 + data-placeholder 属性） */
@@ -387,19 +389,22 @@ export function Composer({
 
   const submit = () => {
     const text = readEditorValue(editorRef.current);
-    if ((streaming && !steerable) || text.trim().length === 0) return;
+    if (disabled || (streaming && !steerable) || !hasComposerContent(text, attachmentCount)) return;
     onSend(text);
     resetEditor();
   };
 
   return (
-    <div className={cn("cx-composer", className)} data-status={status}>
+    <div
+      aria-disabled={disabled || undefined}
+      className={cn("cx-composer", className)}
+      data-disabled={disabled ? "true" : undefined}
+      data-status={status}
+    >
       <div className="cx-composer__attachments" data-empty={selection.attachments?.length ? undefined : ""}>
         {(selection.attachments ?? []).map((file) => (
           <span className="cx-attachment" key={file.id} title={file.name}>
-            {file.previewUrl ? (
-              <img alt="" className="cx-attachment__thumb" src={file.previewUrl} />
-            ) : null}
+            {file.previewUrl ? <img alt="" className="cx-attachment__thumb" src={file.previewUrl} /> : null}
             <span className="cx-attachment__name">{file.name}</span>
             <button
               aria-label={`移除附件 ${file.name}`}
@@ -427,14 +432,17 @@ export function Composer({
             {/* 属性逐条对官方 EditorView attributes（app-initial-25361a10f2bf.js:187098）：
                 role=textbox / aria-multiline=true / dir=auto / spellcheck=true / tabindex=0；
                 aria-label = 占位符文案（blocks-chat-home block[74] 实测）。 */}
+            {/* biome-ignore lint/a11y/useSemanticElements: contenteditable mirrors the official ProseMirror editor DOM. */}
             <div
               aria-label={placeholder}
+              aria-disabled={disabled || undefined}
               aria-multiline="true"
               className="cx-composer__editor"
-              contentEditable
+              contentEditable={!disabled}
               dir="auto"
               onInput={syncEditor}
               onKeyDown={(event) => {
+                if (disabled) return;
                 if (
                   event.nativeEvent.isComposing ||
                   event.nativeEvent.keyCode === 229 ||
@@ -473,6 +481,7 @@ export function Composer({
                 submit();
               }}
               onPaste={(event) => {
+                if (disabled) return;
                 event.preventDefault();
                 const text = event.clipboardData.getData("text/plain");
                 if (text) insertPlainText(text);
@@ -490,6 +499,7 @@ export function Composer({
         <div className="cx-composer__group cx-composer__group--start">
           <input
             className="cx-composer__file-input"
+            disabled={disabled}
             multiple
             onChange={(event) => {
               const files = Array.from(event.target.files ?? []);
@@ -502,15 +512,15 @@ export function Composer({
           <button
             aria-label="添加文件等内容"
             className="cx-composer__icon-button"
-            disabled={!selection.onAddFiles}
+            disabled={disabled || !selection.onAddFiles}
             onClick={() => fileInputRef.current?.click()}
             title={selection.onAddFiles ? "添加图片或文件（图片会由模型直接读取）" : undefined}
             type="button"
           >
             <CodexPlusLg size={20} />
           </button>
-          {/* 权限芯片 + 权限菜单弹层（audit #126 #127） */}
-          <PermissionMenuChip onSelect={selection.setPermissionId} permissionId={selection.permissionId} />
+          {/* 审批由服务端拦截策略控制，这里只展示事实状态。 */}
+          <PermissionMenuChip />
         </div>
 
         <div className="cx-composer__group cx-composer__group--end">
@@ -519,8 +529,8 @@ export function Composer({
             effort={selection.effort}
             efforts={selection.efforts}
             locked={!selection.models?.length}
-            modelLocked={selection.modelLocked}
-            modelLockedReason={selection.modelLockedReason}
+            modelLocked={selection.modelLocked || disabled}
+            modelLockedReason={disabled ? "历史任务会话为只读" : selection.modelLockedReason}
             maxEffort={selection.maxEffort}
             model={selection.model}
             models={selection.models}
@@ -532,8 +542,12 @@ export function Composer({
             <button
               aria-label={sendLabel}
               className="cx-composer__send"
-              disabled={showStop ? false : !canSend}
-              onClick={() => (showStop ? onStop() : submit())}
+              disabled={disabled || (showStop ? false : !canSend)}
+              onClick={() => {
+                if (disabled) return;
+                if (showStop) onStop();
+                else submit();
+              }}
               type="button"
             >
               {showStop ? <CodexStop size={16} /> : <CodexSend size={20} />}

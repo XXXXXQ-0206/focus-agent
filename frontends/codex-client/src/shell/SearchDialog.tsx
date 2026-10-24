@@ -201,7 +201,7 @@ export function SearchDialog() {
         hint: "Ctrl+/",
         group: "操作" as const,
         icon: CodexKeyboard,
-        run: () => {},
+        run: () => navigate("/settings/shortcuts"),
       },
       {
         id: "action-new-window",

@@ -1,7 +1,7 @@
-import type { ModelOption, PermissionMode } from "@/lib/types";
+import type { ModelOption } from "@/lib/types";
 
 /**
- * 对话面选项数据（模型 / 权限）。
+ * 对话面模型与强度选项。
  *
  * 文案与顺序**逐字**来自参考端实测：
  *   · 模型 7 项（「6 Astra / 6 Sol / 6 Luna / 5.6 Sol / 5.6 Terra / 5.6 Luna / 5.5」）
@@ -9,14 +9,6 @@ import type { ModelOption, PermissionMode } from "@/lib/types";
  *     「…使用左右方向键调整强度选择模型已锁定，打开访问权限选项默认推荐模型集6 Astra6 Sol6 Luna
  *       5.6 Sol5.6 Terra5.6 Luna5.5」
  *     → 与 docs/FIDELITY-AUDIT.md #124 的解析一致（7 个模型 + 2 个分组标题）。
- *   · 三个权限档的标题/描述出处 captures/views-permission-menu.json 同字段：
- *     ①「请求批准 / 编辑外部文件和使用互联网时始终询问」
- *     ②「帮我批准 / 仅对检测到的风险操作请求批准」
- *     ③「完全访问权限 / 可不受限制地访问互联网和你电脑上的任何文件」
- *
- * ⚠️ 芯片（chip）上显示的短标签只实测到 ③「完全访问」
- *    （views-permission-menu.json：触发按钮 85.333×28、text「完全访问」）。
- *    ① ② 的芯片标签取菜单条目标题，**未实测**。
  * [task-76] 7 个模型的展开态几何**已可查**（官方 `_ModelList_1d00n_10`，出处与取值见 chat.css 同段注释）⇒ 不再是「查无出处」；
  *   但参考端采到的仍是折叠态 254×84，展开态**未在真机上量过**。
  */
@@ -34,6 +26,19 @@ export const MAX_EFFORT = "Ultra";
  * 「默认」= 不发送 reasoning_effort，由模型自己决定。
  */
 export const PROVIDER_EFFORT_LEVELS = ["默认", "low", "medium", "high", "xhigh", "max"] as const;
+const DEEPSEEK_EFFORT_LEVELS = ["默认", "low", "high", "max"] as const;
+
+/** 按档案端点/模型选择可安全发送的强度档。 */
+export function providerEffortLevels(
+  profile?: {
+    base_url?: string;
+    format?: string;
+    model?: string;
+  } | null,
+): readonly string[] {
+  const identity = [profile?.base_url, profile?.format, profile?.model].filter(Boolean).join(" ");
+  return /deepseek/i.test(identity) ? DEEPSEEK_EFFORT_LEVELS : PROVIDER_EFFORT_LEVELS;
+}
 
 /** 模型面板里的 7 个模型。default = 参考端实测当前档（芯片文字「5.6 Sol」+ effort「Ultra」）。 */
 export interface ChatModelOption extends ModelOption {
@@ -55,38 +60,3 @@ export const CHAT_MODELS: ChatModelOption[] = [
 
 /** 默认档 = 参考端采集时的当前档 */
 export const DEFAULT_MODEL_ID = CHAT_MODELS.find((m) => m.current)?.id ?? CHAT_MODELS[0].id;
-
-/** 权限档：title/desc 是菜单条目文案（实测），chip 是输入区胶囊上的短标签。 */
-export interface ChatPermissionOption extends PermissionMode {
-  title: string;
-  desc: string;
-  chip: string;
-}
-
-export const CHAT_PERMISSIONS: ChatPermissionOption[] = [
-  {
-    id: "ask",
-    label: "请求批准",
-    chip: "请求批准",
-    title: "请求批准",
-    desc: "编辑外部文件和使用互联网时始终询问",
-  },
-  {
-    id: "auto-edit",
-    label: "帮我批准",
-    chip: "帮我批准",
-    title: "帮我批准",
-    desc: "仅对检测到的风险操作请求批准",
-  },
-  {
-    id: "full",
-    label: "完全访问",
-    chip: "完全访问",
-    title: "完全访问权限",
-    desc: "可不受限制地访问互联网和你电脑上的任何文件",
-    tone: "warning",
-  },
-];
-
-/** 默认权限档 = 参考端采集时的当前档（③ 完全访问，橙色） */
-export const DEFAULT_PERMISSION_ID = "full";
