@@ -11,7 +11,7 @@ import { FIXTURES } from "./fixtures";
 import type { BlockNode } from "./types";
 
 /**
- * 仅开发用的**会话块自测台**（形态对齐 src/pages/dev-preview.html 的既有做法）。
+ * 仅开发用的**会话块自测台**（形态对齐 settings/dev-preview.html 的既有做法）。
  *
  * 为什么放在本目录：task-13 的写范围是 src/chat/blocks/**，不改别人的文件。
  * 用 MemoryRouter 把页面挂进**真实外壳**（@/shell 的 AppShell 是公开 barrel 导出），

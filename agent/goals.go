@@ -94,13 +94,6 @@ type GoalSpec struct {
 // straight into it (the same managed tool the main agent uses to add goals at
 // runtime). The returned specs are read back from the store so callers can emit
 // per-goal activity and detect the "LLM produced nothing" case for their fallback.
-func DecomposeGoals(ctx context.Context, prov llm.Provider, dataDir, goalText, desc string, as *db.AssetStore, ts *db.ExplorationStore, taskID int64, emit func(db.Activity)) []GoalSpec {
-	if prov == nil {
-		return nil
-	}
-	return DecomposeGoalsWithProvider(ctx, prov, dataDir, goalText, desc, as, ts, taskID, false, 0, emit)
-}
-
 // DecomposeGoalsWithProvider is the task-runtime variant used when a task has an
 // ordered provider chain. It preserves the same tools and write behavior while
 // letting the caller own provider selection/failover. maxTokens is the profile's

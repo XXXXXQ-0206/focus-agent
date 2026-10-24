@@ -10,7 +10,6 @@
  */
 
 export { WorkspaceHeader } from "@/shell/WorkspaceHeader";
-export { ArtifactPanel } from "./ArtifactPanel";
 export { CodeBlock } from "./CodeBlock";
 export { Composer, type ComposerAttachment, type ComposerSelection } from "./Composer";
 export { ConversationView, type ConversationViewProps } from "./ConversationView";
@@ -28,6 +27,6 @@ export {
   toDisplayErrorNode,
   toDisplayToolCall,
 } from "./types";
-export { type ChatStatus, useChatSession, useComposerSelection } from "./use-chat";
+export { type ChatStatus, useComposerSelection } from "./use-chat";
 export { useFollowUp } from "./use-follow-up";
 export { useTurnNotifications } from "./use-turn-notifications";

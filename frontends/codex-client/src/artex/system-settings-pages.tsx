@@ -43,8 +43,7 @@ const AGENT_DETAIL_TABS = [
 ] as const satisfies { value: AgentSection; label: string }[];
 
 /**
- * 页头四层的 `data-*` 能力声明，与官方 /plugins 页同款（出处见 src/pages/PluginsPage.tsx
- * 的 SHELL_CAPABILITY_ATTRS：官方六态实测取值恒定，只有 data-scrolled 是动态信号）。
+ * 页头四层的 `data-*` 能力声明与官方 /plugins 页同款；只有 data-scrolled 是动态信号。
  */
 const _AGENTS_SLATE_ATTRS = {
   "data-collapsible": "",
@@ -57,7 +56,7 @@ const _AGENTS_SLATE_ATTRS = {
 /**
  * Agent 目录页（/system/agents）。
  *
- * 骨架 = Focus 官方「插件」页（/plugins，见 src/pages/PluginsPage.tsx）：
+ * 骨架 = Focus 官方「插件」页：
  *   slate 页头（h1 + 搜索胶囊 + 动作）→ 副标题行 → 目录 tab 行 → 两列资源行（.cx-res-grid）。
  * 行是官方 /plugins 目录行语汇：无边框行 + 32px 边框图标块 + 15/13 两行文字 + 右侧 meta/动作。
  * 点击卡片或「查看配置」进入 /system/agents/:key（同一套 slate 骨架的详情页）。

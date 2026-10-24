@@ -268,20 +268,6 @@ func hostOf(rawURL string) string {
 	return u.Hostname()
 }
 
-func isBlank(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return true
-	case string:
-		return x == ""
-	case float64:
-		return x == 0
-	case int:
-		return x == 0
-	}
-	return false
-}
-
 func uniq(in []string) []string {
 	seen := map[string]struct{}{}
 	out := in[:0]

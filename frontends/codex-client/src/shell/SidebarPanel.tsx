@@ -16,6 +16,7 @@ import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SETTINGS_SECTION, filterSettingsNav, VISIBLE_SETTINGS_NAV_GROUPS } from "@/settings";
 import { Input } from "@/ui";
+import { groupConversationsByAge } from "./conversation-groups";
 import { pageLayoutFor } from "./page-layouts";
 import { PanelSlotHost } from "./panel-slot";
 import { openSearchDialog } from "./use-search-dialog";
@@ -79,7 +80,6 @@ export function SidebarPanel() {
     }
   }, []);
   useEffect(() => {
-    void loadConversations();
     const onChanged = () => void loadConversations();
     window.addEventListener("artex:conversations-changed", onChanged);
     window.addEventListener("focus", onChanged);
@@ -88,18 +88,7 @@ export function SidebarPanel() {
       window.removeEventListener("focus", onChanged);
     };
   }, [loadConversations]);
-  const conversationGroups = useMemo(() => {
-    const time = (conversation: ArtexConversation) => {
-      const ms = new Date(conversation.updated_at || conversation.created_at).getTime();
-      return Number.isNaN(ms) ? 0 : ms;
-    };
-    const sorted = [...conversations].sort((left, right) => time(right) - time(left));
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    return {
-      today: sorted.filter((conversation) => time(conversation) >= cutoff),
-      earlier: sorted.filter((conversation) => time(conversation) < cutoff),
-    };
-  }, [conversations]);
+  const conversationGroups = useMemo(() => groupConversationsByAge(conversations), [conversations]);
   const navigate = useNavigate();
   const location = useLocation();
   // 路由一变就刷新一次：新建对话后跳 /c/<id>、或从别处回到列表，都不会停在旧快照。
@@ -128,7 +117,7 @@ export function SidebarPanel() {
   /* [task-61] 搜索胶囊里的词。官方 task-59 ② 实测「输入即过滤」：tas → 面板只剩 1 行、
      zzz / q → 0 行、无结果文案「没有匹配的任务」、清除按钮 aria-label「清空搜索」、
      Esc **一步折叠**（不先清空输入）且列表立即恢复完整。
-     面板与页面（ScheduledPage）是**兄弟**、没有共同祖先可传 props（见 panel-slot.tsx 头注释）
+     面板与页面是**兄弟**、没有共同祖先可传 props（见 panel-slot.tsx 头注释）
      ⇒ 沿用本工程既有做法：走 DOM 事件桥把词送过去，由页面做可见行过滤。 */
   const [pageQuery, setPageQuery] = useState("");
   const pushPageQuery = (query: string) => {
@@ -361,8 +350,7 @@ export function SidebarPanel() {
             </div>
           ) : null}
           <div className="codex-panel__nav-list">
-            {/* 点击行为复用**既有的新建任务入口**（同 ScheduledPage 主面空态里那个「新建任务」按钮：
-                setDraftName("") → 打开右侧草稿详情），走 DOM 事件桥 —— 面板与页面是兄弟，读不到对方的 state
+            {/* 点击行为复用了主面的新建任务入口，走 DOM 事件桥 —— 面板与页面是兄弟，读不到对方的 state
                 （与 panel-slot.tsx 头注释里说明的同一限制）。 */}
             <button
               className="codex-panel__page-new"

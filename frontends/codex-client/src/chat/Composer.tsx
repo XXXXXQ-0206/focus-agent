@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CodexPlusLg, CodexSend, CodexStop } from "@/icons";
-import type { ModelOption, Project } from "@/lib/types";
+import type { ModelOption } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/settings/store";
 import { hasComposerContent } from "./can-send";
@@ -253,10 +253,8 @@ export interface ComposerSelection {
   attachments?: ComposerAttachment[];
   onAddFiles?: (files: File[]) => void;
   onRemoveAttachment?: (id: string) => void;
-  project?: Project;
   setModelId: (id: string) => void;
   setEffort: (effort: string) => void;
-  setProjectId: (id: string | undefined) => void;
 }
 
 export function Composer({

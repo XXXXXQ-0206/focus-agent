@@ -232,8 +232,6 @@ export function useArtexComposerSelection(
     [activeProfile, modelLocked, options.onError, reloadProfiles],
   );
 
-  const setProjectId = useCallback(() => {}, []);
-
   return {
     model: {
       id: activeProfile ? String(activeProfile.id) : "",
@@ -248,8 +246,6 @@ export function useArtexComposerSelection(
     effort,
     setModelId,
     setEffort,
-    project: undefined,
-    setProjectId,
     profiles,
     activeProfile,
     effectiveProfile: activeProfile,

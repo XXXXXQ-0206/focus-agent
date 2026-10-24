@@ -35,7 +35,7 @@ import "./toolkit-pages.css";
 /**
  * 四个「基础设施」页（工作区 / 命令记录 / 同步 / 内网会话）。
  *
- * 骨架统一为 Focus 官方页头四层（与 /plugins 同构，见 src/pages/PluginsPage.tsx）：
+ * 骨架统一为 Focus 官方页头四层（与 /plugins 同构）：
  *   slate 页头（h1 + 搜索胶囊 + 动作）→ 副标题行 →（可选）分区 tab 行 → 内容列。
  * 列表用 .cx-page__list / .cx-row（官方行列表语汇），详情用原生对话框。
  * 数据全部来自 Focus 服务端，本页不做任何模拟。

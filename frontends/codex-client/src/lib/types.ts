@@ -5,25 +5,6 @@
  * 但去掉 Focus 专有语义，只保留通用「会话 / 轮次 / 消息」模型。
  */
 
-export interface Project {
-  id: string;
-  name: string;
-  path: string;
-  pinned?: boolean;
-}
-
-export interface Conversation {
-  id: string;
-  title: string;
-  projectId?: string;
-  /** 最近活跃时间（ISO 字符串） */
-  updatedAt: string;
-  /** 头部展示用：是否置顶 / 未读 / 正在生成 */
-  pinned?: boolean;
-  unread?: boolean;
-  running?: boolean;
-}
-
 export type MessageRole = "user" | "assistant" | "system";
 
 export interface Message {
@@ -52,21 +33,6 @@ export interface ToolCall {
   output?: string;
   /** 工具执行耗时（毫秒）；块头显示「已在 Ns 内运行 …」，缺省则不显示 */
   elapsedMs?: number;
-}
-
-export interface Turn {
-  id: string;
-  conversationId: string;
-  createdAt: string;
-  messages: Message[];
-}
-
-/** 输入区里可切换的「权限芯片」 */
-export interface PermissionMode {
-  id: string;
-  label: string;
-  /** 官方用橙色表达「完全访问」这类高权限档 */
-  tone?: "default" | "warning";
 }
 
 export interface ModelOption {

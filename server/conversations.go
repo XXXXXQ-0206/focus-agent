@@ -17,6 +17,7 @@ import (
 	"github.com/Autumn-27/artex/agent"
 	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/artex/intercept"
+	"github.com/Autumn-27/artex/internal/textutil"
 	"github.com/Autumn-27/artex/sidequestion"
 )
 
@@ -876,12 +877,5 @@ func (s *Server) runTriggeredRun(item triggeredRun) {
 
 // firstLine returns a single-line, length-capped preview (shared with summaries).
 func firstLine(s string, max int) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexAny(s, "\r\n"); i >= 0 {
-		s = s[:i]
-	}
-	if len([]rune(s)) > max {
-		s = string([]rune(s)[:max]) + "…"
-	}
-	return s
+	return textutil.FirstLine(s, max)
 }

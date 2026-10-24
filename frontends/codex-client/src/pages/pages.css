@@ -1,40 +1,11 @@
 /* ============================================================================
- * 其余 rail 页面样式（src/pages）—— 定时任务 / 插件 / 探索 / 代码审查
+ * 业务页共享样式：页面骨架、行、资源卡、slate 页头与设置页规范适配。
  *
  * 类名前缀 `cx-page-`：与外壳的 `.codex-*`、设置页的 `.cx-settings`、基础件的 `.cx-btn` 隔离。
  * 全部数值走官方 token，不新增全局变量。
  *
- * ── 出处总表（官方发行产物 = C:/Users/熊骞/Documents/Codex/2026-10-09/
- *    codex-desktop-unpack/outputs/codex-desktop-electron/app/webview/assets/）──
- *
- * [A] automations-page-d71c8cae4d53.js（定时任务页业务体，103KB）
- *     页面根        className:`flex h-full min-h-0 flex-col`
- *     分组容器      className:`flex flex-col gap-6 pt-4 select-none`   → gap 24 / pt 16
- *     分组 <section> className:`flex flex-col gap-2`                    → gap 8
- *     分组标题 h2   className:`mx-3 ... border-b border-default pb-4 text-base font-normal text-tertiary`
- *                    → mx 12 / padding-bottom 16 / 1px 分隔线 / 14px / 400 / 第三级文字
- *     行列表        className:`-mx-3 flex flex-col gap-0.5`              → 负 12 边距 / gap 2
- *     滚动体        className:`flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-6`
- *                    → px 16 / py 24
- *     错误态壳      className:`flex h-full min-h-0 flex-col bg-surface p-panel`
- *
- * [B] pull-request-route-1150fdad8cb9.js（代码审查 / Pull requests）
- *     根            className:`flex h-full min-h-0 w-full flex-col bg-surface`
- *     仓库名列      className:`max-w-[35%] shrink-0 truncate`
- *     标题列        className:`min-w-0 flex-1 truncate`
- *     作者头像      className:`size-4 shrink-0 rounded-full bg-white`
- *     设置向导      className:`flex w-full max-w-80 flex-col items-center gap-3`  → 空态列宽 320
- *     小节标题      className:`px-3 pb-1 text-xs font-medium text-codex-description`
- *
- * [C] plugins-cards-grid-d70c90e35c0c.js / plugins-skills-tabs-fbe9ee998899.js
- *     卡片容器      className:`flex flex-col overflow-hidden rounded-lg border border-default`
- *     插件图标      className:`size-9 shrink-0 rounded-lg bg-text/10`（36px / 12.5px 圆角）
- *     行高          className:`flex h-11 items-center gap-2`（44px）
- *     骨架          className:`h-3 w-20 rounded bg-text/10 motion-safe:animate-pulse`
- *     搜索行        className:`flex items-center border-b border-border/40 px-2 pb-2`
- *     页脚/列表头   className:`flex items-center justify-between gap-3 border-b border-border/40 px-2 pb-2`
- *
- * [D] 官方 i18n 原文（defaultMessage）与 zh-CN 译文见各组件 TSX 的注释。
+ * 结构与数值来自 Focus 官方桌面端的页面、目录行和资源卡实测；具体来源留在
+ * 各组件旁，避免在本文件维护一份易失真的总表。
  *
  * ── 圆角 ────────────────────────────────────────────────────────────────
  *   官方 --corner-radius-scale = 1.25（theme.css:57-67），生效半径
@@ -74,12 +45,7 @@
   font-size: var(--text-base);
 }
 
-/* ★ task-89 更正：本轮一度把这两条规则**删掉**，理由是「/scheduled 的工具条官方不存在」——
-   但那是**页面级**结论，**不是类级**结论：这类仍有两个在用的宿主页面
-   （ExplorePage.tsx:106/113、ReviewPage.tsx:189/242/260），删规则会把那两页的布局一起打掉。
-   ⇒ 规则**保留**，只在 ScheduledPage 撤掉 JSX（官方 1280/1600 全 DOM 扫描证明 /scheduled 主面
-   没有这条工具条：见 docs/RECON-TASK80-BATCH3.md 目标 3）。
-   教训：撤一个页面上的组件 ≠ 撤它的类；删 CSS 前必须先 grep 全仓宿主。 */
+/* 工具栏仍由任务、内网会话和资源列表页共用。 */
 .cx-page__toolbar {
   display: flex;
   flex: 0 0 auto;
@@ -88,13 +54,6 @@
   min-height: var(--cx-pages-row-height);
   padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); /* 12 / 16 */
   border-bottom: 1px solid var(--color-border); /* 官方 border-border/40，tokens 无 40% 档 → 用 --color-border */
-}
-
-.cx-page__toolbar-trailing {
-  margin-inline-start: auto; /* 官方 [A] className:`ms-auto` */
-  display: flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 2);
 }
 
 .cx-page__body {
@@ -638,8 +597,6 @@
   min-width: 0;
 }
 
-/* ── 图标网格（探索分类）────────────────────────────────────────────────── */
-
 /* ── 资源行（官方 /plugins 目录行：无边框行 + 32px 边框图标块 + 两列网格）─────
    出处：captures/recon-official/official-inline-titlebar-plugins.png（对比度增强后逐项确认）
      · 行           透明底、无边框；hover 出 ghost 底；左内距 4px、右 8px、上下 8px；r 12px
@@ -736,55 +693,6 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-}
-
-.cx-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: calc(var(--spacing) * 2);
-}
-
-.cx-tile {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 2);
-  padding: calc(var(--spacing) * 2.5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: transparent;
-  color: inherit;
-  text-align: start;
-  cursor: pointer;
-  transition: background-color var(--transition-duration-basic, 120ms) var(--cubic-enter, ease-out);
-}
-
-.cx-tile:hover {
-  background: var(--color-background-primary-ghost-hover);
-}
-
-.cx-tile:focus-visible {
-  outline: 2px solid var(--color-ring);
-  outline-offset: 1px;
-}
-
-.cx-tile__icon {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  background: color-mix(in oklab, var(--color-text) 6%, transparent);
-  color: var(--color-text-secondary);
-}
-
-.cx-tile__label {
-  min-width: 0;
-  overflow: hidden;
-  font-size: var(--text-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ── 骨架屏（官方 [C] `bg-text/10 motion-safe:animate-pulse`）────────────── */
@@ -954,43 +862,6 @@
   justify-content: center;
 }
 
-/* ── task-24 第二轮：slate 版式（/plugins、/explore）与空态标题的官方数值 ────────
-   官方读数（captures/recon-official/official-rail-plugins.json、official-rail-explore.json）：
-   · 页面 h1：probe.results.h1.sample[1] → rect [370.67, 72, 48, 36]，computed `500 24px/28.8px`，
-     class `flex min-h-9 items-center text-default browser:max-md:min-h-0 …`（min-h-9 = 36px）
-   · 分类 h2：probe.results.h2.sample[*]（9 个）→ rect [370.67, y, …, 28]，computed `500 16px/24px`，
-     class `flex min-h-7 items-center gap-1.5 text-lg leading-6 font-medium`（min-h-7 = 28px / gap 6px）
-   · 内容左内边距：h1/h2 的 x=370.67 − main 内容盒 340.67 = 30px
-   ⚠️ 中间包装层未采集（dom.nodes 在滚动容器处截止）⇒ 30px 是净内边距实测，
-      不知道官方是 px-6 + 内层 6px 还是单个 px-[30px]；这里按净值的等价实现。
-   ⚠️ 卡片（cx-card）几何官方未采集 ⇒ 不改，登记为未实测。 */
-.cx-page[data-page="plugins"] h1,
-.cx-page[data-page="explore"] h1 {
-  display: flex;
-  align-items: center;
-  min-height: 36px; /* min-h-9 */
-  margin: 0;
-  font-size: 24px;
-  line-height: 1.2; /* 实测 28.8px = 24 × 1.2 */
-  font-weight: 500;
-}
-
-.cx-page[data-page="plugins"] h2,
-.cx-page[data-page="explore"] h2 {
-  display: flex;
-  align-items: center;
-  gap: 6px; /* gap-1.5 */
-  min-height: 28px; /* min-h-7 */
-  font-size: 16px; /* text-lg */
-  line-height: 24px; /* leading-6 */
-  font-weight: 500; /* font-medium */
-}
-
-.cx-page[data-page="plugins"] .cx-page__body,
-.cx-page[data-page="explore"] .cx-page__body {
-  padding-inline: 30px; /* 官方净内边距实测：h1/h2 x=370.67 − main 内容盒 340.67 */
-}
-
 /* 官方 /scheduled 空态标题 = h1「安排任务」rect [773.23, 407, 70.21, 26]，
    computed 18px/26px、letter-spacing -0.025em、weight 400
    （probe.results.h1.sample[1]，class `text-[18px] leading-[26px] font-normal tracking-[-0.025em] text-default…`）*/
@@ -999,56 +870,6 @@
   line-height: 26px;
   font-weight: 400;
   letter-spacing: -0.025em;
-}
-
-/* task-28：列表进面板后，主面只剩详情/空态 ⇒ .cx-split 不再分两栏 */
-.cx-split[data-panel-layout="panel"] {
-  display: block;
-}
-
-/* [task-61] 面板档下 aside 就是整个主面（列表在面板里），所以详情列必须**铺满**：
- * 否则它仍按两栏档的 --cx-pages-detail-width(288) 收窄，hero 被挤成 287 宽，
- * 官方那句说明在官方是 **1 行 347.02×20**，我们则会折成两行（实测 263×39）。
- * 两栏档才需要左分隔线与底衬，整面档下官方 /scheduled 主面没有这条竖线。
- * 本选择器只服务 /scheduled（全仓 data-panel-layout="panel" 只有 ScheduledPage 一处）。 */
-.cx-split[data-panel-layout="panel"] > .cx-split__detail {
-  width: 100%;
-  border-inline-start: 0;
-  background: transparent;
-}
-
-/* ── task-35：插件/探索两页的滚动体与分组标题，按官方类串收口 ──────────────────
-   官方出处（captures/recon-official/official-rail-{plugins,explore}.json）：
-   · 滚动体 dom.nodes[1040]：`relative h-full min-h-0 flex-1 [scrollbar-gutter:stable]
-     overflow-x-hidden overflow-y-auto` rect [340.67, 44, 935.33, 768]
-   · 内容列 dom.nodes[1041]：`flex min-h-full w-full flex-col` rect [340.67, 44, **925.33**, 1926.67]
-     ⇒ 925.33 = 935.33 − **10px**（scrollbar-gutter: stable 预留的滚动条槽）
-   · 分组标题 probe.results.h2.sample[*]（9 个）：rect [370.67, y, …, **28**]，computed 500 16px/24px，
-     class `flex min-h-7 items-center gap-1.5 text-lg leading-6 font-medium`、**childCount=0**、color rgb(223,223,223)**
-     ⇒ 28 = min-h-7（28px）压过 line-height 24；**没有 padding、没有 border-bottom**。
-   ⚠️ 我们原先给这两页复用了 /scheduled 那套分组标题（`mx-3 border-b pb-4 text-base font-normal`，
-      见上面的 .cx-page__section-title）—— 那套是**另一个页面**的官方类串，所以 h2 高度多出 13px
-      （padding-bottom 16 + border 1 ≈ 17 → 实测 41 vs 官方 28）。本段按官方类串给这两页自己的那一档。
-   ⚠️ 计数徽章仍**留在 h2 里**（官方 h2 childCount=0，即官方这一处没有计数）：
-      信息量优先，不为了对上高度删 UI；元素高度经 min-h-7 收敛到 28，子元素结构差异如实登记。 */
-.cx-page[data-page="plugins"] .cx-page__body,
-.cx-page[data-page="agents"] .cx-page__body,
-.cx-page[data-page="explore"] .cx-page__body {
-  overflow-x: hidden; /* overflow-x-hidden */
-  scrollbar-gutter: stable; /* [scrollbar-gutter:stable]（官方内容列 925.33 = 935.33 − 10） */
-}
-
-.cx-page[data-page="plugins"] .cx-page__section-title,
-.cx-page[data-page="agents"] .cx-page__section-title,
-.cx-page[data-page="explore"] .cx-page__section-title {
-  min-height: 28px; /* min-h-7 */
-  gap: 6px; /* gap-1.5 */
-  padding: 0; /* 官方这一档没有 padding（我们原先带的是 /scheduled 的 0 12px 16px） */
-  border-bottom: none; /* 官方这一档没有下边框 */
-  color: var(--color-text); /* 官方 computed rgb(223,223,223) = text-default，不是 tertiary */
-  font-size: 16px; /* text-lg */
-  line-height: 24px; /* leading-6 */
-  font-weight: 500; /* font-medium */
 }
 
 /* ══ task-41：/plugins 顶部四层（官方 inline page header 实测复刻）════════════════
@@ -1198,55 +1019,6 @@
   margin-inline-start: auto;
 }
 
-.cx-slate-search {
-  display: grid;
-  width: 240px;
-  height: 32px;
-}
-
-.cx-slate-search__capsule {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border-primary-outline);
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--color-text);
-  font-size: var(--text-sm);
-  line-height: 18px;
-}
-
-.cx-slate-search__capsule:focus-within {
-  border-color: var(--color-ring);
-}
-
-.cx-slate-search__icon {
-  display: flex;
-  flex: 0 0 auto;
-  /* items[20] computed = color(srgb .8745 .8745 .8745 / .65) = --color-text-secondary */
-  color: var(--color-text-secondary);
-}
-
-.cx-slate-search input {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: 20px;
-  outline: none;
-}
-
-.cx-slate-search input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
 .cx-slate-pageactions {
   display: flex;
   align-items: center;
@@ -1275,30 +1047,9 @@
 }
 
 .cx-slate-iconbutton:focus-visible,
-.cx-slate-primarybutton:focus-visible,
 .cx-slate-tab:focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 1px;
-}
-
-.cx-slate-primarybutton {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 32px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--radius-full);
-  /* items[16] computed：底 rgb(223,223,223) = --color-background-primary-solid；
-     字 rgb(45,45,45) = --color-text-primary-solid（theme.css 第 4.2 段实测补档） */
-  background: var(--color-background-primary-solid);
-  color: var(--color-text-primary-solid);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: 18px;
-  font-weight: var(--font-ui-weight, 430);
-  white-space: nowrap;
-  cursor: var(--cursor-interaction, pointer);
 }
 
 /* task-52：副标题行拆成官方那三层 —— 具名容器 / 带 data-page-subtitle 的行 / 文字块。
@@ -1428,93 +1179,23 @@
   }
 }
 
-/* ② 插件卡的「信息」按钮：官方是 16×16 的 button（tooltip 触发点，hover 即出）。
-   ✅ [task-70] 图标色**已有官方证据（同形节点）**：官方「名字 + 16×16 信息钮」那一行是
-   `flex min-w-0 items-center gap-2`，钮为 `inline-flex size-4 items-center justify-center rounded-full text-tertiary`、
-   computed color **rgba(255,255,255,0.498)**（= 本仓 --color-text-tertiary 的 dark 值）——
-   出处 captures/recon-official/official-discover-00-onboarding.json 的 dom.nodes[906]/[908]（rect 独立互证见下行）。
-   ⚠️ 该 /plugins 具体触发点本身的 computed 仍**未采到**（tooltip 只采到 path rect 12.7×11.7 @460.8,277.3，无颜色）⇒ 证据强度：同形节点，非同一节点。
-   本行保留 --color-text-tertiary（与同形节点一致）。
-   ✅ 名字与图标之间的间距 = **8px**（[task-70] Lead 裁决① 采纳：用**有证据的值**替换原先那个**无任何证据的推断值 6px**）。
-   **证据强度：同形节点**（不是该触发点自身的实测）—— 官方同一 capture 里那一行（`推荐个性化任务` + 16×16 信息钮）：
-   名字 label rect 498+98=**596** → 信息钮 left **604** ⇒ gap **8**；且该行 container 类串里写着 `gap-2` = 8px，
-   **两条彼此独立互证**。出处 captures/recon-official/official-discover-00-onboarding.json 的 dom.nodes[906]/[907]/[908]。
-   ⚠️ **该 /plugins 触发点自身的 computed 仍未采到**（tooltip capture 只记到 path rect 12.7×11.7 @460.8,277.3）⇒ 不得写成「已实测」。 */
+/* 卡片标题行：名字与可选状态图标使用官方 8px 间距。 */
 .cx-card__name-row {
   display: flex;
   align-items: center;
-  /* [task-70] 6px → 8px：官方同形行的 container 类串就是 `gap-2`（8px），且 rect 互证（596 → 604）。 */
   gap: 8px;
   min-width: 0;
 }
 
-.cx-plugin-info {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--color-text-tertiary);
-  cursor: var(--cursor-interaction, pointer);
-}
-
-.cx-plugin-info:hover {
-  color: var(--color-text-secondary);
-}
-
-.cx-plugin-info:focus-visible {
-  outline: 2px solid var(--color-ring);
-  outline-offset: 1px;
-}
-
-/* ③ 这一档 tooltip 的官方几何（与 src/ui 的通用档不同：半径 20 而非 10、内距 5px 12px、
-   底色 --color-background-tooltip 而非 --color-surface-elevated、最大宽 320 而非 300）。
-   用双类选择器压过 ui.css 的 .cx-tooltip__content（同特异性时由打包顺序决定，不可靠）。 */
-.cx-tooltip__content.cx-plugin-tip {
-  z-index: 50;
-  max-width: 320px;
-  padding: 5px 12px;
-  border: 1px solid color-mix(in oklab, var(--color-text) 5%, transparent);
-  border-radius: var(--radius-2xl); /* calc(1rem * 1.25) = 20px */
-  background: var(--color-background-tooltip); /* 官方 computed rgb(45, 45, 45) */
-  box-shadow: var(--shadow-tooltip); /* theme.css = 0 8px 18px #0f172a33，与官方一致 */
-  color: var(--color-text); /* 官方 computed rgb(223, 223, 223) */
-  font-size: var(--text-sm); /* 13px */
-  line-height: 18px; /* 官方 computed line-height: 18px */
-}
-
-.cx-plugin-tip__meta {
-  color: var(--color-text-secondary);
-}
-
-/* ══ task-54：三行进滚动容器（官方结构对齐）══════════════════════════════════════
-   官方结构（captures/recon-official/official-inline-titlebar-plugins.json 的 tree +
-   docs/RECON-TASK48-PANELS.md 目标 3）：
+/* ══ slate 页头与内容进入同一滚动容器（官方结构对齐）══════════════════════════
+   官方结构：
      滚动容器 [340.67, 44, 935.33, 768]  overflow-y:auto + [scrollbar-gutter:stable]
        └ 内容列 [340.67, 44, 925.33, 1926.67]  flex min-h-full w-full flex-col
            ├ 壳 _shell_   sticky top:-16px（shell-initial.css:3775-3778）
            ├ 副标题行     @container/searchable-header
            ├ 分段行
            └ 内容 _content_（flex-1）
-   我们原来把这三行放在滚动容器**外** ⇒ 滚动时什么都不会动。换父容器后必须补下面四件事。 */
-
-/* 1) 滚动容器本身不能再有内距：三行要满宽、各自带 30px 内距（官方每行自带 px-30），
-      内距下移到内容列 ⇒ 卡片位置不变。
-      ⚠️ 严格限定在 plugins 作用域：.cx-page__body 是 /new、/c、/settings 共用的基类。 */
-.cx-page[data-page="plugins"] .cx-page__body {
-  /* 官方这个滚动容器是**块**容器（类串里没有 display:flex：relative h-full min-h-0 flex-1
-     [scrollbar-gutter:stable] overflow-x-hidden overflow-y-auto）。
-     若保持 flex 列：内容列会被 flex-shrink 压到视口高（实测内容 1077 → 列高 768），
-     卡片溢出到列外 ⇒ 底部 24px 内距落到中间、末张卡贴底。改回 block 与官方一致。 */
-  display: block;
-  padding: 0;
-  gap: 0;
-}
+ */
 
 /* 2) 官方内容列：flex min-h-full w-full flex-col（task-35 已记 925.33 = 935.33 − 10 的 gutter） */
 .cx-slate-scroll {
@@ -1557,370 +1238,6 @@
   z-index: -1;
   background-color: var(--color-surface);
   pointer-events: none;
-}
-
-/* ══ 新建任务对话框（task-71）════════════════════════════════════════════════
- * 官方出处：captures/recon-official/official-task53-has-tasks.json 的 dialog 段
- *   ＋截图 official-task53-new-task-step1.png（官方视口 1280×816）。
- * 每条数值后面标了来源：实测 / 由实测推算 / 截图目测（未实测）。
- * 布局用**绝对定位对锚点**：官方给的是 8 个元素的 rect，逐值钉住最直接。
- * ------------------------------------------------------------------------- */
-.cx-sched-dialog {
-  position: fixed;
-  inset: 0;
-  z-index: 50; /* 实测 */
-  /* 遮罩（★ task-71 补测）：官方 items 段没采到遮罩，改用**两张官方截图的像素对照**取证 ——
-     同一区域「有对话框 / 无对话框」的均值比在 y=330 与 y=950 两条横剖共 16 点上恒为 0.48~0.50
-     （24→12、25→12），即黑色 α ≈ 0.5。落 token：--modal-backdrop-background 的 dark 档 = #00000080（0.502）✓
-     逐值吻合；本工程 ui.css:1238 的弹层遮罩用的就是同一个 token（官方默认档**无 backdrop-filter**，见 ui.css:1209-1210）。
-     ⚠️ 点击遮罩是否关闭官方**未实测** ⇒ 不实现；遮罩拦背后交互（与官方弹层遮罩一致）。 */
-  background-color: var(--modal-backdrop-background);
-  pointer-events: auto;
-}
-
-.cx-sched-dialog__box {
-  position: absolute;
-  top: 10%; /* 实测推算：官方 y=81.6 = 816 × 10% */
-  left: 50%;
-  width: 680px; /* 实测 */
-  height: 420.7px; /* 实测 */
-  translate: -50% 0; /* 实测推算：官方 x=300 = (1280 − 680) / 2 */
-  padding: 0; /* 实测 padding: 0px */
-  /* 官方 30px；本 token = 4px × 6 × --corner-radius-scale(1.25) = 30px（与实测吻合） */
-  border-radius: var(--radius-form-dialog);
-  /* 官方 rgb(45,45,45)；本 token 的值就是 rgb(45,45,45)（与实测吻合） */
-  background: var(--color-background-control-opaque);
-  /* 实测三串（capture 里另三串是全零，省略） */
-  box-shadow:
-    rgba(255, 255, 255, 0.082) 0 0 0 0.5px,
-    rgba(0, 0, 0, 0.1) 0 8px 10px -6px,
-    rgba(0, 0, 0, 0.1) 0 20px 25px -5px;
-  pointer-events: auto;
-}
-
-/* 标题文案来自截图（items 段未采到文案）⇒ 位置为截图目测 */
-.cx-sched-dialog__title {
-  position: absolute;
-  inset-block-start: 20px;
-  inset-inline-start: 20px;
-  color: var(--color-text);
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-medium);
-  line-height: 21px;
-}
-
-/* 官方 32×32 @934,97.6 ⇒ 容器内 (634, 16)；尺寸由 Button[size=lg][uniform] = --control-size-md(32px) 给出 */
-.cx-sched-dialog__close {
-  position: absolute;
-  inset-block-start: 16px;
-  inset-inline-end: 14px;
-}
-
-/* 说明字段外框：官方 ProseMirror 内容盒 602.7×20 @338.7,164.3（实测）
-   ⇒ 外框 = 容器内 (20, 70.4) 640×111.3，内距把内容推到 (38.7, 82.7)。
-   边框色与圆角**截图目测**（未实测）。 */
-.cx-sched-dialog__desc {
-  position: absolute;
-  inset-block-start: 70.4px;
-  inset-inline-start: 20px;
-  box-sizing: border-box;
-  width: 640px;
-  height: 111.3px;
-  /* 内距：官方内容盒 x=338.7、w=602.7 ⇒ 640 − 2×1(border) − 2×17.65 = 602.7 ✓（首版写 18.7 实测窄了 1.4px） */
-  padding: 12.3px 18px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.cx-sched-dialog__editor {
-  box-sizing: border-box;
-  width: 100%;
-  height: 20px; /* 官方内容盒 h=20（实测）；配 rows=1，首版靠 min-height 结果被 textarea 默认 2 行撑成 40 */
-  min-height: 20px;
-  max-height: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: var(--text-base);
-  line-height: 20px; /* 官方内容盒 h=20（实测） */
-  outline: none;
-  overflow: auto;
-  overflow-wrap: anywhere;
-  resize: none;
-}
-
-/* 焦点环：官方**明确关掉**了编辑器上的 outline —— 官方 CSS 原文
-   `._RichTextInput_juri1_1 .ProseMirror:focus-visible{ outline:none }`（工程内 chat.css:355 有摘录），
-   官方截图里聚焦态的说明框也只有中性边框、没有蓝环。我们这里是 textarea，会被全局 :focus-visible 规则加上蓝环，
-   故按官方对齐关掉（截图对照实测：不关就是蓝框）。 */
-.cx-sched-dialog__editor:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
-
-/* 占位符：官方是 ProseMirror 的 placeholder 插件（E2：判据是「doc 为空」，不是「有这个类名」）；
-   textarea 用原生 ::placeholder 表达同一件事。 */
-.cx-sched-dialog__editor::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-/* 重复/时间分组：官方两个值控件（重复按钮 55.7×40 @883.6,289.6；时间 input 96×20 @815.3,347.6
-   ＋按钮 20×20 @919.3,347.6）⇒ 组框 = 容器内 (20, 203.7) 640×93.4，两行、中间一条分隔线。
-   框的边框色/圆角**截图目测**。 */
-.cx-sched-dialog__group {
-  position: absolute;
-  inset-block-start: 203.7px;
-  inset-inline-start: 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  width: 640px;
-  height: 93.4px;
-  padding-block-start: 3.3px; /* 实测校正：官方重复按钮 y=289.6（首版 286） */
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.cx-sched-dialog__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 40px; /* 官方那两个值控件的行高（重复按钮 h=40 实测） */
-  padding-inline: 22px 20px; /* 行内左缘取自截图目测 */
-}
-
-.cx-sched-dialog__row--time {
-  flex: 1 1 auto;
-  /* 实测校正：首版该行内容居中 ⇒ y=342.3，官方 347.6（差 5.3）；组内又有 3.3 的上内距 ⇒ 这里补 7.3 */
-  padding-block-start: 7.3px;
-  border-block-start: 1px solid var(--color-border);
-}
-
-.cx-sched-dialog__row-label {
-  color: var(--color-text);
-  font-size: var(--text-base);
-  line-height: 21px;
-}
-
-.cx-sched-dialog__repeat {
-  min-width: 55.7px; /* 实测（首版 76：Button 默认 gutter 16 + 16px 图标把它撑宽了 20.3px） */
-  height: 40px; /* 实测 */
-  gap: 4px;
-  padding-inline: 6.85px; /* 实测校正：内容 = 文本 26 + gap 4 + 图标 12 + 2×6.85 = 55.7 ✓ */
-}
-
-.cx-sched-dialog__time {
-  display: flex;
-  align-items: center;
-  gap: 8px; /* 实测推算：input 右缘 611.3 → 按钮左缘 619.3 */
-}
-
-.cx-sched-dialog__time-input {
-  width: 96px; /* 实测 */
-  height: 20px; /* 实测 */
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: var(--text-base);
-  text-align: start;
-}
-
-.cx-sched-dialog__advanced {
-  position: absolute;
-  inset-block-start: 316.7px; /* 实测推算 */
-  inset-inline-start: 20px;
-  min-width: 67.7px; /* 实测 */
-  height: 28px; /* 实测 */
-}
-
-/* 页脚：官方取消/创建各 61.3×36、底缘 400.7 ⇒ 容器内距 20；两钮间距 12.1（实测推算） */
-.cx-sched-dialog__footer {
-  position: absolute;
-  inset-block-end: 20px;
-  inset-inline-end: 20px;
-  display: flex;
-  gap: 12px;
-}
-
-.cx-sched-dialog__action {
-  min-width: 61.3px; /* 实测 */
-  height: 36px; /* 实测 */
-}
-
-/* ── task-75：选中已排任务 = 运行会话（官方 /scheduled 选中态）────────────────────
- * 出处：docs/RECON-TASK69-SELECTED-STATE.md §A1～§A5 +
- *       captures/recon-official/official-task69-selected-and-appearance.json（官方 App，1280×816 dpr1.5）。
- *
- * 官方分栏：`._MainContentFrame_yl8z4_2` **935.33×716 @340.67,96**（display:flex / **column**）
- *   → 唯一子节点 `div.relative.flex.min-h-0.flex-1`（**flex-direction: row**）⇒ 左右分栏在这一层。
- * ⚠️ 我们这页的主面已经是「整个 .cx-split__detail」（见上面 task-28 那条），
- *    所以这里只把**主面内部**排成 row：左对话流（flex 1）+ 右摘要面板（240 固定）。
- * ⚠️ 官方那层 row **没有**水平内边距（消息 rect 起点 929.03 由转录列自身 768 居中决定）⇒ 这里也不加。
- */
-
-.cx-run {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-/* panel 档下 .cx-split__detail 是 block（见上面 task-28 那条）⇒ 运行会话不会自动撑满主面高度
-   （实测：改前 .cx-run 只有 131.5 高 = 内容高，官方主面是 716 高、消息区可滚）。
-   这里只在**选中态**把主面变成 flex column，让 .cx-run 拉伸；空态 hero 不受影响。 */
-.cx-split[data-panel-layout="panel"] > .cx-split__detail:has(.cx-run) {
-  display: flex;
-  flex-direction: column;
-  /* ⚠️ 必须给高度：panel 档下 .cx-split 是 `display: block`（见下），细节面板的 `flex: 0 0 auto`
-     在这种父级下不参与拉伸 ⇒ 实测它只有内容高 139.5（.cx-split 是 574） ⇒ 用百分比撑满。 */
-  height: 100%;
-}
-
-.cx-run__row {
-  display: flex;
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-}
-
-.cx-run__stream {
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-
-.cx-run__scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  /* ★ task-89：24 → **32**。官方主面顶 y=96、日期分隔容器顶 y=**128** ⇒ 转录区顶部留白 32px
-     （容器自带 padding 16px 0 ⇒ time 落在 96+32+16 = **144**，与官方 time.rect.y 逐值相同）。 */
-  padding: 32px 0 0;
-  overflow-y: auto;
-}
-
-/* ★ task-89：居中日期分隔。官方（RECON-TASK80-BATCH3 目标 2）：
-     容器 div.flex.justify-center.py-4  440.33,128 736×52  justify-content:center  padding 16px 0
-     time                              778.13,144 60.42×20  13px/20px/400 rgba(255,255,255,.498)
-     ★ 官方**没有 hr / 伪元素 / 两侧渐变线**（hr 计数 0、::before/::after content 全 none）⇒ 这里也不加。 */
-.cx-run__date-row {
-  display: flex;
-  justify-content: center; /* 官方 justify-center */
-  padding: 16px 0; /* 官方 py-4 */
-}
-
-.cx-run__date {
-  font-size: var(--text-sm); /* 13px */
-  line-height: 20px;
-  font-weight: 400; /* 官方 font-normal */
-  color: var(--color-text-tertiary); /* 官方 text-tertiary（= rgba(255,255,255,.498)） */
-  user-select: none; /* 官方 select-none */
-}
-
-.cx-run__date-today {
-  font-weight: 500; /* 官方内层 span.font-medium */
-}
-
-/* ★ task-89：运行会话的**输入区**。
-   官方 root/body 层：440.33,**698** 736×**98**、bg rgb(54,54,54)、body position relative + z-index 10；
-   贴底依据：主体底 y≈812 − composer 底 796 = **16px**。
-   盒子/页脚/编辑器三层由复用组件 `src/chat/Composer.tsx` 的 .cx-composer 提供（与官方同构，见 chat.css）。
-   ⚠️ 官方那层是浮层（relative + z10），我们放在流的末尾（与 /c/:id 同口径）——位置等价、层叠机制不同。
-   ★ 实测复核（task-94，tools/codex-ref/task94-ours-runsession.mjs，headless Edge @1280×816 dpr1）：
-     我们 `.cx-composer` = 357,**698** 663×**98**、bg rgb(54,54,54)、position relative、z-index 10；
-     footer 663×**76** @712、editor 639×**44** @712；`[data-run-composer]` 底缘 717 = 主面底 717、
-     **官方 composer 顶 y=698 与我们逐值相同**（官方 row 440.33,698 736×98）；宽度差 736 vs 663 来自
-     「右摘要面板参与布局」这条**已登记的有意偏离**（官方 x=1328 被裁在 1280 视口外）。 */
-.cx-run__composer {
-  flex: 0 0 auto;
-  padding-bottom: 16px;
-}
-
-/* 转录列：与 /c/:id 同一口径（chat.css 的 --cx-thread-column = 768），列内居中、左右 16px。
-   官方用户消息右缘 1160.33 + 16 = 1176.33 ⇒ 列右缘 ≈1176，列宽 768 ⇒ 列起点 ≈408.33
-   （= 主面 340.67 + (935.33 − 768)/2 的居中档）。 */
-.cx-run__column {
-  width: 100%;
-  max-width: var(--cx-thread-column, 768px);
-  margin-inline: auto;
-  padding: 0 16px;
-}
-
-/* 回底钮锚盒：与 .cx-thread__to-bottom-anchor **同源**（chat.css:1174）。
-   本页没有输入区，所以这里只保留锚盒，高度 0；浮钮自身仍由 .cx-thread__to-bottom 给
-   （32×32 / opacity 0 / 贴底隐藏）。 */
-.cx-run__to-bottom-anchor {
-  --cx-col: min(var(--cx-thread-column), calc(100vw - 64px));
-
-  flex: 0 0 auto;
-}
-
-/* ── 右侧摘要面板（RECON-TASK69 §A5 逐值）───────────────────────────────────────
- * 官方：滚动容器 **240 × 68.8 @1328,104**（overflow-y:auto、**padding 10px 0**、**gap 8px**）；
- *       section `pb-2` 240×52.8；分区标题「定时任务」13px/18.57 w400（color 0.87451/0.65）；
- *       摘要项 `button[aria-label="打开已安排任务"]` **208 × 22.4 @1344,136**（**padding 4px 0**、**gap 4px**）。
- * 208 = 240 − 2×16 ⇒ 16px 的内侧留白在**容器**上（条目自身无横向 padding）。
- * ⚠️ 条目高 22.4 = 4×2 + **14.4**；官方没采到条目字号 ⇒ 14.4 是**由高度反推**的（12px × 1.2），
- *    这里按反推值落地并标注「推导」，不假装是实测。 */
-.cx-run__summary {
-  display: flex;
-  flex: 0 0 240px;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  padding: 10px 0;
-  overflow-y: auto;
-}
-
-.cx-run__summary-section {
-  display: flex;
-  flex-direction: column;
-  padding: 0 16px 8px;
-}
-
-.cx-run__summary-title {
-  font-size: 13px;
-  font-weight: var(--font-weight-normal);
-  line-height: 18.5714px;
-  color: color-mix(in srgb, var(--color-text) 65%, transparent);
-}
-
-.cx-run__summary-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  padding: 4px 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 12px;
-  line-height: 14.4px;
-  color: var(--color-text);
-  text-align: start;
-  cursor: pointer;
-}
-
-.cx-run__summary-item:hover {
-  color: var(--color-text);
-}
-
-.cx-run__summary-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cx-run__summary-schedule {
-  flex: 0 0 auto;
-  color: var(--color-text-tertiary);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

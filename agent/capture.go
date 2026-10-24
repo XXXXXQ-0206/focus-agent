@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/artex/intercept"
+	"github.com/Autumn-27/artex/internal/textutil"
 	"github.com/Autumn-27/artex/sidequestion"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/harness"
@@ -187,14 +187,7 @@ func blocksText(blocks []llm.ContentBlock) string {
 
 // firstLine returns a single-line, rune-capped preview for the summary column.
 func firstLine(s string, max int) string {
-	s = strings.TrimSpace(s)
-	if before, _, found := strings.Cut(s, "\n"); found {
-		s = before
-	}
-	if utf8.RuneCountInString(s) > max {
-		s = string([]rune(s)[:max]) + "…"
-	}
-	return s
+	return textutil.FirstLine(s, max)
 }
 
 // Preserve the recorded session's visible messages, excluding thinking blocks.

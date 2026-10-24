@@ -432,7 +432,7 @@ function resourceBadges(kind: Exclude<SystemKind, "traffic">, row: Row) {
 /**
  * Focus 系统资源页（/system/llm、/system/mcp、/system/tools、/system/skills）。
  *
- * 骨架 = Focus 官方「插件」页（src/pages/PluginsPage.tsx）：slate 页头（标题 + 搜索胶囊 + 刷新）
+ * 骨架 = Focus 官方插件页的 slate 页头（标题 + 搜索胶囊 + 刷新）
  * → 副标题行 → 内容列的两列资源行（.cx-res-grid；官方 /plugins 目录行语汇）。
  * 点卡片或「查看详情」打开详情对话框（字段表 + 工具 schema），数据全部来自 Focus 服务端，
  * 本页只读，不提供写入（写入在原生设置分区里）。
