@@ -40,7 +40,7 @@ export function QueuedMessageBar({
       <CodexQueueInsert aria-hidden className="cx-queued__icon" size={16} />
       <span className="cx-queued__text" title={item.text}>
         {item.text}
-        {item.attachments?.length ? ` · 📎 ${item.attachments.length}` : ""}
+        {item.attachments.length ? ` · 📎 ${item.attachments.length}` : ""}
       </span>
       <div className="cx-queued__actions">
         <button
@@ -73,7 +73,7 @@ export function QueuedMessageBar({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="top" sideOffset={6}>
-            {item.attachments?.length ? null : (
+            {item.attachments.length ? null : (
               <DropdownMenuItem onSelect={() => onEdit(item.id)}>编辑</DropdownMenuItem>
             )}
             <DropdownMenuItem onSelect={() => onRemove(item.id)}>删除</DropdownMenuItem>

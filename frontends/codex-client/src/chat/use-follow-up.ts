@@ -28,19 +28,24 @@ import type { ChatStatus } from "./use-chat";
 export interface QueuedMessage {
   id: string;
   text: string;
-  attachments?: File[];
+  attachments: File[];
+  /** 队列归属（首页 / conversation:<id> / task:<id>）。 */
+  scopeKey: string;
 }
 
 export function useFollowUp(
   status: ChatStatus,
   send: (text: string, attachments?: File[], fromQueue?: boolean) => void,
   stop: () => void,
+  scopeKey: string,
 ) {
   const { followUpMode } = useSettings();
   const [queue, setQueue] = useState<QueuedMessage[]>([]);
   const statusRef = useRef(status);
   statusRef.current = status;
   const seqRef = useRef(0);
+  const scopeRef = useRef(scopeKey);
+  scopeRef.current = scopeKey;
   // 队列的最新快照：edit() 需要在**状态更新函数之外**读到待编辑文本（更新函数里发事件
   // 属于副作用，StrictMode 下会被调用两次 ⇒ 输入框会被写两遍）。
   const queueRef = useRef(queue);
@@ -51,7 +56,8 @@ export function useFollowUp(
     const item: QueuedMessage = {
       id: `queued-${seqRef.current}`,
       text,
-      ...(attachments.length ? { attachments } : {}),
+      attachments,
+      scopeKey: scopeRef.current,
     };
     setQueue((current) => (steerNow ? [item, ...current] : [...current, item]));
     return item.id;
@@ -69,13 +75,22 @@ export function useFollowUp(
     return true;
   };
 
+  // 会话/任务切换时丢弃旧作用域的队列，绝不让附件或文本跨目标发送。
+  useEffect(() => {
+    setQueue((current) => current.filter((item) => item.scopeKey === scopeKey));
+  }, [scopeKey]);
+
   /** 轮次一结束就把队首那条发出去（FIFO；一次只发一条，剩下等下一轮空闲）。 */
   useEffect(() => {
     if (status === "streaming" || queue.length === 0) return;
     const [head] = queue;
+    if (head.scopeKey !== scopeKey) {
+      setQueue((current) => current.filter((item) => item.scopeKey === scopeKey));
+      return;
+    }
     setQueue((current) => current.slice(1));
     send(head.text, head.attachments, true);
-  }, [queue, send, status]);
+  }, [queue, scopeKey, send, status]);
 
   /** 引导：立即打断当前生成，并把这条插到队首（它会先于其它排队消息发出）。 */
   const steer = useCallback(
@@ -115,7 +130,7 @@ export function useFollowUp(
      */
     allowSteer: status === "streaming",
     submit,
-    queued: queue,
+    queued: queue.filter((item) => item.scopeKey === scopeKey),
     steer,
     remove,
     edit,

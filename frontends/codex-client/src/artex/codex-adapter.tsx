@@ -15,15 +15,15 @@ import {
 import { Popover } from "radix-ui";
 import { type ComponentType, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import type { RuntimeMessage } from "@/chat";
 import {
   type ChatStatus,
   Composer,
-  ConversationView,
   type ComposerAttachment,
+  ConversationView,
   Markdown,
   useFollowUp,
 } from "@/chat";
-import type { RuntimeMessage } from "@/chat";
 import {
   CodexArchive,
   CodexBrain,
@@ -449,7 +449,7 @@ export function ArtexHomePage() {
   const modeName = activeMode?.name || (mode === ARTEX_DEFAULT_MODE ? "Auto" : mode);
   const ModeIcon = modeIconFor(mode);
 
-  const send = async (message: string, files?: File[], fromQueue = false) => {
+  const send = async (message: string) => {
     if (status === "streaming") return;
     setStatus("streaming");
     setError("");
@@ -458,7 +458,7 @@ export function ArtexHomePage() {
       const created = await artexApi.createConversation(mode);
       try {
         // 附件先落到这次会话的聊天目录（sessions/conv-<id>/uploads），随消息带引用过去。
-        const outgoing = files ?? composerFiles.files.flatMap((file) => (file.file ? [file.file] : []));
+        const outgoing = composerFiles.files.flatMap((file) => (file.file ? [file.file] : []));
         const attachments = outgoing.length
           ? await artexApi.uploadChatAttachments(
               "session",
@@ -467,7 +467,7 @@ export function ArtexHomePage() {
             )
           : [];
         await artexApi.sendConversationMessage(created.id, message, attachments);
-        if (!fromQueue) composerFiles.clearFiles();
+        composerFiles.clearFiles();
       } catch (caught) {
         // 回滚刚建出来的空会话（最常见：后端没配 LLM ⇒ 503，"尚未配置 LLM…"）。
         // 只在**服务端确认这条会话一条消息都没有**时才删 —— 避免把"其实已经收下这条消息"
@@ -494,17 +494,6 @@ export function ArtexHomePage() {
 
   const stop = () => {
     setStatus("idle");
-  };
-
-  // 「跟进方式」（设置 → 常规）：生成中再发一条 —— 排队 / 引导（首页这里的 send 会新建对话）
-  const followUp = useFollowUp(
-    status,
-    (message, files, fromQueue) => void send(message, files, fromQueue),
-    stop,
-  );
-  const queueMessage = (message: string) => {
-    const files = composerFiles.files.flatMap((file) => (file.file ? [file.file] : []));
-    if (followUp.submit(message, files)) composerFiles.clearFiles();
   };
 
   return (
@@ -599,7 +588,7 @@ export function ArtexHomePage() {
                   </div>
                 </div>
                 <Composer
-                  onSend={queueMessage}
+                  onSend={(message) => void send(message)}
                   onStop={stop}
                   selection={{
                     ...selection,
@@ -609,7 +598,6 @@ export function ArtexHomePage() {
                     onRemoveAttachment: composerFiles.removeFile,
                   }}
                   status={status}
-                  steer={followUp.allowSteer}
                 />
                 {error ? (
                   <p className="artex-codex-error" role="alert">
@@ -728,7 +716,9 @@ export function ArtexConversationPage() {
     setSending(true);
     setError("");
     try {
-      const outgoing = files ?? composerFiles.files.flatMap((file) => (file.file ? [file.file] : []));
+      const outgoing =
+        files ??
+        (fromQueue ? [] : composerFiles.files.flatMap((file) => (file.file ? [file.file] : [])));
       const attachments = outgoing.length
         ? await artexApi.uploadChatAttachments(
             "session",
@@ -769,6 +759,7 @@ export function ArtexConversationPage() {
     () => {
       void artexApi.stopConversation(id).catch(() => undefined);
     },
+    `conversation:${id}`,
   );
   const queueMessage = (message: string) => {
     const files = composerFiles.files.flatMap((file) => (file.file ? [file.file] : []));
@@ -847,18 +838,28 @@ export function ArtexTaskPage() {
   const navigate = useNavigate();
   const [modelNotice, setModelNotice] = useState("");
   const [taskLLM, setTaskLLM] = useState<TaskLLMResolution | null>(null);
+  const taskLLMRequest = useRef(0);
   const reloadTaskLLM = useCallback(async () => {
+    const request = ++taskLLMRequest.current;
     if (!taskId) {
       setTaskLLM(null);
       return;
     }
     try {
       const resolution = await artexApi.taskLLMResolution(taskId);
+      if (request !== taskLLMRequest.current) return;
       setTaskLLM(resolution.mainagent);
+      setModelNotice("");
     } catch (caught) {
-      setTaskLLM(null);
+      if (request !== taskLLMRequest.current) return;
       setModelNotice(caught instanceof Error ? caught.message : "任务模型解析失败");
     }
+  }, [taskId]);
+
+  useEffect(() => {
+    taskLLMRequest.current += 1;
+    setTaskLLM(null);
+    setModelNotice("");
   }, [taskId]);
 
   useEffect(() => {
@@ -878,10 +879,10 @@ export function ArtexTaskPage() {
     taskLLM == null
       ? "正在解析任务实际使用的模型"
       : taskLLM.source === "task_chain"
-      ? "该任务使用独立模型链，请在上层任务配置中修改"
-      : taskLLM.source === "agent_binding"
-        ? "该 Agent 已绑定模型，请在「Agent 运行」里修改绑定"
-        : undefined;
+        ? "该任务使用独立模型链，请在上层任务配置中修改"
+        : taskLLM.source === "agent_binding"
+          ? "该 Agent 已绑定模型，请在「Agent 运行」里修改绑定"
+          : undefined;
 
   const selection = useArtexComposerSelection({
     agentKey: "mainagent",
@@ -1133,7 +1134,12 @@ export function ArtexTaskPage() {
     void artexApi.stopChat(taskId).catch(() => undefined);
     setStatus("idle");
   };
-  const followUp = useFollowUp(chatStatus, (message) => void send(message), stopTask);
+  const followUp = useFollowUp(
+    chatStatus,
+    (message) => void send(message),
+    stopTask,
+    `task:${taskId}`,
+  );
   const transcript = useMemo(
     () => toTaskTranscript(activities, taskId, taskRunning),
     [activities, taskId, taskRunning],
