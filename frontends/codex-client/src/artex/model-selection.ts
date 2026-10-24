@@ -85,24 +85,50 @@ export function useArtexComposerSelection(
 ): ArtexComposerSelection {
   const [profiles, setProfiles] = useState<LLMProfile[]>([]);
   const [agents, setAgents] = useState<ArtexAgent[]>([]);
+  const [agentsReady, setAgentsReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const loadRequestRef = useRef(0);
+  const onErrorRef = useRef(options.onError);
+  onErrorRef.current = options.onError;
 
   const reloadProfiles = useCallback(async () => {
-    const [profileList, agentList] = await Promise.all([
-      artexApi.llmProfiles().catch(() => [] as LLMProfile[]),
-      artexApi.agents().catch(() => [] as ArtexAgent[]),
+    const request = ++loadRequestRef.current;
+    const [profileResult, agentResult] = await Promise.allSettled([
+      artexApi.llmProfiles(),
+      artexApi.agents(),
     ]);
-    setProfiles(profileList);
-    setAgents(agentList);
+    if (request !== loadRequestRef.current) return;
+
+    const failures: string[] = [];
+    if (profileResult.status === "fulfilled") {
+      setProfiles(profileResult.value);
+    } else {
+      failures.push(
+        profileResult.reason instanceof Error ? profileResult.reason.message : "模型配置加载失败",
+      );
+    }
+    if (agentResult.status === "fulfilled") {
+      setAgents(agentResult.value);
+      setAgentsReady(true);
+    } else {
+      setAgentsReady(false);
+      failures.push(agentResult.reason instanceof Error ? agentResult.reason.message : "Agent 加载失败");
+    }
+    onErrorRef.current?.(failures.join(" · "));
   }, []);
 
   useEffect(() => {
+    void options.agentKey;
+    setAgentsReady(false);
     void reloadProfiles();
     const onChanged = () => void reloadProfiles();
     window.addEventListener("artex:llm-changed", onChanged);
-    return () => window.removeEventListener("artex:llm-changed", onChanged);
-  }, [reloadProfiles]);
+    return () => {
+      loadRequestRef.current += 1;
+      window.removeEventListener("artex:llm-changed", onChanged);
+    };
+  }, [options.agentKey, reloadProfiles]);
 
   const globalActive = profiles.find((profile) => profile.is_default) ?? null;
   const resolvedProfile =
@@ -130,12 +156,15 @@ export function useArtexComposerSelection(
    * 写进一个永不生效的 pin。把选择器置为只读并给出原因（去 Agent 设置里改绑定）。
    */
   const lockedByAgent = boundProfile != null;
-  const modelLocked = lockedByAgent || Boolean(options.modelLocked);
+  const bindingPending = Boolean(options.agentKey) && options.resolvedProfileId == null && !agentsReady;
+  const modelLocked = Boolean(options.modelLocked) || lockedByAgent || bindingPending;
   const modelLockedReason = options.modelLocked
     ? options.modelLockedReason
     : lockedByAgent
       ? "该 Agent 已绑定模型，请在「Agent 运行」里修改绑定"
-      : undefined;
+      : bindingPending
+        ? "正在确认 Agent 模型绑定"
+        : undefined;
 
   const models: ChatModelOption[] = useMemo(
     () =>

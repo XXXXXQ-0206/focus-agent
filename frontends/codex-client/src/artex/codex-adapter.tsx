@@ -41,6 +41,7 @@ import {
 } from "@/icons";
 import type { ToolCall } from "@/lib/types";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
+import { appendUniqueActivities } from "./activity-merge";
 import { type ArtexAgent, artexApi, openActivityStream } from "./api";
 import { useArtexComposerSelection } from "./model-selection";
 import { canSendTaskMessage, taskComposerReadOnly } from "./task-chat-policy";
@@ -636,6 +637,7 @@ export function ArtexConversationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const cursorRef = useRef(0);
+  const runningRef = useRef(false);
   const invalid = !Number.isFinite(id) || id <= 0;
   /**
    * 芯片显示**实际生效**的档案：agent 绑定 → 会话 pin → 全局激活（与 resolveChatAgent 一致）。
@@ -654,6 +656,7 @@ export function ArtexConversationPage() {
 
   useEffect(() => {
     if (invalid) return;
+    runningRef.current = false;
     let cancelled = false;
     let timer = 0;
     let seen = 0;
@@ -663,14 +666,14 @@ export function ArtexConversationPage() {
         const page = await artexApi.conversationMessages(id, seen);
         if (cancelled) return;
         if (page.items.length > 0) {
-          setActivities((current) => {
-            const known = new Set(current.map((item) => String(item.seq ?? item.id ?? "")));
-            const fresh = page.items.filter((item) => !known.has(String(item.seq ?? item.id ?? "")));
-            return fresh.length > 0 ? [...current, ...fresh] : current;
-          });
+          setActivities((current) => appendUniqueActivities(current, page.items));
         }
         seen = page.cursor;
         cursorRef.current = page.cursor;
+        if (page.running !== runningRef.current) {
+          runningRef.current = page.running;
+          window.dispatchEvent(new Event("artex:conversations-changed"));
+        }
         setRunning(page.running);
         setError("");
         timer = window.setTimeout(() => void tick(), page.running ? 1200 : 5000);
@@ -709,7 +712,7 @@ export function ArtexConversationPage() {
   }, [id, invalid]);
 
   const send = async (message: string, files?: File[], fromQueue = false) => {
-    if (invalid || sending) return;
+    if (invalid || sending) return false;
     setSending(true);
     setError("");
     try {
@@ -720,14 +723,21 @@ export function ArtexConversationPage() {
         : [];
       await artexApi.sendConversationMessage(id, message, attachments);
       if (!fromQueue) composerFiles.clearFiles();
-      // 立刻拉一次，让用户那条消息不用等下一个轮询周期。
-      const page = await artexApi.conversationMessages(id, cursorRef.current);
-      setActivities((current) => [...current, ...page.items]);
-      cursorRef.current = page.cursor;
-      setRunning(page.running);
+      try {
+        // 立刻拉一次，让用户那条消息不用等下一个轮询周期。
+        const page = await artexApi.conversationMessages(id, cursorRef.current);
+        setActivities((current) => appendUniqueActivities(current, page.items));
+        cursorRef.current = page.cursor;
+        runningRef.current = page.running;
+        setRunning(page.running);
+      } catch {
+        // The accepted message is persisted; the normal poll will catch up.
+      }
       window.dispatchEvent(new CustomEvent("artex:conversations-changed"));
+      return true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "消息发送失败");
+      return false;
     } finally {
       setSending(false);
     }
@@ -747,7 +757,7 @@ export function ArtexConversationPage() {
   // 「跟进方式」（设置 → 常规）：同一条会话里生成中再发一条 —— 排队 / 引导
   const followUp = useFollowUp(
     status,
-    (message, files, fromQueue) => void send(message, files, fromQueue),
+    (message, files, fromQueue) => send(message, files, fromQueue),
     () => {
       void artexApi.stopConversation(id).catch(() => undefined);
     },
@@ -963,9 +973,9 @@ export function ArtexTaskPage() {
       if (closed) return;
       try {
         const parsed = JSON.parse(event.data) as Activity;
-        setActivities((items) => [...items.slice(-199), parsed]);
+        setActivities((items) => appendUniqueActivities(items.slice(-199), [parsed]));
       } catch {
-        setActivities((items) => [...items.slice(-199), { message: event.data }]);
+        setActivities((items) => appendUniqueActivities(items.slice(-199), [{ message: event.data }]));
       }
     };
     const load = async () => {
@@ -1095,7 +1105,7 @@ export function ArtexTaskPage() {
   const send = async (message: string, _files?: File[], fromQueue = false) => {
     if (!canSendTaskMessage(activitySession, fromQueue)) {
       setError("当前查看的是历史会话。切回当前主 Agent 会话后才能发送消息。");
-      return;
+      return false;
     }
     setStatus("streaming");
     setError("");
@@ -1103,8 +1113,10 @@ export function ArtexTaskPage() {
       await artexApi.chat(taskId, message);
       setChatRunning(true);
       window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      return true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "消息发送失败");
+      return false;
     } finally {
       setStatus("idle");
     }
@@ -1157,7 +1169,7 @@ export function ArtexTaskPage() {
   };
   const followUp = useFollowUp(
     chatStatus,
-    (message, files, fromQueue) => void send(message, files, fromQueue),
+    (message, files, fromQueue) => send(message, files, fromQueue),
     stopTask,
     `task:${taskId}`,
   );

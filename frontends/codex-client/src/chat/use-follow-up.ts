@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSettings } from "@/settings/store";
 
 import { hasComposerContent } from "./can-send";
+import { queueAfterSend } from "./follow-up-state";
 import type { ChatStatus } from "./use-chat";
 
 /**
@@ -36,7 +37,7 @@ export interface QueuedMessage {
 
 export function useFollowUp(
   status: ChatStatus,
-  send: (text: string, attachments?: File[], fromQueue?: boolean) => void,
+  send: (text: string, attachments?: File[], fromQueue?: boolean) => boolean | Promise<boolean>,
   stop: () => void,
   scopeKey: string,
 ) {
@@ -47,6 +48,8 @@ export function useFollowUp(
   const seqRef = useRef(0);
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
+  const drainRef = useRef(false);
+  const blockedRef = useRef(new Set<string>());
   // 队列的最新快照：edit() 需要在**状态更新函数之外**读到待编辑文本（更新函数里发事件
   // 属于副作用，StrictMode 下会被调用两次 ⇒ 输入框会被写两遍）。
   const queueRef = useRef(queue);
@@ -78,6 +81,7 @@ export function useFollowUp(
 
   // 会话/任务切换时丢弃旧作用域的队列，绝不让附件或文本跨目标发送。
   useEffect(() => {
+    blockedRef.current.clear();
     setQueue((current) => current.filter((item) => item.scopeKey === scopeKey));
   }, [scopeKey]);
 
@@ -89,13 +93,28 @@ export function useFollowUp(
       setQueue((current) => current.filter((item) => item.scopeKey === scopeKey));
       return;
     }
-    setQueue((current) => current.slice(1));
-    send(head.text, head.attachments, true);
+    if (blockedRef.current.has(head.id) || drainRef.current) return;
+    drainRef.current = true;
+    void (async () => {
+      try {
+        const result = await send(head.text, head.attachments, true);
+        if (result === false) {
+          blockedRef.current.add(head.id);
+          return;
+        }
+        setQueue((current) => queueAfterSend(current, head.id, true));
+      } catch {
+        blockedRef.current.add(head.id);
+      } finally {
+        drainRef.current = false;
+      }
+    })();
   }, [queue, scopeKey, send, status]);
 
   /** 引导：立即打断当前生成，并把这条插到队首（它会先于其它排队消息发出）。 */
   const steer = useCallback(
     (id: string) => {
+      blockedRef.current.delete(id);
       setQueue((current) => {
         const item = current.find((entry) => entry.id === id);
         if (!item) return current;
@@ -107,12 +126,14 @@ export function useFollowUp(
   );
 
   const remove = useCallback((id: string) => {
+    blockedRef.current.delete(id);
     setQueue((current) => current.filter((entry) => entry.id !== id));
   }, []);
 
   /** 编辑：从队列拿掉，并把原文放回输入框（Composer 的事件桥）。 */
   const edit = useCallback((id: string) => {
     const item = queueRef.current.find((entry) => entry.id === id);
+    blockedRef.current.delete(id);
     setQueue((current) => current.filter((entry) => entry.id !== id));
     if (item && typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("codex:composer-set-text", { detail: { text: item.text } }));
