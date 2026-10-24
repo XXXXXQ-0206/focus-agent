@@ -1,4 +1,4 @@
-import { AlertCircle, RefreshCw, Search, Terminal } from "lucide-react";
+import { AlertCircle, RefreshCw, Terminal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -46,7 +46,7 @@ const AGENT_DETAIL_TABS = [
  * 页头四层的 `data-*` 能力声明，与官方 /plugins 页同款（出处见 src/pages/PluginsPage.tsx
  * 的 SHELL_CAPABILITY_ATTRS：官方六态实测取值恒定，只有 data-scrolled 是动态信号）。
  */
-const AGENTS_SLATE_ATTRS = {
+const _AGENTS_SLATE_ATTRS = {
   "data-collapsible": "",
   "data-expand-search": "true",
   "data-scroll-collapse": "true",
@@ -70,7 +70,7 @@ export function ArtexAgentsPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [directory, setDirectory] = useState<"all" | "builtin" | "custom">("all");
-  const [scrolled, setScrolled] = useState(false);
+  const [_scrolled, setScrolled] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   const loadAgents = useCallback(async () => {
@@ -185,78 +185,78 @@ export function ArtexAgentsPage() {
       }
       title="Agent"
     >
-            {error ? (
-              <EmptyState
-                actions={
-                  <Button onClick={() => void loadAgents()} size="sm" variant="surface">
-                    重试
-                  </Button>
-                }
-                description={error}
-                icon={CodexAlertTriangle}
-                title="无法加载 Agent"
-              />
-            ) : null}
+      {error ? (
+        <EmptyState
+          actions={
+            <Button onClick={() => void loadAgents()} size="sm" variant="surface">
+              重试
+            </Button>
+          }
+          description={error}
+          icon={CodexAlertTriangle}
+          title="无法加载 Agent"
+        />
+      ) : null}
 
-            {!error && loading ? (
-              <ResourceGrid>
-                {Array.from({ length: 6 }, (_, index) => (
-                  <div className="cx-res-row" key={index}>
-                    <span className="cx-res-row__icon">
-                      <span className="cx-skeleton" style={{ width: 17, height: 17 }} />
-                    </span>
-                    <span className="cx-res-row__main">
-                      <span className="cx-skeleton" style={{ width: 160, height: 12 }} />
-                      <span className="cx-skeleton" style={{ width: 220, height: 10 }} />
-                    </span>
-                  </div>
-                ))}
-              </ResourceGrid>
-            ) : null}
+      {!error && loading ? (
+        <ResourceGrid>
+          {Array.from({ length: 6 }, (_, index) => (
+            <div className="cx-res-row" key={index}>
+              <span className="cx-res-row__icon">
+                <span className="cx-skeleton" style={{ width: 17, height: 17 }} />
+              </span>
+              <span className="cx-res-row__main">
+                <span className="cx-skeleton" style={{ width: 160, height: 12 }} />
+                <span className="cx-skeleton" style={{ width: 220, height: 10 }} />
+              </span>
+            </div>
+          ))}
+        </ResourceGrid>
+      ) : null}
 
-            {!error && !loading && filteredAgents.length === 0 ? (
-              <EmptyState
-                actions={
-                  <Button
-                    onClick={() => {
-                      setQuery("");
-                      setDirectory("all");
-                    }}
-                    size="sm"
-                    variant="surface"
-                  >
-                    清空筛选
-                  </Button>
-                }
-                description={
-                  query
-                    ? `没有匹配「${query}」的 Agent。换个关键词，或把目录切回「全部」。`
-                    : "这个目录下还没有 Agent。"
-                }
-                icon={CodexSearch}
-                title="未找到 Agent"
-              />
-            ) : null}
+      {!error && !loading && filteredAgents.length === 0 ? (
+        <EmptyState
+          actions={
+            <Button
+              onClick={() => {
+                setQuery("");
+                setDirectory("all");
+              }}
+              size="sm"
+              variant="surface"
+            >
+              清空筛选
+            </Button>
+          }
+          description={
+            query
+              ? `没有匹配「${query}」的 Agent。换个关键词，或把目录切回「全部」。`
+              : "这个目录下还没有 Agent。"
+          }
+          icon={CodexSearch}
+          title="未找到 Agent"
+        />
+      ) : null}
 
-            {builtinAgents.length > 0 ? (
-              <section className="cx-page__section">
-                <h2 className="cx-page__section-title">
-                  内置 Agent
-                  <span className="cx-page__section-count">{builtinAgents.length}</span>
-                </h2>
-                <ResourceGrid>{builtinAgents.map(renderRow)}</ResourceGrid>
-              </section>
-            ) : null}
+      {builtinAgents.length > 0 ? (
+        <section className="cx-page__section">
+          <h2 className="cx-page__section-title">
+            内置 Agent
+            <span className="cx-page__section-count">{builtinAgents.length}</span>
+          </h2>
+          <ResourceGrid>{builtinAgents.map(renderRow)}</ResourceGrid>
+        </section>
+      ) : null}
 
-            {customAgents.length > 0 ? (
-              <section className="cx-page__section">
-                <h2 className="cx-page__section-title">
-                  自定义 Agent
-                  <span className="cx-page__section-count">{customAgents.length}</span>
-                </h2>
-                <ResourceGrid>{customAgents.map(renderRow)}</ResourceGrid>
-              </section>
-            ) : null}
+      {customAgents.length > 0 ? (
+        <section className="cx-page__section">
+          <h2 className="cx-page__section-title">
+            自定义 Agent
+            <span className="cx-page__section-count">{customAgents.length}</span>
+          </h2>
+          <ResourceGrid>{customAgents.map(renderRow)}</ResourceGrid>
+        </section>
+      ) : null}
     </SlatePage>
   );
 }

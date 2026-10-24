@@ -11,9 +11,9 @@
  * 这里只认真正的样式输入：src/** 与 index.html。
  * 需要额外钉进产物的出口类名，走 theme.css §5.13 的 @source inline(...)。 */
 @import "tailwindcss" source(none);
-@source "../../src";
-@source "../../index.html";
 @import "./tokens.css";
 @import "./theme.css";
 @import "./base.css";
 @import "./app.css";
+@source "../../src";
+@source "../../index.html";

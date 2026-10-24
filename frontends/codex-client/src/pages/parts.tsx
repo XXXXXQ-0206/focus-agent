@@ -56,7 +56,11 @@ export function SlatePage({
   tabs?: ReactNode;
 }) {
   return (
-    <div className="cx-settings cx-settings--page" data-page={`artex-${title}`} data-fill={fill ? "true" : undefined}>
+    <div
+      className="cx-settings cx-settings--page"
+      data-page={`artex-${title}`}
+      data-fill={fill ? "true" : undefined}
+    >
       <div aria-hidden className="codex-drag-region cx-settings__dragbar" />
       <div className="cx-settings__scroll">
         {/* 标题带：与设置页同款（60px；只有 h1 + 右侧操作区） */}

@@ -264,11 +264,7 @@ export function PaneSelect({
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
-          <SelectItem
-            description={option.description}
-            key={option.value}
-            value={option.value}
-          >
+          <SelectItem description={option.description} key={option.value} value={option.value}>
             {option.label}
           </SelectItem>
         ))}

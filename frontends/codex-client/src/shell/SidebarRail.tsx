@@ -1,4 +1,4 @@
-import { type ComponentPropsWithoutRef, type Ref } from "react";
+import type { ComponentPropsWithoutRef, Ref } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
@@ -106,9 +106,7 @@ export function SidebarRail({ className }: { className?: string }) {
           <RailButton item={item} key={item.id} />
         ))}
         {/* 分隔线只在它后面真有条目时才画（2026-10-15：次轴组接住原「探索」菜单的 6 个目的地） */}
-        {RAIL_SECONDARY_ITEMS.length > 0 ? (
-          <div aria-hidden className="codex-rail__divider" />
-        ) : null}
+        {RAIL_SECONDARY_ITEMS.length > 0 ? <div aria-hidden className="codex-rail__divider" /> : null}
         {RAIL_SECONDARY_ITEMS.map((item) => (
           <RailButton item={item} key={item.id} />
         ))}

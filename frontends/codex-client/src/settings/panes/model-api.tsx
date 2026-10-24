@@ -246,9 +246,7 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
         text("proxy"),
       );
       setTestResult(
-        result.ok
-          ? `连接正常 · ${String(result.latency_ms ?? "?")} ms`
-          : `失败：${result.error || "无响应"}`,
+        result.ok ? `连接正常 · ${String(result.latency_ms ?? "?")} ms` : `失败：${result.error || "无响应"}`,
       );
     } catch (caught) {
       setTestResult(caught instanceof Error ? caught.message : "测试失败");
@@ -357,10 +355,7 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
         setProbedModels(models);
         setProbeNote(`端点返回 ${String(models.length)} 个模型，点一个填进「模型」`);
       } else {
-        setProbeNote(
-          result.error ??
-            "端点没有返回模型列表：手动填模型 ID 即可（与探测等效，dsh 同口径）。",
-        );
+        setProbeNote(result.error ?? "端点没有返回模型列表：手动填模型 ID 即可（与探测等效，dsh 同口径）。");
       }
     } catch (caught) {
       setProbeNote(caught instanceof Error ? caught.message : "探测失败");
@@ -633,13 +628,7 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
             />
           ) : null}
           <PaneRow
-            control={
-              <PaneSwitch
-                checked={draftStreaming}
-                label="流式输出"
-                onChange={setDraftStreaming}
-              />
-            }
+            control={<PaneSwitch checked={draftStreaming} label="流式输出" onChange={setDraftStreaming} />}
             description="开 = SSE 流式（能看到实时进度）；关 = 非流式整段返回，网关的 SSE 不稳时用它兜底"
             label="流式输出"
           />
@@ -796,7 +785,6 @@ export function ModelApiPane({ section }: SettingsPaneProps) {
           )}
         </PaneCard>
       </PaneSection>
-
     </PaneShell>
   );
 }

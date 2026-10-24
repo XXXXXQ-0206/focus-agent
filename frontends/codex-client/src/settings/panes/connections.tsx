@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { artexApi } from "@/artex/api";
-import { Feedback, ReloadButton, useArtexSettings } from "@/artex/settings-panes";
+import { ReloadButton, useArtexSettings } from "@/artex/settings-panes";
 import type { Credential, ShellSession, TunnelInfo } from "@/artex/types";
 import { desktop } from "@/shell/desktop-bridge";
 import { Button, Input } from "@/ui";
@@ -135,7 +135,6 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
       section={section}
       title="连接与流量"
     >
-
       {/* ── 上游代理（原「上游连接 → 代理」）────────────────────────────── */}
       <PaneSection description="浏览器自动化与目标流量出去时走的代理；也是流量捕获的落点。" title="上游代理">
         <PaneCard>
@@ -180,9 +179,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
                 checked={server.settings?.traffic_capture ?? false}
                 disabled={serverUnavailable}
                 label="流量捕获"
-                onChange={(value) =>
-                  void server.save({ traffic_capture: value })
-                }
+                onChange={(value) => void server.save({ traffic_capture: value })}
               />
             }
             description="记录并代理 Focus 任务的 HTTP 流量。"
@@ -194,9 +191,7 @@ export function ConnectionsPane({ section }: SettingsPaneProps) {
                 checked={server.settings?.agent_traffic_binding ?? false}
                 disabled={serverUnavailable}
                 label="Agent 自动绑定流量"
-                onChange={(value) =>
-                  void server.save({ agent_traffic_binding: value })
-                }
+                onChange={(value) => void server.save({ agent_traffic_binding: value })}
               />
             }
             description="允许 Agent 将捕获的请求自动关联到发现记录。"

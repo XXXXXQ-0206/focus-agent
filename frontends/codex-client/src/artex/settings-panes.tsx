@@ -138,7 +138,7 @@ export function ArtexAgentsSettingsPane({ section }: SettingsPaneProps) {
     setTaskLimit(String(settings.task_concurrency_limit ?? 5));
   }, [settings]);
 
-  const toggle = (field: keyof ArtexSystemSettings, value: boolean, label: string) => {
+  const toggle = (field: keyof ArtexSystemSettings, value: boolean, _label: string) => {
     void save({ [field]: value });
   };
 
@@ -336,9 +336,7 @@ export function ArtexSearchPane({ section }: SettingsPaneProps) {
                 checked={settings?.web_search_enabled ?? false}
                 disabled={unavailable}
                 label="启用网络搜索"
-                onChange={(value) =>
-                  void save({ web_search_enabled: value })
-                }
+                onChange={(value) => void save({ web_search_enabled: value })}
               />
             }
             description="全局总开关；启用后仍可在 Agent 配置中单独控制。"

@@ -52,7 +52,6 @@ function reactChain(el: Element): string[] {
   const key = fiberKey(el);
   if (!key) return [];
   const out: string[] = [];
-  // biome-ignore lint/suspicious/noExplicitAny: React fiber 是内部结构，这里只读 type/return
   let fiber: any = (el as any)[key];
   let guard = 0;
   while (fiber && guard < 200) {

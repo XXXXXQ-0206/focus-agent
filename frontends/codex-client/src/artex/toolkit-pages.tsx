@@ -20,14 +20,12 @@ import { useSettings } from "@/settings/store";
 import { Button, Dialog, DialogContent, Input } from "@/ui";
 import { artexApi } from "./api";
 import type {
-  CommandRecord,
   Credential,
   SessionExecResult,
   SessionFsEntry,
   ShellSession,
   SSProject,
   SSTask,
-  ToolStat,
   TunnelInfo,
   WorkspaceEntry,
   WorkspaceFile,

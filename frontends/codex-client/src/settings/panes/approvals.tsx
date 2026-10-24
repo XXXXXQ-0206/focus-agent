@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { artexApi } from "@/artex/api";
-import type { Approval, AutoAllowState, InterceptRule } from "@/artex/types";
+import type { AutoAllowState, InterceptRule } from "@/artex/types";
 import { Button, Input } from "@/ui";
 import type { SettingsPaneProps } from "./index";
 import {
@@ -31,7 +31,7 @@ export function ApprovalsPane({ section }: SettingsPaneProps) {
   const navigate = useNavigate();
   const [autoAllow, setAutoAllow] = useState<AutoAllowState | null>(null);
   const [rules, setRules] = useState<InterceptRule[]>([]);
-  const [decidingId, setDecidingId] = useState<number | null>(null);
+  const [_decidingId, _setDecidingId] = useState<number | null>(null);
   const [hours, setHours] = useState("2");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);

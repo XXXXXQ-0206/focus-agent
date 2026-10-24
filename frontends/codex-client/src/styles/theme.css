@@ -354,7 +354,8 @@
  * 产出示例：bg-cx-surface / text-cx-secondary / text-cx-md / rounded-cx-lg /
  *           shadow-cx-menu / blur-cx-lg / ease-cx-enter / font-cx-ui …
  * ─────────────────────────────────────────────────────────────────────── */
-@theme inline static {
+/* `inline` keeps utility values resolved; §5.13's @source whitelist already forces every promised class. */
+@theme inline {
   /* 5.1 表面 */
   --color-cx-surface: var(--color-surface);
   --color-cx-surface-card: var(--color-surface-card, var(--color-surface));

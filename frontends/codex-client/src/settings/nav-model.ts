@@ -1,4 +1,4 @@
-import { Bot, Cpu, Network, RefreshCw, Search, Server, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { Bot, Cpu, Network, RefreshCw, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import type { ComponentType } from "react";
 
 import {
@@ -205,8 +205,7 @@ const ARTEX_ITEMS: SettingsNavItem[] = [
     slug: "model-api",
     label: "模型与 API",
     icon: Cpu,
-    iconSource:
-      "原「探索 → LLM」页（2026-10-15 并入设置；同日与「自定义 API」合并）；lucide Cpu",
+    iconSource: "原「探索 → LLM」页（2026-10-15 并入设置；同日与「自定义 API」合并）；lucide Cpu",
     description: "服务商、协议、密钥、高级项（思考强度 / 输出上限 / 收发模式）与故障转移池",
     additional: true,
   },

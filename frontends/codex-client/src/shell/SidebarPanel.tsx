@@ -104,6 +104,7 @@ export function SidebarPanel() {
   const location = useLocation();
   // 路由一变就刷新一次：新建对话后跳 /c/<id>、或从别处回到列表，都不会停在旧快照。
   useEffect(() => {
+    void location.pathname;
     void loadConversations();
   }, [location.pathname, loadConversations]);
   /**
@@ -477,45 +478,43 @@ export function SidebarPanel() {
             {settingsGroups.length === 0 ? <p className="codex-panel__empty">没有匹配的设置项</p> : null}
           </>
         ) : (
-          <>
-            <section className="codex-panel__section codex-panel__section--recent">
-              <div className="codex-panel__section-head">
-                <button
-                  aria-expanded={openSections.recent}
-                  className="codex-panel__section-toggle"
-                  onClick={() => setOpenSections((s) => ({ ...s, recent: !s.recent }))}
-                  type="button"
-                >
-                  <span className="codex-panel__section-title">最近</span>
-                  {/* 「最近」标题右侧的折叠箭头。**证据：Lead 实机比对 ref-08-conversation.png**
+          <section className="codex-panel__section codex-panel__section--recent">
+            <div className="codex-panel__section-head">
+              <button
+                aria-expanded={openSections.recent}
+                className="codex-panel__section-toggle"
+                onClick={() => setOpenSections((s) => ({ ...s, recent: !s.recent }))}
+                type="button"
+              >
+                <span className="codex-panel__section-title">最近</span>
+                {/* 「最近」标题右侧的折叠箭头。**证据：Lead 实机比对 ref-08-conversation.png**
                   （SPEC 未记录该元素）；「项目」分组没有，故只加在这一处。
                   展开/收起用 transform 旋转，做成「收起时朝右、展开时朝下」。 */}
-                  <CodexChevronDown
-                    aria-hidden
-                    className="codex-panel__section-chevron"
-                    data-open={openSections.recent}
-                    size={16}
-                  />
-                </button>
+                <CodexChevronDown
+                  aria-hidden
+                  className="codex-panel__section-chevron"
+                  data-open={openSections.recent}
+                  size={16}
+                />
+              </button>
+            </div>
+            {openSections.recent ? (
+              <div className="codex-panel__nav-list codex-panel__nav-list--body">
+                {convLoading && conversations.length === 0 ? (
+                  <div className="codex-panel__empty">正在加载对话</div>
+                ) : convError ? (
+                  <div className="codex-panel__empty">{convError}</div>
+                ) : conversationGroups.today.length + conversationGroups.earlier.length === 0 ? (
+                  <div className="codex-panel__empty">还没有对话</div>
+                ) : (
+                  <>
+                    {conversationGroups.today.map(renderConversation)}
+                    {conversationGroups.earlier.map(renderConversation)}
+                  </>
+                )}
               </div>
-              {openSections.recent ? (
-                <div className="codex-panel__nav-list codex-panel__nav-list--body">
-                  {convLoading && conversations.length === 0 ? (
-                    <div className="codex-panel__empty">正在加载对话</div>
-                  ) : convError ? (
-                    <div className="codex-panel__empty">{convError}</div>
-                  ) : conversationGroups.today.length + conversationGroups.earlier.length === 0 ? (
-                    <div className="codex-panel__empty">还没有对话</div>
-                  ) : (
-                    <>
-                      {conversationGroups.today.map(renderConversation)}
-                      {conversationGroups.earlier.map(renderConversation)}
-                    </>
-                  )}
-                </div>
-              ) : null}
-            </section>
-          </>
+            ) : null}
+          </section>
         )}
       </div>
 

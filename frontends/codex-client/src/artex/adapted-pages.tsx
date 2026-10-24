@@ -7,7 +7,6 @@ import {
   CodexGrid,
   CodexRailPlugins,
   CodexRefresh,
-  CodexSearch,
   CodexSettingsConfig,
   CodexSettingsSkills,
   CodexWrench,
@@ -46,7 +45,6 @@ function DataPage({
   toolbar?: ReactNode;
   children: ReactNode;
 }) {
-
   /**
    * ★ 2026-10-15：本骨架原来是自己那套 ops chrome（kicker 行 + ops-page intro + 表格），
    *   现已换成**设置页骨架**（SlatePage = 标题带 60 + 768 列 + 728 内容），
@@ -368,7 +366,7 @@ const SYSTEM_LABELS: Record<string, string> = {
   created_at: "创建时间",
 };
 
-const RESOURCE_SLATE_ATTRS = {
+const _RESOURCE_SLATE_ATTRS = {
   "data-collapsible": "",
   "data-expand-search": "true",
   "data-scroll-collapse": "true",
@@ -447,7 +445,7 @@ function ArtexSystemDataPage({ kind }: { kind: Exclude<SystemKind, "traffic"> })
   const [error, setError] = useState("");
   const [detail, setDetail] = useState<Row | null>(null);
   const [detailName, setDetailName] = useState("");
-  const [scrolled, setScrolled] = useState(false);
+  const [_scrolled, setScrolled] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const config = SYSTEM_CONFIG[kind];
   const pageMeta = RESOURCE_PAGE_META[kind];
@@ -532,139 +530,139 @@ function ArtexSystemDataPage({ kind }: { kind: Exclude<SystemKind, "traffic"> })
         subtitle={config.description}
         title={config.title}
       >
-            {kind === "llm" && Object.keys(meta).length > 0 ? (
-              <section className="cx-page__section">
-                <h2 className="cx-page__section-title">
-                  <CodexSettingsConfig size={16} />
-                  当前运行模型
-                </h2>
-                <ResourceGrid>
-                  <ResourceRow
-                    description={`API Key ${meta.key_set ? "已配置" : "未配置"} · ${items.length} 个模型配置`}
-                    icon={<CodexSettingsConfig size={17} />}
-                    meta={
-                      <Badge tone={meta.configured ? "open" : undefined}>
-                        {meta.configured ? "已配置" : "尚未配置"}
-                      </Badge>
-                    }
-                    title={`${text(meta.provider)} · ${text(meta.model)}`}
-                  />
-                </ResourceGrid>
-              </section>
-            ) : null}
-
-            {error ? (
-              <EmptyState
-                actions={
-                  <Button onClick={() => void load()} size="sm" variant="surface">
-                    重试
-                  </Button>
+        {kind === "llm" && Object.keys(meta).length > 0 ? (
+          <section className="cx-page__section">
+            <h2 className="cx-page__section-title">
+              <CodexSettingsConfig size={16} />
+              当前运行模型
+            </h2>
+            <ResourceGrid>
+              <ResourceRow
+                description={`API Key ${meta.key_set ? "已配置" : "未配置"} · ${items.length} 个模型配置`}
+                icon={<CodexSettingsConfig size={17} />}
+                meta={
+                  <Badge tone={meta.configured ? "open" : undefined}>
+                    {meta.configured ? "已配置" : "尚未配置"}
+                  </Badge>
                 }
-                description={error}
-                icon={CodexAlertTriangle}
-                title={`无法加载${config.title}`}
+                title={`${text(meta.provider)} · ${text(meta.model)}`}
               />
-            ) : null}
+            </ResourceGrid>
+          </section>
+        ) : null}
 
-            {!error && loading ? (
-              <ResourceGrid>
-                {Array.from({ length: 6 }, (_, index) => (
-                  <div className="cx-res-row" key={index}>
-                    <span className="cx-res-row__icon">
-                      <span className="cx-skeleton" style={{ width: 17, height: 17 }} />
-                    </span>
-                    <span className="cx-res-row__main">
-                      <span className="cx-skeleton" style={{ width: 160, height: 12 }} />
-                      <span className="cx-skeleton" style={{ width: 220, height: 10 }} />
-                    </span>
-                  </div>
-                ))}
-              </ResourceGrid>
-            ) : null}
+        {error ? (
+          <EmptyState
+            actions={
+              <Button onClick={() => void load()} size="sm" variant="surface">
+                重试
+              </Button>
+            }
+            description={error}
+            icon={CodexAlertTriangle}
+            title={`无法加载${config.title}`}
+          />
+        ) : null}
 
-            {!error && !loading && visibleItems.length === 0 ? (
-              <EmptyState
-                actions={
-                  query ? (
-                    <Button onClick={() => setQuery("")} size="sm" variant="surface">
-                      清空搜索
-                    </Button>
-                  ) : null
-                }
-                description={query ? "调整搜索条件，或清空搜索。" : "Focus 服务当前没有返回此类记录。"}
-                icon={CodexGrid}
-                title={query ? "没有匹配的项目" : "暂无数据"}
-              />
-            ) : null}
+        {!error && loading ? (
+          <ResourceGrid>
+            {Array.from({ length: 6 }, (_, index) => (
+              <div className="cx-res-row" key={index}>
+                <span className="cx-res-row__icon">
+                  <span className="cx-skeleton" style={{ width: 17, height: 17 }} />
+                </span>
+                <span className="cx-res-row__main">
+                  <span className="cx-skeleton" style={{ width: 160, height: 12 }} />
+                  <span className="cx-skeleton" style={{ width: 220, height: 10 }} />
+                </span>
+              </div>
+            ))}
+          </ResourceGrid>
+        ) : null}
 
-            {!error && !loading && visibleItems.length > 0 ? (
-              <section className="cx-page__section">
-                <h2 className="cx-page__section-title">
-                  {pageMeta.listTitle}
-                  <span className="cx-page__section-count">{visibleItems.length}</span>
-                </h2>
-                {kind === "tools" || kind === "skills" ? (
-                  /* 工具目录按用户裁决保留**卡片**版式（[C] 官方卡片 chrome：
+        {!error && !loading && visibleItems.length === 0 ? (
+          <EmptyState
+            actions={
+              query ? (
+                <Button onClick={() => setQuery("")} size="sm" variant="surface">
+                  清空搜索
+                </Button>
+              ) : null
+            }
+            description={query ? "调整搜索条件，或清空搜索。" : "Focus 服务当前没有返回此类记录。"}
+            icon={CodexGrid}
+            title={query ? "没有匹配的项目" : "暂无数据"}
+          />
+        ) : null}
+
+        {!error && !loading && visibleItems.length > 0 ? (
+          <section className="cx-page__section">
+            <h2 className="cx-page__section-title">
+              {pageMeta.listTitle}
+              <span className="cx-page__section-count">{visibleItems.length}</span>
+            </h2>
+            {kind === "tools" || kind === "skills" ? (
+              /* 工具目录按用户裁决保留**卡片**版式（[C] 官方卡片 chrome：
                      图标 + 名称 + 来源行 + 描述 + 徽章/动作页脚，minmax(280px) 自适应网格）。
                      2026-10-15 用户追加：「skills 做成和工具类似的卡片」⇒ 技能目录同款卡片
                      （技能页从设置**还原回探索**，所以这里按 kind 一起走卡片分支）。 */
-                  <div className="cx-card-grid">
-                    {visibleItems.map((row, index) => {
-                      const name = resourceName(row, index);
-                      return (
-                        <article className="cx-card cx-card--interactive" key={resourceId(row, index)}>
-                          <header className="cx-card__head">
-                            <span aria-hidden className="cx-row__icon">
-                              <ResourceIcon size={20} />
-                            </span>
-                            <span className="cx-row__main">
-                              <span className="cx-card__name-row">
-                                <span className="cx-card__title">{name}</span>
-                              </span>
-                              <span className="cx-card__author">{pageMeta.subtitle(row)}</span>
-                            </span>
-                          </header>
-                          <p className="cx-card__description">{text(row.description, config.description)}</p>
-                          <footer className="cx-card__footer">
-                            <span className="cx-card__tags">{resourceBadges(kind, row)}</span>
-                            <Button onClick={() => openDetail(row, index)} size="sm" variant="surface">
-                              查看详情
-                            </Button>
-                          </footer>
-                        </article>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <ResourceGrid>
-                    {visibleItems.map((row, index) => (
-                      <ResourceRow
-                        action={
-                          <Button
-                            aria-label={`查看 ${resourceName(row, index)} 的详情`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openDetail(row, index);
-                            }}
-                            size="2xs"
-                            uniform
-                            variant="ghost"
-                          >
-                            <CodexChevronRight size={14} />
-                          </Button>
-                        }
-                        description={text(row.description, config.description)}
-                        icon={<ResourceIcon size={17} />}
-                        key={resourceId(row, index)}
-                        meta={resourceBadges(kind, row)}
-                        onClick={() => openDetail(row, index)}
-                        title={resourceName(row, index)}
-                      />
-                    ))}
-                  </ResourceGrid>
-                )}
-              </section>
-            ) : null}
+              <div className="cx-card-grid">
+                {visibleItems.map((row, index) => {
+                  const name = resourceName(row, index);
+                  return (
+                    <article className="cx-card cx-card--interactive" key={resourceId(row, index)}>
+                      <header className="cx-card__head">
+                        <span aria-hidden className="cx-row__icon">
+                          <ResourceIcon size={20} />
+                        </span>
+                        <span className="cx-row__main">
+                          <span className="cx-card__name-row">
+                            <span className="cx-card__title">{name}</span>
+                          </span>
+                          <span className="cx-card__author">{pageMeta.subtitle(row)}</span>
+                        </span>
+                      </header>
+                      <p className="cx-card__description">{text(row.description, config.description)}</p>
+                      <footer className="cx-card__footer">
+                        <span className="cx-card__tags">{resourceBadges(kind, row)}</span>
+                        <Button onClick={() => openDetail(row, index)} size="sm" variant="surface">
+                          查看详情
+                        </Button>
+                      </footer>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <ResourceGrid>
+                {visibleItems.map((row, index) => (
+                  <ResourceRow
+                    action={
+                      <Button
+                        aria-label={`查看 ${resourceName(row, index)} 的详情`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDetail(row, index);
+                        }}
+                        size="2xs"
+                        uniform
+                        variant="ghost"
+                      >
+                        <CodexChevronRight size={14} />
+                      </Button>
+                    }
+                    description={text(row.description, config.description)}
+                    icon={<ResourceIcon size={17} />}
+                    key={resourceId(row, index)}
+                    meta={resourceBadges(kind, row)}
+                    onClick={() => openDetail(row, index)}
+                    title={resourceName(row, index)}
+                  />
+                ))}
+              </ResourceGrid>
+            )}
+          </section>
+        ) : null}
       </SlatePage>
 
       <Dialog
