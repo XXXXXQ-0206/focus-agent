@@ -1759,12 +1759,16 @@
 }
 
 .cx-markdown__table th[data-align="center"],
-.cx-markdown__table td[data-align="center"] {
+.cx-markdown__table td[data-align="center"],
+.cx-markdown__table th[align="center"],
+.cx-markdown__table td[align="center"] {
   text-align: center;
 }
 
 .cx-markdown__table th[data-align="right"],
-.cx-markdown__table td[data-align="right"] {
+.cx-markdown__table td[data-align="right"],
+.cx-markdown__table th[align="right"],
+.cx-markdown__table td[align="right"] {
   text-align: end;
 }
 
