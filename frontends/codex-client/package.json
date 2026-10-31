@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b --noEmit && vite build",
+    "test": "node --experimental-strip-types --test tests/*.test.ts src/settings/system-pages-model.test.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "biome check src",
