@@ -31,6 +31,10 @@ npm run pack
 `config.json` 位于 `Focus.exe` 同目录，桌面端会直接使用这组便携后端。桌面宿主只向
 renderer 暴露白名单 IPC，主要能力是本机文件或目录选择；页面不会获得 Node.js 权限。
 
+仓库根目录的 `start-artex-client.vbs` 用于本地开发启动。它默认读取
+`dist\dev-run\artex.exe` 与同目录的 `config.json`，也可以先设置 `ARTEX_HOME` 指向已有的
+后端目录；缺少文件时会在启动前直接提示原因。
+
 ## 窗口与导航
 
 桌面端只加载 `/`。旧 `/artex` 与 `/artex/*` URL 由 Go 服务永久重定向到 `/`，仅用于兼容旧书签。窗口拒绝文件、脚本和其他未知协议，明确的 HTTP/HTTPS 外链才交给系统浏览器。

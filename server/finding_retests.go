@@ -128,8 +128,19 @@ func (s *Server) startFindingRetest(w http.ResponseWriter, r *http.Request) {
 	if created {
 		busyKey := s.convBusyKey(conv.ID)
 		s.chatMu.Lock()
-		s.startChatLocked(busyKey)
+		started := s.startChatLocked(busyKey)
 		s.chatMu.Unlock()
+		if !started {
+			// Deletion admission may have won after the DB created the pending
+			// retest. Seal the row instead of launching an untracked run that can
+			// write into a conversation being deleted.
+			if sealErr := pg.FailPendingRetestForConversation(conv.ID, "复测会话正在删除，复测未启动"); sealErr != nil {
+				writeErr(w, http.StatusConflict, "复测会话正在删除，复测未启动："+sealErr.Error())
+				return
+			}
+			writeErr(w, http.StatusConflict, "复测会话正在删除，复测未启动")
+			return
+		}
 		s.runConversation(conv, retest.InitialMessage(), busyKey)
 	}
 	code := http.StatusOK

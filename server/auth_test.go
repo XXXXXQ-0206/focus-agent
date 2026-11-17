@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,28 @@ type memKV struct {
 	mu  sync.Mutex
 	m   map[string]string
 	err error // 注入存储错误,验证 fail-closed
+}
+
+type blockingRefreshKV struct {
+	*memKV
+	target  string
+	ready   chan struct{}
+	release chan struct{}
+	mu      sync.Mutex
+	seen    int
+}
+
+func (k *blockingRefreshKV) GetSetting(key string) (string, bool, error) {
+	if key == k.target {
+		k.mu.Lock()
+		k.seen++
+		if k.seen == 2 {
+			close(k.ready)
+		}
+		k.mu.Unlock()
+		<-k.release
+	}
+	return k.memKV.GetSetting(key)
 }
 
 func newMemKV() *memKV { return &memKV{m: map[string]string{}} }
@@ -55,6 +78,42 @@ func (k *memKV) ClaimSetting(key, value string) (bool, error) {
 	return true, nil
 }
 
+func (k *memKV) CompareAndSwapSetting(key, expected, replacement string) (bool, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.err != nil {
+		return false, k.err
+	}
+	if current, ok := k.m[key]; !ok || current != expected {
+		return false, nil
+	}
+	k.m[key] = replacement
+	return true, nil
+}
+
+func (k *memKV) ChangePassword(expectedHash, newHash string) (int64, bool, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.err != nil {
+		return 0, false, k.err
+	}
+	if k.m[authPassKey] != expectedHash {
+		return 0, false, nil
+	}
+	version := int64(0)
+	if raw := k.m[authKeyVersionKey]; raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return 0, false, err
+		}
+		version = parsed
+	}
+	version++
+	k.m[authPassKey] = newHash
+	k.m[authKeyVersionKey] = strconv.FormatInt(version, 10)
+	return version, true, nil
+}
+
 func (k *memKV) DeleteSetting(key string) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -80,8 +139,8 @@ func TestAccessTokenVersionRevocation(t *testing.T) {
 	}
 
 	// 改密 → 版本 +1 → 旧 token 立即失效
-	if _, err := bumpAuthKeyVersion(kv); err != nil {
-		t.Fatalf("bump: %v", err)
+	if err := kv.SetSetting(authKeyVersionKey, "1"); err != nil {
+		t.Fatalf("set version: %v", err)
 	}
 	if s.validAccessToken(tok) {
 		t.Fatal("token signed under old version must be rejected after bump")
@@ -416,6 +475,101 @@ func TestAuthRefreshEndpoint(t *testing.T) {
 	s.authRefresh(rec, httptest.NewRequest("POST", "/api/auth/refresh", nil))
 	if rec.Code != 401 {
 		t.Fatalf("no cookie: want 401, got %d", rec.Code)
+	}
+}
+
+func TestAuthRefreshRotationIsSingleUse(t *testing.T) {
+	base := newMemKV()
+	rt, err := issueRefreshToken(base, 0)
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+	kv := &blockingRefreshKV{
+		memKV:   base,
+		target:  refreshSettingKey(hashRefreshToken(rt)),
+		ready:   make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	s := &Server{jwtKey: testJWTKey, authkv: kv}
+
+	results := make(chan int, 2)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+			r.AddCookie(cookieFor(rt))
+			rec := httptest.NewRecorder()
+			s.authRefresh(rec, r)
+			results <- rec.Code
+		}()
+	}
+	select {
+	case <-kv.ready:
+	case <-time.After(time.Second):
+		t.Fatal("refresh requests did not reach the shared validation point")
+	}
+	close(kv.release)
+	wg.Wait()
+	close(results)
+
+	successes := 0
+	for code := range results {
+		if code == http.StatusOK {
+			successes++
+		} else if code != http.StatusUnauthorized {
+			t.Fatalf("concurrent refresh: unexpected status %d", code)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("concurrent refresh successes=%d, want exactly 1", successes)
+	}
+}
+
+func TestPasswordChangeCASIsSingleUse(t *testing.T) {
+	kv := newMemKV()
+	if err := kv.SetSetting(authPassKey, "old-hash"); err != nil {
+		t.Fatal(err)
+	}
+	const attempts = 2
+	results := make(chan struct {
+		version int64
+		changed bool
+		err     error
+	}, attempts)
+	var wg sync.WaitGroup
+	for i := 0; i < attempts; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			version, changed, err := kv.ChangePassword("old-hash", fmt.Sprintf("new-hash-%d", i))
+			results <- struct {
+				version int64
+				changed bool
+				err     error
+			}{version, changed, err}
+		}(i)
+	}
+	wg.Wait()
+	close(results)
+	successes := 0
+	for result := range results {
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		if result.changed {
+			successes++
+			if result.version != 1 {
+				t.Fatalf("successful change version=%d, want 1", result.version)
+			}
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("concurrent password changes=%d, want exactly 1", successes)
+	}
+	if got, ok, err := kv.GetSetting(authKeyVersionKey); err != nil || !ok || got != "1" {
+		t.Fatalf("credential version=%q present=%v err=%v, want 1", got, ok, err)
 	}
 }
 

@@ -136,8 +136,17 @@ func (s *Server) RequestFindingCheck(findingID int64, kind string) (*db.FindingC
 	if created {
 		busyKey := s.convBusyKey(conv.ID)
 		s.chatMu.Lock()
-		s.startChatLocked(busyKey)
+		started := s.startChatLocked(busyKey)
 		s.chatMu.Unlock()
+		if !started {
+			// Deletion admission may have won after the DB created the pending
+			// check. Seal the row instead of launching an untracked run that can
+			// write into a conversation being deleted.
+			if sealErr := s.m.pg.FailPendingCheckForConversation(conv.ID, "验证会话正在删除，验证未启动"); sealErr != nil {
+				return check, true, errors.Join(errors.New("验证会话正在删除，验证未启动"), sealErr)
+			}
+			return check, true, errors.New("验证会话正在删除，验证未启动")
+		}
 		s.runConversation(conv, check.InitialMessage(), busyKey)
 	}
 	return check, created, nil

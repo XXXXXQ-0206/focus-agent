@@ -154,3 +154,133 @@ func TestClaimSettingIsAtomic(t *testing.T) {
 		t.Fatalf("ClaimSetting successes=%d, want 1", claimed)
 	}
 }
+
+func TestCompareAndSwapSettingIsAtomic(t *testing.T) {
+	dsn := testDSN(t)
+	d, err := Open(dsn)
+	if err != nil {
+		t.Skipf("postgres unavailable (%v) — skipping", err)
+	}
+	defer d.Close()
+	key := fmt.Sprintf("test.cas.%d", time.Now().UnixNano())
+	if err := d.SetSetting(key, "old"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = d.DeleteSetting(key) })
+
+	const workers = 8
+	start := make(chan struct{})
+	results := make(chan bool, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			ok, err := d.CompareAndSwapSetting(key, "old", "")
+			if err != nil {
+				t.Errorf("CompareAndSwapSetting: %v", err)
+			}
+			results <- ok
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	wins := 0
+	for ok := range results {
+		if ok {
+			wins++
+		}
+	}
+	if wins != 1 {
+		t.Fatalf("CompareAndSwapSetting successes=%d, want 1", wins)
+	}
+	if value, ok, err := d.GetSetting(key); err != nil || !ok || value != "" {
+		t.Fatalf("CAS value=%q present=%v err=%v, want empty marker", value, ok, err)
+	}
+}
+
+func TestChangePasswordIsAtomic(t *testing.T) {
+	dsn := testDSN(t)
+	d, err := Open(dsn)
+	if err != nil {
+		t.Skipf("postgres unavailable (%v) — skipping", err)
+	}
+	defer d.Close()
+
+	const passwordKey = "auth.password_hash"
+	const versionKey = "auth.key_version"
+	oldPassword, hadPassword, err := d.GetSetting(passwordKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldVersion, hadVersion, err := d.GetSetting(versionKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if hadPassword {
+			_ = d.SetSetting(passwordKey, oldPassword)
+		} else {
+			_ = d.DeleteSetting(passwordKey)
+		}
+		if hadVersion {
+			_ = d.SetSetting(versionKey, oldVersion)
+		} else {
+			_ = d.DeleteSetting(versionKey)
+		}
+	})
+	if err := d.SetSetting(passwordKey, "old-hash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.DeleteSetting(versionKey); err != nil {
+		t.Fatal(err)
+	}
+
+	const workers = 8
+	start := make(chan struct{})
+	results := make(chan bool, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			_, changed, err := d.ChangePassword("old-hash", fmt.Sprintf("new-hash-%d", i))
+			if err != nil {
+				t.Errorf("ChangePassword: %v", err)
+			}
+			results <- changed
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	changed := 0
+	for ok := range results {
+		if ok {
+			changed++
+		}
+	}
+	if changed != 1 {
+		t.Fatalf("ChangePassword successes=%d, want 1", changed)
+	}
+	if value, ok, err := d.GetSetting(versionKey); err != nil || !ok || value != "1" {
+		t.Fatalf("version=%q present=%v err=%v, want 1", value, ok, err)
+	}
+
+	currentPassword, ok, err := d.GetSetting(passwordKey)
+	if err != nil || !ok {
+		t.Fatalf("read changed password: value=%q present=%v err=%v", currentPassword, ok, err)
+	}
+	if err := d.SetSetting(versionKey, "not-an-integer"); err != nil {
+		t.Fatal(err)
+	}
+	if _, changed, err := d.ChangePassword(currentPassword, "should-not-commit"); err == nil || changed {
+		t.Fatalf("invalid version must roll back: changed=%v err=%v", changed, err)
+	}
+	if value, ok, err := d.GetSetting(passwordKey); err != nil || !ok || value == "should-not-commit" {
+		t.Fatalf("password changed after rollback: value=%q present=%v err=%v", value, ok, err)
+	}
+}

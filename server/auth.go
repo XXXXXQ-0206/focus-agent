@@ -187,6 +187,8 @@ type authKV interface {
 	GetSetting(key string) (value string, ok bool, err error)
 	SetSetting(key, value string) error
 	ClaimSetting(key, value string) (bool, error)
+	CompareAndSwapSetting(key, expected, replacement string) (bool, error)
+	ChangePassword(expectedHash, newHash string) (version int64, changed bool, err error)
 	DeleteSetting(key string) error
 }
 
@@ -241,19 +243,6 @@ func authKeyVersion(kv authKV) (int64, bool) {
 	return n, true
 }
 
-// bumpAuthKeyVersion 把版本号 +1,返回新版本(改密后调用,吊销全部旧凭证)。
-func bumpAuthKeyVersion(kv authKV) (int64, error) {
-	ver, ok := authKeyVersion(kv)
-	if !ok {
-		return 0, fmt.Errorf("read auth key version")
-	}
-	ver++
-	if err := kv.SetSetting(authKeyVersionKey, strconv.FormatInt(ver, 10)); err != nil {
-		return 0, err
-	}
-	return ver, nil
-}
-
 func hashRefreshToken(tok string) string {
 	sum := sha256.Sum256([]byte(tok))
 	return hex.EncodeToString(sum[:])
@@ -280,8 +269,12 @@ func validateRefreshToken(kv authKV, tok string, curVer int64) (refreshRecord, b
 	if err != nil || !ok {
 		return refreshRecord{}, false
 	}
+	return parseRefreshRecord(v, curVer)
+}
+
+func parseRefreshRecord(value string, curVer int64) (refreshRecord, bool) {
 	var rec refreshRecord
-	if json.Unmarshal([]byte(v), &rec) != nil {
+	if json.Unmarshal([]byte(value), &rec) != nil {
 		return refreshRecord{}, false
 	}
 	if time.Now().Unix() >= rec.Exp || rec.Ver != curVer {
@@ -488,14 +481,14 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "密码加密失败")
 		return
 	}
-	if err := kv.SetSetting(authPassKey, string(newHash)); err != nil {
-		writeErr(w, 500, "保存失败: "+err.Error())
+	// Hash replacement and credential-version bump are one persistence operation.
+	// A concurrent password change therefore cannot overwrite the newer hash or
+	// leave a newly issued credential at an old version.
+	if _, changed, err := kv.ChangePassword(hash, string(newHash)); err != nil {
+		writeErr(w, 500, "保存密码并吊销旧凭证失败: "+err.Error())
 		return
-	}
-	// 密钥版本 +1:此前签发的所有 access/refresh token 立即吊销(F6),
-	// 前端收到成功后应强制重新登录。
-	if _, err := bumpAuthKeyVersion(kv); err != nil {
-		writeErr(w, 500, "吊销旧凭证失败: "+err.Error())
+	} else if !changed {
+		writeErr(w, http.StatusUnauthorized, "当前密码已变更，请重新登录")
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
@@ -519,20 +512,48 @@ func (s *Server) authRefresh(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "读取密钥版本失败")
 		return
 	}
-	if _, ok := validateRefreshToken(kv, c.Value, ver); !ok {
+	oldKey := refreshSettingKey(hashRefreshToken(c.Value))
+	// Read the exact value that will be consumed. A second read after another
+	// request has replaced it could observe the temporary empty CAS marker and
+	// accidentally allow a replay.
+	raw, present, err := kv.GetSetting(oldKey)
+	if err != nil {
+		writeErr(w, 500, "读取 refresh token 失败")
+		return
+	}
+	if !present {
 		clearRefreshCookie(w, r)
 		writeErr(w, 401, "refresh token 无效或已过期")
 		return
 	}
-	// 滑动续期:作废旧票再签新票(旋转),旧票泄漏重放即失效。
-	_ = kv.DeleteSetting(refreshSettingKey(hashRefreshToken(c.Value)))
+	if _, ok := parseRefreshRecord(raw, ver); !ok {
+		clearRefreshCookie(w, r)
+		writeErr(w, 401, "refresh token 无效或已过期")
+		return
+	}
+	// Sliding renewal: persist the replacement first, then consume the old row
+	// with a compare-and-swap. Only one concurrent request can win this CAS.
 	rt, err := issueRefreshToken(kv, ver)
 	if err != nil {
 		writeErr(w, 500, "refresh token 生成失败: "+err.Error())
 		return
 	}
+	consumed, err := kv.CompareAndSwapSetting(oldKey, raw, "")
+	if err != nil {
+		_ = kv.DeleteSetting(refreshSettingKey(hashRefreshToken(rt)))
+		writeErr(w, 500, "refresh token 轮换失败: "+err.Error())
+		return
+	}
+	if !consumed {
+		_ = kv.DeleteSetting(refreshSettingKey(hashRefreshToken(rt)))
+		clearRefreshCookie(w, r)
+		writeErr(w, http.StatusUnauthorized, "refresh token 无效或已被使用")
+		return
+	}
+	_ = kv.DeleteSetting(oldKey)
 	access, err := signJWT(s.jwtKey, ver)
 	if err != nil {
+		_ = kv.DeleteSetting(refreshSettingKey(hashRefreshToken(rt)))
 		writeErr(w, 500, "token 生成失败")
 		return
 	}
