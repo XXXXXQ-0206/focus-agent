@@ -3,6 +3,7 @@ package mcphttp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,40 @@ import (
 	"testing"
 	"time"
 )
+
+func TestLegacySSEHandshakeHonorsContext(t *testing.T) {
+	started := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		close(started)
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err := NewSSE(ctx, "test", srv.URL, nil, false)
+	if err == nil {
+		t.Fatal("NewSSE must not hang after the caller context expires")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("NewSSE error = %v, want context deadline exceeded", err)
+	}
+	select {
+	case <-started:
+	default:
+		t.Fatal("SSE server was never contacted")
+	}
+}
+
+func TestReadSSEEndpointRejectsOversizedLine(t *testing.T) {
+	scanner := newSSEScannerWithLimit(strings.NewReader("data: "+strings.Repeat("x", 64)+"\n"), 32)
+	if _, err := readSSEEndpoint(scanner, "http://example.test/sse"); err == nil {
+		t.Fatal("oversized SSE line must fail instead of growing memory without bound")
+	}
+}
 
 func TestLegacySSEClientDiscoverAndCall(t *testing.T) {
 	var mu sync.Mutex

@@ -33,6 +33,8 @@ const (
 	refreshCookieName = "artex_refresh"
 	refreshCookiePath = "/api/auth"
 	sseTicketTTL      = time.Minute
+	authAttemptLimit  = 10
+	authAttemptWindow = time.Minute
 	keyChars          = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
@@ -156,12 +158,26 @@ func (s *Server) requireAuth(h http.Handler) http.Handler {
 			h.ServeHTTP(w, r)
 			return
 		}
-		if t := r.URL.Query().Get("ticket"); t != "" && s.tickets.consume(t) {
+		if t := r.URL.Query().Get("ticket"); t != "" && ticketAllowed(r) && s.tickets.consume(t) {
 			h.ServeHTTP(w, r)
 			return
 		}
 		writeErr(w, 401, "未授权")
 	})
+}
+
+// ticketAllowed keeps the URL ticket as a read-only EventSource credential. It
+// must never authenticate a mutation request or an unrelated API route.
+func ticketAllowed(r *http.Request) bool {
+	if r.Method != http.MethodGet {
+		return false
+	}
+	switch r.URL.Path {
+	case "/api/logs/stream", "/api/update/stream", "/api/exploration/activity/stream":
+		return true
+	default:
+		return strings.HasPrefix(r.URL.Path, "/api/side-questions/") && strings.HasSuffix(r.URL.Path, "/events")
+	}
 }
 
 // ---------- refresh token(随机 32 字节,哈希存 settings) ----------
@@ -170,6 +186,7 @@ func (s *Server) requireAuth(h http.Handler) http.Handler {
 type authKV interface {
 	GetSetting(key string) (value string, ok bool, err error)
 	SetSetting(key, value string) error
+	ClaimSetting(key, value string) (bool, error)
 	DeleteSetting(key string) error
 }
 
@@ -183,6 +200,22 @@ func (s *Server) authSettings() authKV {
 		return s.m.pg
 	}
 	return nil
+}
+
+func (s *Server) allowAuthAttempt(w http.ResponseWriter, r *http.Request) bool {
+	s.authLimit.Do(func() {
+		s.authRate = &ipRateLimiter{
+			hits:   map[string][]time.Time{},
+			limit:  authAttemptLimit,
+			window: authAttemptWindow,
+		}
+	})
+	if s.authRate.allow(requestIP(r)) {
+		return true
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(int(authAttemptWindow.Seconds())))
+	writeErr(w, http.StatusTooManyRequests, "认证尝试过于频繁，请稍后再试")
+	return false
 }
 
 // refreshRecord 是 settings 里 refresh token 哈希对应的内容。
@@ -360,23 +393,27 @@ func (s *Server) sseTicket(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/auth/status — reports whether the admin password has been initialised.
 func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
-	pg := s.pg(w)
-	if pg == nil {
+	kv := s.authSettings()
+	if kv == nil {
+		writeErr(w, http.StatusServiceUnavailable, "管理后台数据源(PostgreSQL)未连接")
 		return
 	}
-	hash, _, _ := pg.GetSetting(authPassKey)
+	hash, _, err := kv.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "读取认证状态失败")
+		return
+	}
 	writeJSON(w, 200, map[string]any{"initialized": hash != ""})
 }
 
 // POST /api/auth/init — sets the password for the first time; rejected if already set.
 func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
-	pg := s.pg(w)
-	if pg == nil {
+	kv := s.authSettings()
+	if kv == nil {
+		writeErr(w, http.StatusServiceUnavailable, "管理后台数据源(PostgreSQL)未连接")
 		return
 	}
-	existing, _, _ := pg.GetSetting(authPassKey)
-	if existing != "" {
-		writeErr(w, 403, "密码已设置")
+	if !s.allowAuthAttempt(w, r) {
 		return
 	}
 	var req struct {
@@ -391,22 +428,33 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "密码加密失败")
 		return
 	}
-	if err := pg.SetSetting(authPassKey, string(hash)); err != nil {
+	claimed, err := kv.ClaimSetting(authPassKey, string(hash))
+	if err != nil {
 		writeErr(w, 500, "保存失败: "+err.Error())
 		return
 	}
-	s.issueSession(w, r, pg)
+	if !claimed {
+		writeErr(w, http.StatusForbidden, "密码已设置")
+		return
+	}
+	s.issueSession(w, r, kv)
 }
 
 // POST /api/auth/change-password — changes the admin password. Requires a valid
 // token (this route is under /api/auth/* which requireAuth exempts, so the token
 // is validated here) AND the current password.
 func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
-	pg := s.pg(w)
-	if pg == nil {
+	kv := s.authSettings()
+	if kv == nil {
+		writeErr(w, http.StatusServiceUnavailable, "管理后台数据源(PostgreSQL)未连接")
 		return
 	}
-	if !s.validAccessToken(extractToken(r)) {
+	if !s.allowAuthAttempt(w, r) {
+		return
+	}
+	// Changing a password is always an authenticated mutation, so URL tickets are
+	// explicitly excluded even if a future route matcher becomes broader.
+	if !s.validAccessToken(extractToken(r)) || r.URL.Query().Get("ticket") != "" {
 		writeErr(w, 401, "未授权")
 		return
 	}
@@ -422,7 +470,11 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "新密码不能为空")
 		return
 	}
-	hash, ok, _ := pg.GetSetting(authPassKey)
+	hash, ok, err := kv.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "读取密码失败")
+		return
+	}
 	if !ok || hash == "" {
 		writeErr(w, 403, "密码未初始化，请先设置密码")
 		return
@@ -436,13 +488,13 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "密码加密失败")
 		return
 	}
-	if err := pg.SetSetting(authPassKey, string(newHash)); err != nil {
+	if err := kv.SetSetting(authPassKey, string(newHash)); err != nil {
 		writeErr(w, 500, "保存失败: "+err.Error())
 		return
 	}
 	// 密钥版本 +1:此前签发的所有 access/refresh token 立即吊销(F6),
 	// 前端收到成功后应强制重新登录。
-	if _, err := bumpAuthKeyVersion(pg); err != nil {
+	if _, err := bumpAuthKeyVersion(kv); err != nil {
 		writeErr(w, 500, "吊销旧凭证失败: "+err.Error())
 		return
 	}
@@ -502,8 +554,12 @@ func (s *Server) authLogout(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/auth/login — validates username/password and returns a JWT.
 func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
-	pg := s.pg(w)
-	if pg == nil {
+	kv := s.authSettings()
+	if kv == nil {
+		writeErr(w, http.StatusServiceUnavailable, "管理后台数据源(PostgreSQL)未连接")
+		return
+	}
+	if !s.allowAuthAttempt(w, r) {
 		return
 	}
 	var req struct {
@@ -520,7 +576,11 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "用户名或密码错误")
 		return
 	}
-	hash, ok, _ := pg.GetSetting(authPassKey)
+	hash, ok, err := kv.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "读取密码失败")
+		return
+	}
 	if !ok || hash == "" {
 		writeErr(w, 403, "密码未初始化，请先设置密码")
 		return
@@ -529,5 +589,5 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "用户名或密码错误")
 		return
 	}
-	s.issueSession(w, r, pg)
+	s.issueSession(w, r, kv)
 }

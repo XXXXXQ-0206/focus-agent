@@ -1431,14 +1431,49 @@ func (s *Server) fsUploadSkill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if overwrite {
-		_ = os.RemoveAll(skillPath)
-	}
-	if err := os.Rename(tmp, skillPath); err != nil {
+	if err := installSkillDir(tmp, skillPath, overwrite); err != nil {
 		writeErr(w, 500, "安装失败："+err.Error())
 		return
 	}
 	writeJSON(w, 201, map[string]any{"name": name, "files": entries})
+}
+
+// installSkillDir keeps the previous release recoverable until the new tree is in
+// place. A plain remove-then-rename loses the old skill if the second rename fails.
+func installSkillDir(src, dst string, overwrite bool) error {
+	if !overwrite {
+		return os.Rename(src, dst)
+	}
+	parent := filepath.Dir(dst)
+	if _, err := os.Lstat(dst); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	backup, err := os.MkdirTemp(parent, ".skill-backup-*")
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(backup); err != nil {
+		return err
+	}
+	if _, err := os.Lstat(dst); os.IsNotExist(err) {
+		backup = ""
+	} else if err := os.Rename(dst, backup); err != nil {
+		return err
+	}
+	if err := os.Rename(src, dst); err != nil {
+		if backup != "" {
+			if restoreErr := os.Rename(backup, dst); restoreErr != nil {
+				return errors.Join(err, fmt.Errorf("restore previous skill: %w", restoreErr))
+			}
+		}
+		return err
+	}
+	if backup != "" {
+		if err := os.RemoveAll(backup); err != nil {
+			log.Printf("[skills] previous backup cleanup failed: %v", err)
+		}
+	}
+	return nil
 }
 
 // readZipEntry reads a single entry's bytes (capped). Takes the *zip.File rather than

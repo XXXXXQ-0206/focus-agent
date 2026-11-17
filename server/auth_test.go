@@ -2,12 +2,15 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // memKV 是 authKV 的内存实现,F6 的 auth 测试不依赖 PostgreSQL。
@@ -37,6 +40,19 @@ func (k *memKV) SetSetting(key, value string) error {
 	}
 	k.m[key] = value
 	return nil
+}
+
+func (k *memKV) ClaimSetting(key, value string) (bool, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.err != nil {
+		return false, k.err
+	}
+	if current := k.m[key]; current != "" {
+		return false, nil
+	}
+	k.m[key] = value
+	return true, nil
 }
 
 func (k *memKV) DeleteSetting(key string) error {
@@ -238,21 +254,33 @@ func TestRequireAuthTicketPath(t *testing.T) {
 		t.Fatalf("bearer: want 200, got %d (ok=%v)", rec.Code, ok)
 	}
 
-	// 一次性 ticket → 200,再用 → 401
+	// 一次性 ticket 只用于已知 SSE GET；不能访问普通 API 或 mutation。
 	ticket, err := s.tickets.issue()
 	if err != nil {
 		t.Fatalf("issue ticket: %v", err)
 	}
-	r = httptest.NewRequest("GET", "/api/anything?ticket="+ticket, nil)
+	r = httptest.NewRequest("GET", "/api/tasks?ticket="+ticket, nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, r)
-	if rec.Code != 200 {
-		t.Fatalf("ticket: want 200, got %d", rec.Code)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("ticket on ordinary API: want 401, got %d", rec.Code)
 	}
-	r = httptest.NewRequest("GET", "/api/anything?ticket="+ticket, nil)
+	r = httptest.NewRequest("POST", "/api/logs/stream?ticket="+ticket, nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, r)
-	if rec.Code != 401 {
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("ticket on mutation: want 401, got %d", rec.Code)
+	}
+	r = httptest.NewRequest("GET", "/api/logs/stream?ticket="+ticket, nil)
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, r)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ticket on stream: want 200, got %d", rec.Code)
+	}
+	r = httptest.NewRequest("GET", "/api/logs/stream?ticket="+ticket, nil)
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, r)
+	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("ticket replay: want 401, got %d", rec.Code)
 	}
 
@@ -262,6 +290,83 @@ func TestRequireAuthTicketPath(t *testing.T) {
 	h.ServeHTTP(rec, r)
 	if rec.Code != 200 {
 		t.Fatalf("/api/auth/* must be exempt: got %d", rec.Code)
+	}
+}
+
+func TestAuthInitClaimIsAtomicAndFailClosed(t *testing.T) {
+	kv := newMemKV()
+	s := &Server{jwtKey: testJWTKey, authkv: kv}
+
+	const attempts = 4
+	start := make(chan struct{})
+	codes := make(chan int, attempts)
+	var wg sync.WaitGroup
+	for i := 0; i < attempts; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			body := fmt.Sprintf(`{"password":"password-%d"}`, i)
+			rec := httptest.NewRecorder()
+			s.authInit(rec, httptest.NewRequest(http.MethodPost, "/api/auth/init", strings.NewReader(body)))
+			codes <- rec.Code
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(codes)
+
+	successes := 0
+	for code := range codes {
+		if code == http.StatusOK {
+			successes++
+		} else if code != http.StatusForbidden {
+			t.Fatalf("concurrent init: unexpected status %d", code)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("concurrent init: got %d successes, want exactly 1", successes)
+	}
+
+	failing := newMemKV()
+	failing.err = errTest
+	rec := httptest.NewRecorder()
+	(&Server{jwtKey: testJWTKey, authkv: failing}).authInit(
+		rec,
+		httptest.NewRequest(http.MethodPost, "/api/auth/init", strings.NewReader(`{"password":"secret"}`)),
+	)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("init storage failure: want 500, got %d", rec.Code)
+	}
+	if _, ok := failing.m[authPassKey]; ok {
+		t.Fatal("failed claim must not persist a password")
+	}
+}
+
+func TestAuthLoginIsRateLimited(t *testing.T) {
+	kv := newMemKV()
+	hash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := kv.SetSetting(authPassKey, string(hash)); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{jwtKey: testJWTKey, authkv: kv}
+	for i := 0; i < authAttemptLimit; i++ {
+		rec := httptest.NewRecorder()
+		s.authLogin(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"Focus","password":"wrong"}`)))
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: want 401, got %d", i+1, rec.Code)
+		}
+	}
+	rec := httptest.NewRecorder()
+	s.authLogin(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"Focus","password":"correct-password"}`)))
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("over-limit login: want 429, got %d", rec.Code)
+	}
+	if rec.Header().Get("Retry-After") == "" {
+		t.Fatal("429 response must include Retry-After")
 	}
 }
 

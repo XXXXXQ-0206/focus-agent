@@ -4,6 +4,7 @@ import type { ComposerSelection } from "@/chat/Composer";
 import { type ChatModelOption, providerEffortLevels } from "@/chat/options";
 
 import { type ArtexAgent, artexApi } from "./api";
+import { ARTexEvents, emitArtexEvent } from "./events";
 import type { LLMProfile } from "./types";
 
 /**
@@ -123,10 +124,10 @@ export function useArtexComposerSelection(
     setAgentsReady(false);
     void reloadProfiles();
     const onChanged = () => void reloadProfiles();
-    window.addEventListener("artex:llm-changed", onChanged);
+    window.addEventListener(ARTexEvents.llmChanged, onChanged);
     return () => {
       loadRequestRef.current += 1;
-      window.removeEventListener("artex:llm-changed", onChanged);
+      window.removeEventListener(ARTexEvents.llmChanged, onChanged);
     };
   }, [options.agentKey, reloadProfiles]);
 
@@ -216,7 +217,7 @@ export function useArtexComposerSelection(
       void artexApi
         .saveLLMProfile(savePayload(activeProfile, raw))
         .then(() => {
-          window.dispatchEvent(new CustomEvent("artex:llm-changed"));
+          emitArtexEvent(ARTexEvents.llmChanged);
           return reloadProfiles();
         })
         .catch((caught) => {

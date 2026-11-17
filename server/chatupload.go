@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Autumn-27/artex/db"
+	"github.com/Autumn-27/artex/internal/textutil"
 )
 
 // maxChatUpload caps a single chat-attachment upload request (memory + spill).
@@ -141,12 +142,10 @@ func composeAgentMessage(msg string, atts []chatAttachment, baseDir string) stri
 }
 
 // userActivityWithAttachments builds the persisted 'user' activity. With attachments,
-// Detail holds JSON {text, attachments} so a detail-aware renderer can show attachment
-// cards; the summary carries the text **plus the attachment names**, because the list
-// payload omits Detail (lazy-loaded) and the transcript/side panel would otherwise show
-// an attachment message as if it were plain text.
+// Detail holds JSON {text, attachments} for the transcript; Summary remains a short
+// single-line preview for lists and navigation.
 func userActivityWithAttachments(worker, text string, atts []chatAttachment) db.Activity {
-	a := db.Activity{Worker: worker, Kind: "user", Summary: firstLine(text, 200)}
+	a := db.Activity{Worker: worker, Kind: "user", Summary: textutil.FirstLine(text, 200)}
 	if len(atts) > 0 {
 		names := make([]string, 0, len(atts))
 		for _, att := range atts {

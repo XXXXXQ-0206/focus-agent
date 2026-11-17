@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { artexApi } from "@/artex/api";
+import { ARTexEvents, emitArtexEvent } from "@/artex/events";
 import type { ArtexTaskArchive } from "@/artex/types";
 import { Button, Input } from "@/ui";
 import type { SettingsPaneProps } from "./index";
@@ -110,7 +111,7 @@ export function ArchivedPane({ section }: SettingsPaneProps) {
     try {
       await artexApi.restoreTaskArchive(item.id);
       await load(query);
-      window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      emitArtexEvent(ARTexEvents.tasksChanged);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "恢复归档失败");
     } finally {

@@ -16,6 +16,7 @@ import { Badge, EmptyState, ResourceGrid, ResourceRow, SearchField, SlatePage } 
 import type { SettingsNavIcon } from "@/settings/nav-model";
 import { Button, Dialog, DialogContent, Input, Spinner, Textarea } from "@/ui";
 import { artexApi } from "./api";
+import { ARTexEvents, emitArtexEvent } from "./events";
 import type { Task } from "./types";
 import "./system-resource-pages.css";
 
@@ -168,7 +169,7 @@ export function ArtexTasksPage() {
       setDraftName("");
       setDraftDescription("");
       setDraftGoal("");
-      window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      emitArtexEvent(ARTexEvents.tasksChanged);
       navigate(`/task/${encodeURIComponent(created.id)}`);
     } catch (caught) {
       setCreateError(caught instanceof Error ? caught.message : "任务创建失败");

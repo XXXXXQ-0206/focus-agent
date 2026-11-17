@@ -89,7 +89,7 @@ func TestCoreTaskLifecyclePG(t *testing.T) {
 	}
 
 	// it shows in the task list
-	code, out = doRetry("GET", "/api/tasks", nil)
+	code, _ = doRetry("GET", "/api/tasks", nil)
 	if code != 200 {
 		t.Fatalf("list tasks: %d", code)
 	}

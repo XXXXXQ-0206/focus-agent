@@ -177,7 +177,7 @@ Docker Compose 部署会启动 PostgreSQL。自行运行二进制时，可编辑
 
 ## 开发与构建
 
-源码构建需要 Go 1.26.3 或更新版本、Node.js 22 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中编译 `frontends/codex-client/`，再由 Go 宿主挂载到 `/`。
+源码构建需要 Go 1.26.10 或更新版本、Node.js 22 或更新版本，以及可用的 PostgreSQL。Docker 部署会在镜像构建过程中编译 `frontends/codex-client/`，再由 Go 宿主挂载到 `/`。
 
 <details>
 <summary>从源码构建单体程序</summary>

@@ -6,6 +6,7 @@ import { EmptyState, SlatePage } from "@/pages/parts";
 import { PanelPortal } from "@/shell";
 import { Button, Dialog, DialogContent, Input, Spinner, Textarea } from "@/ui";
 import { artexApi } from "./api";
+import { ARTexEvents, emitArtexEvent } from "./events";
 import type { Task } from "./types";
 import "./adapted-pages.css";
 import "./task-list-page.css";
@@ -70,8 +71,8 @@ export function ArtexTaskListPage() {
   useEffect(() => {
     void load();
     const onChanged = () => void load();
-    window.addEventListener("artex:tasks-changed", onChanged);
-    return () => window.removeEventListener("artex:tasks-changed", onChanged);
+    window.addEventListener(ARTexEvents.tasksChanged, onChanged);
+    return () => window.removeEventListener(ARTexEvents.tasksChanged, onChanged);
   }, [load]);
 
   const openCreate = useCallback(() => {
@@ -93,7 +94,7 @@ export function ArtexTaskListPage() {
         goal: draftGoal.trim() || draftDescription.trim(),
       });
       setCreateOpen(false);
-      window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      emitArtexEvent(ARTexEvents.tasksChanged);
       navigate(`/task/${encodeURIComponent(created.id)}`);
     } catch (caught) {
       setCreateError(caught instanceof Error ? caught.message : "任务创建失败");

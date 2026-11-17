@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { CodexCopy } from "@/icons";
+import { copyText } from "../clipboard";
 import { CheckmarkLgLight12 } from "./icons";
 
 /**
@@ -40,24 +41,8 @@ export function CopyButton({
   );
 
   const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // 无剪贴板权限（非安全上下文 / 无焦点）时退化，仍给出反馈
-      const area = document.createElement("textarea");
-      area.value = text;
-      area.setAttribute("readonly", "true");
-      area.style.position = "fixed";
-      area.style.opacity = "0";
-      document.body.appendChild(area);
-      area.select();
-      try {
-        document.execCommand("copy");
-      } catch {
-        /* 忽略 */
-      }
-      document.body.removeChild(area);
-    }
+    const ok = await copyText(text);
+    if (!ok) return;
     setCopied(true);
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setCopied(false), resetMs);

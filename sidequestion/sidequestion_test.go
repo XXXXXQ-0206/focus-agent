@@ -7,7 +7,6 @@ import (
 	"iter"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -214,9 +213,8 @@ func TestMainSideConcurrencyAndIndependentCancellation(t *testing.T) {
 			defer stopMain()
 			sideCtx, stopSide := context.WithCancel(t.Context())
 			defer stopSide()
-			var mu sync.Mutex
 			bound := Bind(p, Model{Model: "blocking"})
-			mainCtx, deps := Attach(WithPublisher(mainCtx, func(Snapshot) { mu.Lock(); mu.Unlock() }), Parent{ConversationID: 3}, harness.QueryDeps{}, bound)
+			mainCtx, deps := Attach(WithPublisher(mainCtx, func(Snapshot) {}), Parent{ConversationID: 3}, harness.QueryDeps{}, bound)
 			mainDone, sideDone := make(chan struct{}), make(chan Answer, 1)
 			go func() {
 				defer close(mainDone)

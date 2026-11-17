@@ -217,8 +217,20 @@ func (s *Server) pgDeleteConversation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.cancelConversation(c.ID)
+	reserved, cancel := s.reserveConversationDelete(c.ID)
+	if !reserved {
+		writeErr(w, http.StatusConflict, "会话正在删除，请稍后重试")
+		return
+	}
+	defer s.finishConversationDelete(c.ID)
+	if cancel != nil {
+		cancel(agent.AbortChatStoppedByUser)
+	}
 	s.cancelSideWhere(func(p sidequestion.Parent) bool { return p.ConversationID == c.ID })
+	if !s.waitConversationStopped(c.ID, conversationStopTimeout) {
+		writeErr(w, http.StatusConflict, "会话仍在停止中，请稍后重试")
+		return
+	}
 	if err := pg.DeleteConversation(c.ID); err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -230,6 +242,7 @@ func (s *Server) pgDeleteConversation(w http.ResponseWriter, r *http.Request) {
 }
 
 const maxConversationDeleteBatch = 100
+const conversationStopTimeout = 10 * time.Second
 
 type conversationDeleteItem struct {
 	ID    int64  `json:"id"`
@@ -237,13 +250,85 @@ type conversationDeleteItem struct {
 	Error string `json:"error,omitempty"`
 }
 
-func (s *Server) cancelConversation(id int64) {
+func (s *Server) reserveConversationDelete(id int64) (bool, context.CancelCauseFunc) {
 	busyKey := s.convBusyKey(id)
 	s.chatMu.Lock()
-	cancel := s.chatCancel[busyKey]
+	reserved, cancel := s.reserveConversationDeleteLocked(busyKey)
 	s.chatMu.Unlock()
-	if cancel != nil {
-		cancel(agent.AbortChatStoppedByUser)
+	return reserved, cancel
+}
+
+func (s *Server) reserveConversationDeleteLocked(busyKey string) (bool, context.CancelCauseFunc) {
+	if s.chatDeleting == nil {
+		s.chatDeleting = map[string]bool{}
+	}
+	if s.chatDeleting[busyKey] {
+		return false, nil
+	}
+	s.chatDeleting[busyKey] = true
+	cancel := s.chatCancel[busyKey]
+	return true, cancel
+}
+
+func (s *Server) finishConversationDelete(id int64) {
+	s.chatMu.Lock()
+	delete(s.chatDeleting, s.convBusyKey(id))
+	s.chatMu.Unlock()
+}
+
+// startChatLocked reserves one run and gives delete/stop callers a completion
+// signal. The caller must hold chatMu.
+func (s *Server) startChatLocked(busyKey string) bool {
+	if s.chatBusy == nil {
+		s.chatBusy = map[string]bool{}
+	}
+	if s.chatCancel == nil {
+		s.chatCancel = map[string]context.CancelCauseFunc{}
+	}
+	if s.chatBusy[busyKey] || s.chatDeleting[busyKey] {
+		return false
+	}
+	s.chatBusy[busyKey] = true
+	if s.chatDone == nil {
+		s.chatDone = map[string]chan struct{}{}
+	}
+	s.chatDone[busyKey] = make(chan struct{})
+	return true
+}
+
+func (s *Server) finishChat(busyKey string) {
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+	if done := s.chatDone[busyKey]; done != nil {
+		close(done)
+	}
+	delete(s.chatDone, busyKey)
+	delete(s.chatBusy, busyKey)
+	delete(s.chatCancel, busyKey)
+}
+
+func (s *Server) waitConversationStopped(id int64, timeout time.Duration) bool {
+	busyKey := s.convBusyKey(id)
+	s.chatMu.Lock()
+	done := s.chatDone[busyKey]
+	busy := s.chatBusy[busyKey]
+	s.chatMu.Unlock()
+	if !busy {
+		return true
+	}
+	if done == nil {
+		return false
+	}
+	if timeout <= 0 {
+		return false
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return true
+	case <-timer.C:
+		return false
 	}
 }
 
@@ -278,9 +363,42 @@ func (s *Server) pgDeleteConversationsBatch(w http.ResponseWriter, r *http.Reque
 		writeErr(w, http.StatusBadRequest, fmt.Sprintf("ids 数量必须为 1-%d", maxConversationDeleteBatch))
 		return
 	}
+	reserved := make([]int64, 0, len(ids))
+	cancels := make([]context.CancelCauseFunc, 0, len(ids))
+	s.chatMu.Lock()
 	for _, id := range ids {
-		s.cancelConversation(id)
+		ok, cancel := s.reserveConversationDeleteLocked(s.convBusyKey(id))
+		if !ok {
+			for _, reservedID := range reserved {
+				delete(s.chatDeleting, s.convBusyKey(reservedID))
+			}
+			s.chatMu.Unlock()
+			writeErr(w, http.StatusConflict, "有会话正在删除，请稍后重试")
+			return
+		}
+		reserved = append(reserved, id)
+		cancels = append(cancels, cancel)
+	}
+	s.chatMu.Unlock()
+	for _, cancel := range cancels {
+		if cancel != nil {
+			cancel(agent.AbortChatStoppedByUser)
+		}
+	}
+	for _, id := range reserved {
 		s.cancelSideWhere(func(p sidequestion.Parent) bool { return p.ConversationID == id })
+	}
+	defer func() {
+		for _, id := range reserved {
+			s.finishConversationDelete(id)
+		}
+	}()
+	deadline := time.Now().Add(conversationStopTimeout)
+	for _, id := range ids {
+		if !s.waitConversationStopped(id, time.Until(deadline)) {
+			writeErr(w, http.StatusConflict, "有会话仍在停止中，请稍后重试")
+			return
+		}
 	}
 	deleted, err := pg.DeleteConversations(ids)
 	if err != nil {
@@ -433,12 +551,11 @@ func (s *Server) pgSendConversationMessage(w http.ResponseWriter, r *http.Reques
 
 	busyKey := s.convBusyKey(c.ID)
 	s.chatMu.Lock()
-	if s.chatBusy[busyKey] {
+	if !s.startChatLocked(busyKey) {
 		s.chatMu.Unlock()
 		writeErr(w, 409, "该会话正在处理上一条消息，请稍候")
 		return
 	}
-	s.chatBusy[busyKey] = true
 	s.chatMu.Unlock()
 
 	// persist + float the human turn; auto-title the thread from the first message.
@@ -455,7 +572,7 @@ func (s *Server) pgSendConversationMessage(w http.ResponseWriter, r *http.Reques
 		log.Printf("[conv %d] append user msg failed: %v", c.ID, err)
 	}
 	if c.Title == "" || c.Title == "新对话" {
-		title := firstLine(msg, 40)
+		title := textutil.FirstLine(msg, 40)
 		if title == "" {
 			title = "附件消息"
 		}
@@ -510,6 +627,12 @@ func (s *Server) conversationRunContext(id int64, busyKey string) (context.Conte
 	// just this session. Registered under chatMu so the stop handler can find it.
 	ctx, cancel := context.WithCancelCause(intercept.WithConvID(s.ctx, id))
 	s.chatMu.Lock()
+	if s.chatDone == nil {
+		s.chatDone = map[string]chan struct{}{}
+	}
+	if s.chatDone[busyKey] == nil {
+		s.chatDone[busyKey] = make(chan struct{})
+	}
 	s.chatCancel[busyKey] = cancel
 	s.chatMu.Unlock()
 	return ctx, cancel
@@ -518,10 +641,7 @@ func (s *Server) conversationRunContext(id int64, busyKey string) (context.Conte
 func (s *Server) runConversationTurn(ctx context.Context, cancel context.CancelCauseFunc, c *db.Conversation, msg, busyKey string, images []visionImage) {
 	defer func() {
 		cancel(agent.AbortChatTurnFinished)
-		s.chatMu.Lock()
-		delete(s.chatBusy, busyKey)
-		delete(s.chatCancel, busyKey)
-		s.chatMu.Unlock()
+		s.finishChat(busyKey)
 	}()
 	// Only the first turn executes a historical retest. Follow-up conversation
 	// turns may explain the sealed result; the result tool refuses to overwrite it.
@@ -859,23 +979,22 @@ func (s *Server) runTriggeredRun(item triggeredRun) {
 		}
 	}()
 	pg := s.m.pg
-	c, err := pg.CreateConversation(item.agentKey, firstLine(item.title, 60), nil)
+	c, err := pg.CreateConversation(item.agentKey, textutil.FirstLine(item.title, 60), nil)
 	if err != nil {
 		log.Printf("[trigger] create conversation for %s failed: %v", item.agentKey, err)
 		return
 	}
 	msg := finalTriggerMessage(item) // prepend the task-context header for single (non-merged) fires
-	if _, err := pg.AppendConvActivity(c.ID, db.Activity{Worker: item.agentKey, Kind: "user", Summary: firstLine(msg, 200), Detail: msg}); err != nil {
+	if _, err := pg.AppendConvActivity(c.ID, db.Activity{Worker: item.agentKey, Kind: "user", Summary: textutil.FirstLine(msg, 200), Detail: msg}); err != nil {
 		log.Printf("[trigger] append msg failed: %v", err)
 	}
 	busyKey := s.convBusyKey(c.ID)
 	s.chatMu.Lock()
-	s.chatBusy[busyKey] = true
+	started := s.startChatLocked(busyKey)
 	s.chatMu.Unlock()
+	if !started {
+		log.Printf("[trigger] conversation %d is already busy", c.ID)
+		return
+	}
 	s.runConversationSync(c, msg, busyKey)
-}
-
-// firstLine returns a single-line, length-capped preview (shared with summaries).
-func firstLine(s string, max int) string {
-	return textutil.FirstLine(s, max)
 }

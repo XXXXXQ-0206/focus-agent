@@ -100,11 +100,11 @@ function createController(installDir, log, runSync = spawnSync) {
       windowsHide: true,
       timeout: 60000,
     });
-    pgStartedByUs = true;
     if (res.status !== 0) {
       log?.("[backend] pg_ctl start failed: " + (res.stderr?.toString() || res.status));
       return false;
     }
+    pgStartedByUs = true;
     return true;
   }
 

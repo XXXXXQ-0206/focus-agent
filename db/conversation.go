@@ -244,14 +244,16 @@ RETURNING id`, convID, utf8Clean(a.Worker), utf8Clean(a.Kind), utf8Clean(a.Tool)
 	return id, err
 }
 
-// ConvActivityList returns a conversation's steps after sinceID (exclusive) with
-// the summary-only column set (detail is lazy-loaded via ConvActivityDetail).
+const convActivityPayloadCols = `id, COALESCE(worker,''), COALESCE(kind,''), COALESCE(tool,''), COALESCE(tool_use_id,''), is_error, COALESCE(summary,''), CASE WHEN kind IN ('result','user') THEN COALESCE(detail,'') ELSE '' END, created_at, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens`
+
+// ConvActivityList returns a conversation's steps after sinceID (exclusive).
+// Human messages and model results include Detail because Summary is only a
+// truncated preview. Other large records remain lazy-loaded via ConvActivityDetail.
 func (d *DB) ConvActivityList(convID, sinceID int64, limit int) ([]Activity, int64, error) {
 	if limit <= 0 {
 		limit = 500
 	}
-	const cols = `id, COALESCE(worker,''), COALESCE(kind,''), COALESCE(tool,''), COALESCE(tool_use_id,''), is_error, COALESCE(summary,''), created_at, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens`
-	rows, err := d.Query(`SELECT `+cols+`
+	rows, err := d.Query(`SELECT `+convActivityPayloadCols+`
 FROM conversation_activities WHERE conversation_id=$1 AND id>$2 ORDER BY id LIMIT $3`, convID, sinceID, limit)
 	if err != nil {
 		return nil, sinceID, err
@@ -261,7 +263,7 @@ FROM conversation_activities WHERE conversation_id=$1 AND id>$2 ORDER BY id LIMI
 	cursor := sinceID
 	for rows.Next() {
 		var a Activity
-		if err := rows.Scan(&a.ID, &a.Worker, &a.Kind, &a.Tool, &a.ToolUseID, &a.IsError, &a.Summary, &a.CreatedAt,
+		if err := rows.Scan(&a.ID, &a.Worker, &a.Kind, &a.Tool, &a.ToolUseID, &a.IsError, &a.Summary, &a.Detail, &a.CreatedAt,
 			&a.InputTokens, &a.OutputTokens, &a.CacheReadTokens, &a.CacheWriteTokens); err != nil {
 			return nil, sinceID, err
 		}
@@ -277,14 +279,14 @@ FROM conversation_activities WHERE conversation_id=$1 AND id>$2 ORDER BY id LIMI
 // `limit` steps ending before id `before` (exclusive; before<=0 = the latest
 // page), returned in ASCENDING id order. hasMore reports whether still-older steps
 // exist before the returned window, so the client can stop loading earlier history
-// on scroll-up. Summary-only columns (detail is lazy-loaded via ConvActivityDetail).
+// on scroll-up. Human messages and model results include Detail; other details
+// remain lazy-loaded.
 func (d *DB) ConvActivityPage(convID, before int64, limit int) ([]Activity, bool, error) {
 	if limit <= 0 {
 		limit = 200
 	}
-	const cols = `id, COALESCE(worker,''), COALESCE(kind,''), COALESCE(tool,''), COALESCE(tool_use_id,''), is_error, COALESCE(summary,''), created_at, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens`
 	// fetch one extra row to detect whether older history remains before this window.
-	rows, err := d.Query(`SELECT `+cols+`
+	rows, err := d.Query(`SELECT `+convActivityPayloadCols+`
 FROM conversation_activities
 WHERE conversation_id=$1 AND ($2 <= 0 OR id < $2)
 ORDER BY id DESC LIMIT $3`, convID, before, limit+1)
@@ -295,7 +297,7 @@ ORDER BY id DESC LIMIT $3`, convID, before, limit+1)
 	desc := []Activity{}
 	for rows.Next() {
 		var a Activity
-		if err := rows.Scan(&a.ID, &a.Worker, &a.Kind, &a.Tool, &a.ToolUseID, &a.IsError, &a.Summary, &a.CreatedAt,
+		if err := rows.Scan(&a.ID, &a.Worker, &a.Kind, &a.Tool, &a.ToolUseID, &a.IsError, &a.Summary, &a.Detail, &a.CreatedAt,
 			&a.InputTokens, &a.OutputTokens, &a.CacheReadTokens, &a.CacheWriteTokens); err != nil {
 			return nil, false, err
 		}

@@ -90,7 +90,7 @@ JSON
   ok "已生成 config.json"
 
   # go 环境检查
-  command -v go >/dev/null 2>&1 || die "未检测到 Go，请先安装 Go（>=1.26）：https://go.dev/dl/"
+  command -v go >/dev/null 2>&1 || die "未检测到 Go，请先安装 Go（>=1.26.10）：https://go.dev/dl/"
   ok "Go: $(go version)"
 
   # 内嵌 Focus renderer 需要 node 先产出静态资源。

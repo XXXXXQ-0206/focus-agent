@@ -14,9 +14,12 @@
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",
-    "electron": "43.1.0"
+    "electron": "43.8.3"
   },
   "allowScripts": {
-    "electron@43.1.0": true
+    "electron@43.8.3": true
+  },
+  "overrides": {
+    "undici": "7.30.1"
   }
 }

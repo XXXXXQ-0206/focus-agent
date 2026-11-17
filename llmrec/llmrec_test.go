@@ -36,7 +36,7 @@ func TestTaskIDContextUsesExplicitRegistryID(t *testing.T) {
 	if got := TaskIDFrom(WithTaskID(ctx, "   ")); got != "42" {
 		t.Fatalf("blank task id should preserve parent context, got %q", got)
 	}
-	if got := TaskIDFrom(nil); got != "" {
+	if got := TaskIDFrom(context.TODO()); got != "" {
 		t.Fatalf("nil context returned %q", got)
 	}
 }

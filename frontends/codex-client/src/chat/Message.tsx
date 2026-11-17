@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
-import { CodexCopy, CodexEditMessage, CodexRetry } from "@/icons";
+import { CodexCheck, CodexCopy, CodexEditMessage, CodexRetry } from "@/icons";
 import { messageToBlocks } from "./block-adapter";
 import { ActivityGroup } from "./blocks";
+import { copyText } from "./clipboard";
 import { Markdown } from "./Markdown";
 // 显式收 runtime 的消息类型：它继承 @/lib/types 的 Message，多出 error / phase / aborted …
 // 只认基类的话 message.error 在类型上不存在，错误条就永远接不上（见 RuntimeMessage.error 的注释）。
@@ -27,22 +28,58 @@ import { type RuntimeMessage, toDisplayErrorNode } from "./types";
 
 function ActionButton({
   children,
+  copyState,
   label,
   onClick,
 }: {
   children: ReactNode;
+  copyState?: "copied" | "error";
   label: string;
   onClick?: () => void;
 }) {
   return (
-    <button aria-label={label} className="cx-message__action" onClick={onClick} title={label} type="button">
+    <button
+      aria-label={label}
+      className="cx-message__action"
+      data-copy-state={copyState}
+      onClick={onClick}
+      title={label}
+      type="button"
+    >
       {children}
     </button>
   );
 }
 
+function CopyActionButton({ label, text }: { label: string; text: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "error">("idle");
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  const copy = useCallback(async () => {
+    const ok = await copyText(text);
+    setState(ok ? "copied" : "error");
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => setState("idle"), 1600);
+  }, [text]);
+
+  const currentLabel = state === "copied" ? "已复制" : state === "error" ? "复制失败" : label;
+  return (
+    <ActionButton copyState={state === "idle" ? undefined : state} label={currentLabel} onClick={copy}>
+      {state === "copied" ? <CodexCheck size={16} /> : <CodexCopy size={16} />}
+    </ActionButton>
+  );
+}
+
 function formatClock(iso: string) {
   const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return "";
   const hh = String(date.getHours()).padStart(2, "0");
   const mm = String(date.getMinutes()).padStart(2, "0");
   return `${hh}:${mm}`;
@@ -50,15 +87,18 @@ function formatClock(iso: string) {
 
 export function Message({
   message,
+  onEdit,
   onRetry,
   showActions = true,
 }: {
   /** RuntimeMessage 兼容任何 Message（多出来的字段都是可选的），所以老的调用点不用改 */
   message: RuntimeMessage;
+  onEdit?: (message: RuntimeMessage) => void;
   onRetry?: (id: string) => void;
   showActions?: boolean;
 }) {
   if (message.role === "user") {
+    const time = formatClock(message.createdAt);
     return (
       <div className="cx-message cx-message--user">
         <div className="cx-usermsg">
@@ -67,14 +107,18 @@ export function Message({
           </div>
         </div>
         <div className="cx-message__meta">
-          <span className="cx-message__time">{formatClock(message.createdAt)}</span>
+          {time ? <span className="cx-message__time">{time}</span> : null}
           <div className="cx-message__actions">
-            <ActionButton label="复制消息">
-              <CodexCopy size={16} />
-            </ActionButton>
-            <ActionButton label="编辑消息">
-              <CodexEditMessage size={16} />
-            </ActionButton>
+            {message.content.trim() ? (
+              <>
+                <CopyActionButton label="复制消息" text={message.content} />
+                {onEdit ? (
+                  <ActionButton label="编辑消息" onClick={() => onEdit(message)}>
+                    <CodexEditMessage size={16} />
+                  </ActionButton>
+                ) : null}
+              </>
+            ) : null}
           </div>
         </div>
       </div>
@@ -109,12 +153,12 @@ export function Message({
       {showActions && !message.streaming ? (
         <div className="cx-message__meta cx-message__meta--assistant">
           <div className="cx-message__actions">
-            <ActionButton label="复制回复">
-              <CodexCopy size={16} />
-            </ActionButton>
-            <ActionButton label="重新生成" onClick={() => onRetry?.(message.id)}>
-              <CodexRetry size={16} />
-            </ActionButton>
+            <CopyActionButton label="复制回复" text={message.content} />
+            {onRetry ? (
+              <ActionButton label="重新生成" onClick={() => onRetry(message.id)}>
+                <CodexRetry size={16} />
+              </ActionButton>
+            ) : null}
           </div>
         </div>
       ) : null}

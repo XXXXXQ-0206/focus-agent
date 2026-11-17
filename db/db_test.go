@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -110,5 +112,45 @@ WHERE a.key = 'planner'`).Scan(&plannerVars); err != nil {
 	}
 	if agents != wantAgents {
 		t.Fatalf("after re-open want %d agents, got %d", wantAgents, agents)
+	}
+}
+
+func TestClaimSettingIsAtomic(t *testing.T) {
+	dsn := testDSN(t)
+	d, err := Open(dsn)
+	if err != nil {
+		t.Skipf("postgres unavailable (%v) — skipping", err)
+	}
+	defer d.Close()
+	key := fmt.Sprintf("test.claim.%d", time.Now().UnixNano())
+	t.Cleanup(func() { _, _ = d.Exec(`DELETE FROM settings WHERE key=$1`, key) })
+
+	const workers = 8
+	start := make(chan struct{})
+	results := make(chan bool, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			ok, err := d.ClaimSetting(key, "value")
+			if err != nil {
+				t.Errorf("ClaimSetting: %v", err)
+			}
+			results <- ok
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	claimed := 0
+	for ok := range results {
+		if ok {
+			claimed++
+		}
+	}
+	if claimed != 1 {
+		t.Fatalf("ClaimSetting successes=%d, want 1", claimed)
 	}
 }

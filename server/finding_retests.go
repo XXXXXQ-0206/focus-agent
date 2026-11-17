@@ -128,7 +128,7 @@ func (s *Server) startFindingRetest(w http.ResponseWriter, r *http.Request) {
 	if created {
 		busyKey := s.convBusyKey(conv.ID)
 		s.chatMu.Lock()
-		s.chatBusy[busyKey] = true
+		s.startChatLocked(busyKey)
 		s.chatMu.Unlock()
 		s.runConversation(conv, retest.InitialMessage(), busyKey)
 	}

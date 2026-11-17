@@ -136,7 +136,7 @@ func (s *Server) RequestFindingCheck(findingID int64, kind string) (*db.FindingC
 	if created {
 		busyKey := s.convBusyKey(conv.ID)
 		s.chatMu.Lock()
-		s.chatBusy[busyKey] = true
+		s.startChatLocked(busyKey)
 		s.chatMu.Unlock()
 		s.runConversation(conv, check.InitialMessage(), busyKey)
 	}

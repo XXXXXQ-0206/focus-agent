@@ -25,6 +25,24 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, key
 	return err
 }
 
+// ClaimSetting writes value only while the key is absent or empty. PostgreSQL
+// serializes the conflict check, so concurrent first-run initialization requests
+// cannot overwrite each other's value.
+func (d *DB) ClaimSetting(key, value string) (bool, error) {
+	res, err := d.Exec(`
+INSERT INTO settings(key, value) VALUES ($1, $2)
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+WHERE settings.value = ''`, key, value)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // DeleteSetting removes a setting row; a missing key is not an error.
 // (F6: refresh token 旋转/登出时删除哈希记录。)
 func (d *DB) DeleteSetting(key string) error {

@@ -1,10 +1,11 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CodexScrollToBottom } from "@/icons";
 import { formatTurnDivider } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
 import { Composer, type ComposerSelection } from "./Composer";
+import { setComposerText } from "./composer-events";
 import { Message } from "./Message";
 import { QueuedMessageBar } from "./QueuedMessageBar";
 import { ChatSkeleton } from "./Skeleton";
@@ -107,6 +108,8 @@ export interface ConversationViewProps {
   emptyText?: string;
   /** false = 助手消息不渲染复制/重试动作（Focus 只读转录用）。 */
   showMessageActions?: boolean;
+  /** 覆盖用户消息的编辑行为；缺省把完整原文回填到当前 Composer。 */
+  onEditMessage?: (message: RuntimeMessage) => void;
   /** 右侧浮层内容；非 null 时 `data-artifact="open"`，整层按官方 contentShift 左移 154。 */
   panel?: ReactNode | null;
   /** 转录区底部附加内容（Focus 的「原始事件」details 放这里）。 */
@@ -152,6 +155,7 @@ export function ConversationView({
   loading = false,
   emptyText = "这个会话还没有消息。在下面输入框里说点什么。",
   showMessageActions = true,
+  onEditMessage,
   panel = null,
   contentFooter = null,
   composerFooter = null,
@@ -193,6 +197,10 @@ export function ConversationView({
   }, []);
   const fallbackSelection = useComposerSelection();
   const selection = selectionProp ?? fallbackSelection;
+  const defaultEditMessage = useCallback((message: RuntimeMessage) => {
+    if (message.content.trim()) setComposerText(message.content);
+  }, []);
+  const editMessage = composerDisabled ? undefined : (onEditMessage ?? defaultEditMessage);
   const turns = useMemo(() => toTurns(messages), [messages]);
   /**
    * 本轮代码改动汇总（右上角那条「N 个文件已更改 +a −d」胶囊）。
@@ -277,6 +285,7 @@ export function ConversationView({
                                 <Message
                                   key={unit.key}
                                   message={unit.message}
+                                  onEdit={editMessage}
                                   onRetry={onRetry}
                                   showActions={showMessageActions}
                                 />

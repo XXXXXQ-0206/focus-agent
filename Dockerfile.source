@@ -18,7 +18,7 @@ COPY frontends/codex-client/ ./
 RUN npm run build
 
 # ---------- ② Go 编译(内嵌前端) ----------
-FROM golang:1.26-alpine AS gobuild
+FROM golang:1.26.10-alpine AS gobuild
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=$GOPROXY
 WORKDIR /src

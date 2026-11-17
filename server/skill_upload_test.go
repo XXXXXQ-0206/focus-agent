@@ -21,7 +21,7 @@ func TestValidSkillName(t *testing.T) {
 	ok := []string{"web-recon", "a", "nuclei2", "中文技能", "端口扫描-x", "日本語スキル"}
 	bad := []string{
 		"", "Web-Recon", "-lead", "trail-", "dou--ble", "has space", "中文 技能",
-		"dot.name", "a/b", `a\b`, "..", ".", "中文/技能", "sk\x00ill", "中‮文",
+		"dot.name", "a/b", `a\b`, "..", ".", "中文/技能", "sk\x00ill", "中\u202e文",
 		strings.Repeat("a", 65), "1abc", "中文技能!",
 	}
 	for _, n := range ok {
@@ -53,7 +53,7 @@ func TestSkillRelPath(t *testing.T) {
 	}
 	bad := []string{
 		"", "../etc/passwd", "a/../../b", "/abs/path", "a//b", `..\..\x`,
-		"%2e%2e/x", "a\x00b", "中文 名.md", "中‮文.md", "a#b.md", "a?b.md",
+		"%2e%2e/x", "a\x00b", "中文 名.md", "中\u202e文.md", "a#b.md", "a?b.md",
 		"a:b.md", string([]byte{0xd6, 0xd0}) + ".md", // 裸 GBK 字节：非法 UTF-8
 		strings.Repeat("a", maxSkillPathLen+1),
 	}
@@ -61,6 +61,51 @@ func TestSkillRelPath(t *testing.T) {
 		if got, msg := skillRelPath(in); msg == "" {
 			t.Errorf("skillRelPath(%q) = (%q, \"\"), want rejection", in, got)
 		}
+	}
+}
+
+func TestInstallSkillDirRestoresPreviousOnRenameFailure(t *testing.T) {
+	root := t.TempDir()
+	dst := filepath.Join(root, "skill")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(dst, "SKILL.md")
+	if err := os.WriteFile(marker, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := installSkillDir(filepath.Join(root, "missing"), dst, true); err == nil {
+		t.Fatal("installing a missing source must fail")
+	}
+	if got, err := os.ReadFile(marker); err != nil || string(got) != "old" {
+		t.Fatalf("previous skill was not restored: content=%q err=%v", got, err)
+	}
+}
+
+func TestInstallSkillDirOverwritesExistingSkill(t *testing.T) {
+	root := t.TempDir()
+	dst := filepath.Join(root, "skill")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "old"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(root, "new")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "new"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := installSkillDir(src, dst, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "new")); err != nil {
+		t.Fatalf("new skill missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "old")); !os.IsNotExist(err) {
+		t.Fatalf("old skill should be replaced, stat err=%v", err)
 	}
 }
 

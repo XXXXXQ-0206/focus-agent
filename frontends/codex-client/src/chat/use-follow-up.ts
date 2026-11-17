@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSettings } from "@/settings/store";
 
 import { hasComposerContent } from "./can-send";
+import { setComposerText } from "./composer-events";
 import { queueAfterSend } from "./follow-up-state";
 import type { ChatStatus } from "./use-chat";
 
@@ -135,9 +136,7 @@ export function useFollowUp(
     const item = queueRef.current.find((entry) => entry.id === id);
     blockedRef.current.delete(id);
     setQueue((current) => current.filter((entry) => entry.id !== id));
-    if (item && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("codex:composer-set-text", { detail: { text: item.text } }));
-    }
+    if (item) setComposerText(item.text);
   }, []);
 
   return {

@@ -2,6 +2,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerE
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { artexApi } from "@/artex";
+import { ARTexEvents } from "@/artex/events";
 import type { ArtexConversation } from "@/artex/types";
 import {
   CodexBell,
@@ -81,10 +82,10 @@ export function SidebarPanel() {
   }, []);
   useEffect(() => {
     const onChanged = () => void loadConversations();
-    window.addEventListener("artex:conversations-changed", onChanged);
+    window.addEventListener(ARTexEvents.conversationsChanged, onChanged);
     window.addEventListener("focus", onChanged);
     return () => {
-      window.removeEventListener("artex:conversations-changed", onChanged);
+      window.removeEventListener(ARTexEvents.conversationsChanged, onChanged);
       window.removeEventListener("focus", onChanged);
     };
   }, [loadConversations]);

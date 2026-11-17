@@ -688,7 +688,7 @@ func extractTaskArchivePackage(path, expectedSHA, destination string) error {
 			if err := os.MkdirAll(target, archiveDirMode); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), archiveDirMode); err != nil {
 				return err
 			}

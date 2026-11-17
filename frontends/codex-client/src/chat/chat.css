@@ -1198,6 +1198,15 @@
   color: var(--color-text-emphasis);
 }
 
+.cx-message__action[data-copy-state="copied"] {
+  background: color-mix(in srgb, var(--color-text-success) 12%, transparent);
+  color: var(--color-text-success);
+}
+
+.cx-message__action[data-copy-state="error"] {
+  color: var(--color-text-danger);
+}
+
 .cx-message__action:focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: -2px;
@@ -1721,8 +1730,17 @@
   margin: 0 0 12px;
   padding-inline-start: 24px;
 }
+.cx-markdown ul.cx-markdown__list {
+  list-style: disc;
+}
+.cx-markdown ol.cx-markdown__list {
+  list-style: decimal;
+}
 .cx-markdown__list li {
   margin: 2px 0;
+}
+.cx-markdown__list li::marker {
+  color: var(--color-text-tertiary);
 }
 
 .cx-markdown__table-wrap {

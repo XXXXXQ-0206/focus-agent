@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CodexCheck, CodexCopy } from "@/icons";
 import { cn } from "@/lib/utils";
+import { copyText } from "./clipboard";
 
 /**
  * 代码块。
@@ -66,24 +67,8 @@ export function CodeBlock({
   );
 
   const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-    } catch {
-      // 无剪贴板权限时退化到 execCommand，仍给出反馈
-      const area = document.createElement("textarea");
-      area.value = code;
-      area.setAttribute("readonly", "true");
-      area.style.position = "fixed";
-      area.style.opacity = "0";
-      document.body.appendChild(area);
-      area.select();
-      try {
-        document.execCommand("copy");
-      } catch {
-        /* 忽略 */
-      }
-      document.body.removeChild(area);
-    }
+    const ok = await copyText(code);
+    if (!ok) return;
     setCopied(true);
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = window.setTimeout(() => setCopied(false), 1600);

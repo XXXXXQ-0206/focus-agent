@@ -5,6 +5,7 @@ import type { ModelOption } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/settings/store";
 import { hasComposerContent } from "./can-send";
+import { COMPOSER_SET_TEXT_EVENT } from "./composer-events";
 import { ModelPickerChip } from "./ModelPicker";
 import type { ChatModelOption } from "./options";
 import { PermissionMenuChip } from "./PermissionMenu";
@@ -336,20 +337,23 @@ export function Composer({
    *
    * 用途：排队消息行 `··· → 编辑`（见 use-follow-up.ts 的 edit()）。它必须回填到真正的
    * 编辑器 DOM 并触发 syncEditor，否则 React 侧的 `value`（决定发送键是否可用、占位符是否显示）
-   * 会与 DOM 脱节。换行按编辑器自己的块模型切成多个 `<p>`（与 readEditorValue 的读法互逆）。
+   * 会与 DOM 脱节。换行用段落内的 `<br>` 重建（与 readEditorValue 的读法互逆），
+   * 避免把一个原始空行读回成多个空行。
    */
   const setEditorText = useCallback(
     (text: string) => {
       const editor = editorRef.current;
       if (!editor) return;
       editor.innerHTML = "";
-      for (const line of text.split("\n")) {
-        const block = document.createElement("p");
-        if (line === "") block.appendChild(document.createElement("br"));
-        else block.textContent = line;
-        editor.appendChild(block);
+      const block = document.createElement("p");
+      text.split("\n").forEach((line, index) => {
+        if (index > 0) block.appendChild(document.createElement("br"));
+        if (line) block.appendChild(document.createTextNode(line));
+      });
+      if ((block.textContent ?? "") === "") {
+        block.replaceChildren(document.createElement("br"));
       }
-      if (editor.childNodes.length === 0) editor.innerHTML = emptyBlockMarkup(placeholder);
+      editor.appendChild(block);
       syncEditor();
       editor.focus();
       const range = document.createRange();
@@ -359,7 +363,7 @@ export function Composer({
       selection?.removeAllRanges();
       selection?.addRange(range);
     },
-    [placeholder, syncEditor],
+    [syncEditor],
   );
 
   // 事件桥：宿主（排队消息行的「编辑」动作）无法直接访问本组件的 state，
@@ -369,8 +373,8 @@ export function Composer({
       const detail = (event as CustomEvent<{ text?: unknown }>).detail;
       if (typeof detail?.text === "string") setEditorText(detail.text);
     };
-    window.addEventListener("codex:composer-set-text", onSetText);
-    return () => window.removeEventListener("codex:composer-set-text", onSetText);
+    window.addEventListener(COMPOSER_SET_TEXT_EVENT, onSetText);
+    return () => window.removeEventListener(COMPOSER_SET_TEXT_EVENT, onSetText);
   }, [setEditorText]);
 
   // 挂载即写入官方空态 DOM（不是 React children —— contenteditable 的内容由浏览器/本组件命令式管理，

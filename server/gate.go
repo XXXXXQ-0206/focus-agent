@@ -30,7 +30,7 @@ const (
 	gateKeyFilename  = "gate.key"  // keyDir 下(与 jwt.key 同处,工作区外),0600
 	gateCookieName   = "artex_gate"
 	defaultGateTTL   = 7 * 24 * time.Hour
-	gateRateLimit    = 10             // 每 IP 每分钟口令尝试上限
+	gateRateLimit    = 10 // 每 IP 每分钟口令尝试上限
 	gateRateWindow   = time.Minute
 )
 
@@ -274,10 +274,7 @@ func (g *Gate) wrap(next http.Handler) http.Handler {
 // handleLogin 校验口令并下发签名 cookie。口令错误、限流命中与错误路径的响应
 // 逐字节一致(都是伪装页),不给出任何枚举信号。
 func (g *Gate) handleLogin(w http.ResponseWriter, r *http.Request) {
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil || ip == "" {
-		ip = r.RemoteAddr
-	}
+	ip := requestIP(r)
 	if !g.limiter.allow(ip) {
 		writeDecoy(w)
 		return
@@ -297,6 +294,14 @@ func (g *Gate) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Secure:   isHTTPS(r),
 	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func requestIP(r *http.Request) string {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && ip != "" {
+		return ip
+	}
+	return r.RemoteAddr
 }
 
 // isHTTPS 判定当前请求是否经 TLS 到达(含前置反代终止 TLS 的场景),

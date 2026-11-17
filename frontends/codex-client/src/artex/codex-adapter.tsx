@@ -24,6 +24,7 @@ import {
   Markdown,
   useFollowUp,
 } from "@/chat";
+import { setComposerText } from "@/chat/composer-events";
 import {
   CodexArchive,
   CodexBrain,
@@ -42,7 +43,9 @@ import {
 import type { ToolCall } from "@/lib/types";
 import { WorkspaceHeader } from "@/shell/WorkspaceHeader";
 import { appendUniqueActivities } from "./activity-merge";
+import { activityText, userActivityText } from "./activity-text";
 import { type ArtexAgent, artexApi, openActivityStream } from "./api";
+import { ARTexEvents, emitArtexEvent } from "./events";
 import { useArtexComposerSelection } from "./model-selection";
 import { canSendTaskMessage, taskComposerReadOnly } from "./task-chat-policy";
 import { ARTEXTaskTabs, type TaskTabId } from "./task-workbench";
@@ -95,17 +98,6 @@ function modeIconFor(key: string): ComponentType<CodexIconProps> {
   return MODE_ICONS[key] ?? CodexPerson;
 }
 
-function activityText(activity: Activity): string {
-  return (
-    activity.summary ||
-    activity.message ||
-    activity.content ||
-    activity.text ||
-    activity.detail ||
-    "Focus 活动已更新"
-  );
-}
-
 interface TaskTranscriptEntry {
   key: string;
   message: RuntimeMessage;
@@ -120,27 +112,6 @@ function activityCreatedAt(activity: Activity): string {
     return new Date(value).toISOString();
   }
   return new Date().toISOString();
-}
-
-function userActivityText(activity: Activity): string {
-  if (typeof activity.detail === "string" && activity.detail.trim().startsWith("{")) {
-    try {
-      const detail = JSON.parse(activity.detail) as { text?: unknown };
-      if (typeof detail.text === "string") return detail.text;
-    } catch {
-      // Older or non-JSON details are still shown through the summary fallback.
-    }
-  }
-  // 2026-10-15：末尾补 `detail` 兜底 —— 有的写入方只填 detail（既不是 JSON 也没有 summary），
-  // 只认前四个字段时用户消息会渲染成一个**空气泡**（mock 数据实测复现）。
-  return (
-    activity.summary ||
-    activity.message ||
-    activity.content ||
-    activity.text ||
-    (typeof activity.detail === "string" ? activity.detail : "") ||
-    ""
-  );
 }
 
 function activityToolSummary(activity: Activity, status: ToolCall["status"]): string {
@@ -485,6 +456,7 @@ export function ArtexHomePage() {
       const raw = caught instanceof Error ? caught.message : "消息发送失败";
       // 503「尚未配置 LLM」是环境问题而非交互问题 ⇒ 把该去哪儿配写清楚。
       setError(/LLM/i.test(raw) ? `${raw}（在「系统 → LLM 配置」添加模型配置后重试）` : raw);
+      setComposerText(message);
     } finally {
       setStatus("idle");
     }
@@ -672,7 +644,7 @@ export function ArtexConversationPage() {
         cursorRef.current = page.cursor;
         if (page.running !== runningRef.current) {
           runningRef.current = page.running;
-          window.dispatchEvent(new Event("artex:conversations-changed"));
+          emitArtexEvent(ARTexEvents.conversationsChanged);
         }
         setRunning(page.running);
         setError("");
@@ -733,10 +705,11 @@ export function ArtexConversationPage() {
       } catch {
         // The accepted message is persisted; the normal poll will catch up.
       }
-      window.dispatchEvent(new CustomEvent("artex:conversations-changed"));
+      emitArtexEvent(ARTexEvents.conversationsChanged);
       return true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "消息发送失败");
+      if (!fromQueue) setComposerText(message);
       return false;
     } finally {
       setSending(false);
@@ -815,7 +788,6 @@ export function ArtexConversationPage() {
       onStop={() => {
         void artexApi.stopConversation(id).catch(() => undefined);
       }}
-      showMessageActions={false}
       steer={followUp.allowSteer}
       status={status}
       selection={{
@@ -868,11 +840,11 @@ export function ArtexTaskPage() {
   useEffect(() => {
     void reloadTaskLLM();
     const onChanged = () => void reloadTaskLLM();
-    window.addEventListener("artex:llm-changed", onChanged);
-    window.addEventListener("artex:tasks-changed", onChanged);
+    window.addEventListener(ARTexEvents.llmChanged, onChanged);
+    window.addEventListener(ARTexEvents.tasksChanged, onChanged);
     return () => {
-      window.removeEventListener("artex:llm-changed", onChanged);
-      window.removeEventListener("artex:tasks-changed", onChanged);
+      window.removeEventListener(ARTexEvents.llmChanged, onChanged);
+      window.removeEventListener(ARTexEvents.tasksChanged, onChanged);
     };
   }, [reloadTaskLLM]);
 
@@ -1112,10 +1084,11 @@ export function ArtexTaskPage() {
     try {
       await artexApi.chat(taskId, message);
       setChatRunning(true);
-      window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      emitArtexEvent(ARTexEvents.tasksChanged);
       return true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "消息发送失败");
+      if (!fromQueue) setComposerText(message);
       return false;
     } finally {
       setStatus("idle");
@@ -1132,7 +1105,7 @@ export function ArtexTaskPage() {
           ? { ...current, paused: result.paused, queued: result.queued, status: result.status }
           : current,
       );
-      window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      emitArtexEvent(ARTexEvents.tasksChanged);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "任务控制失败");
     } finally {
@@ -1146,7 +1119,7 @@ export function ArtexTaskPage() {
     setError("");
     try {
       await artexApi.archiveTask(taskId);
-      window.dispatchEvent(new CustomEvent("artex:tasks-changed"));
+      emitArtexEvent(ARTexEvents.tasksChanged);
       navigate("/function/tasks");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "任务归档失败");
@@ -1301,7 +1274,6 @@ export function ArtexTaskPage() {
           />
         ) : null
       }
-      showMessageActions={false}
       steer={followUp.allowSteer}
       status={chatStatus}
       composerDisabled={taskComposerReadOnly(activitySession)}

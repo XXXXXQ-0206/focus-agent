@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestConversationListRunningState(t *testing.T) {
@@ -60,4 +62,65 @@ func TestConversationListRunningState(t *testing.T) {
 	clear(s.chatBusy)
 	s.chatMu.Unlock()
 	check(map[int64]bool{ids[0]: false, ids[1]: false, ids[2]: false})
+}
+
+func TestConversationStopBarrier(t *testing.T) {
+	s := &Server{chatBusy: map[string]bool{}, chatCancel: map[string]context.CancelCauseFunc{}}
+	key := s.convBusyKey(7)
+	s.chatMu.Lock()
+	if !s.startChatLocked(key) {
+		t.Fatal("first run must reserve the conversation")
+	}
+	if s.startChatLocked(key) {
+		t.Fatal("second run must be rejected while the first is active")
+	}
+	s.chatMu.Unlock()
+
+	time.AfterFunc(20*time.Millisecond, func() { s.finishChat(key) })
+	if !s.waitConversationStopped(7, time.Second) {
+		t.Fatal("delete barrier must observe the run completion")
+	}
+
+	s.chatMu.Lock()
+	s.startChatLocked(key)
+	s.chatMu.Unlock()
+	if s.waitConversationStopped(7, 10*time.Millisecond) {
+		t.Fatal("delete barrier must not report idle before the run finishes")
+	}
+	s.finishChat(key)
+}
+
+func TestConversationDeleteAdmissionBlocksNewRuns(t *testing.T) {
+	s := &Server{chatBusy: map[string]bool{}, chatCancel: map[string]context.CancelCauseFunc{}}
+	key := s.convBusyKey(8)
+	s.chatMu.Lock()
+	if !s.startChatLocked(key) {
+		t.Fatal("initial run must reserve the conversation")
+	}
+	s.chatMu.Unlock()
+
+	reserved, cancel := s.reserveConversationDelete(8)
+	if !reserved {
+		t.Fatal("delete must reserve the conversation")
+	}
+	if cancel != nil {
+		cancel(context.Canceled)
+	}
+	s.finishChat(key)
+
+	s.chatMu.Lock()
+	if s.startChatLocked(key) {
+		s.chatMu.Unlock()
+		t.Fatal("new runs must be rejected while deletion is in progress")
+	}
+	s.chatMu.Unlock()
+
+	s.finishConversationDelete(8)
+	s.chatMu.Lock()
+	if !s.startChatLocked(key) {
+		s.chatMu.Unlock()
+		t.Fatal("conversation must accept a run after deletion admission is released")
+	}
+	s.chatMu.Unlock()
+	s.finishChat(key)
 }

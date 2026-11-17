@@ -30,6 +30,7 @@ import (
 
 const protocolVersion = "2025-06-18"
 const legacySSEProtocolVersion = "2024-11-05"
+const maxSSELineBytes = 8 * 1024 * 1024
 
 // ToolName mirrors mcp.ToolName so remote tools share the mcp__server__tool scheme.
 func ToolName(server, name string) string { return "mcp__" + server + "__" + name }
@@ -130,7 +131,7 @@ func NewSSE(ctx context.Context, server, sseURL string, headers map[string]strin
 	if insecure {
 		hc.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	}
-	streamCtx, cancel := context.WithCancel(context.Background())
+	streamCtx, cancel := context.WithCancel(ctx)
 	req, err := http.NewRequestWithContext(streamCtx, http.MethodGet, sseURL, nil)
 	if err != nil {
 		cancel()
@@ -150,8 +151,8 @@ func NewSSE(ctx context.Context, server, sseURL string, headers map[string]strin
 		cancel()
 		return nil, fmt.Errorf("mcp sse http %d: %s", resp.StatusCode, readSnippet(resp.Body))
 	}
-	reader := bufio.NewReader(resp.Body)
-	endpoint, err := readSSEEndpoint(reader, sseURL)
+	scanner := newSSEScanner(resp.Body)
+	endpoint, err := readSSEEndpoint(scanner, sseURL)
 	if err != nil {
 		resp.Body.Close()
 		cancel()
@@ -171,7 +172,7 @@ func NewSSE(ctx context.Context, server, sseURL string, headers map[string]strin
 		streamErr:    make(chan error, 1),
 		protocol:     legacySSEProtocolVersion,
 	}
-	go c.readLegacySSE(reader)
+	go c.readLegacySSE(scanner)
 	if err := c.initialize(ctx); err != nil {
 		_ = c.Close()
 		return nil, err
@@ -179,13 +180,20 @@ func NewSSE(ctx context.Context, server, sseURL string, headers map[string]strin
 	return c, nil
 }
 
-func readSSEEndpoint(r *bufio.Reader, base string) (string, error) {
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			return "", fmt.Errorf("mcp sse endpoint: %w", err)
-		}
-		line = strings.TrimRight(line, "\r\n")
+func newSSEScanner(r io.Reader) *bufio.Scanner {
+	return newSSEScannerWithLimit(r, maxSSELineBytes)
+}
+
+func newSSEScannerWithLimit(r io.Reader, limit int) *bufio.Scanner {
+	scanner := bufio.NewScanner(r)
+	initial := min(64*1024, limit)
+	scanner.Buffer(make([]byte, 0, initial), limit)
+	return scanner
+}
+
+func readSSEEndpoint(scanner *bufio.Scanner, base string) (string, error) {
+	for scanner.Scan() {
+		line := scanner.Text()
 		if !strings.HasPrefix(line, "data:") {
 			continue
 		}
@@ -206,22 +214,16 @@ func readSSEEndpoint(r *bufio.Reader, base string) (string, error) {
 		}
 		return candidate, nil
 	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("mcp sse endpoint: %w", err)
+	}
+	return "", errors.New("mcp sse endpoint: stream closed")
 }
 
-func (c *Client) readLegacySSE(r *bufio.Reader) {
+func (c *Client) readLegacySSE(scanner *bufio.Scanner) {
 	defer close(c.streamDone)
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				select {
-				case c.streamErr <- err:
-				default:
-				}
-			}
-			return
-		}
-		line = strings.TrimRight(line, "\r\n")
+	for scanner.Scan() {
+		line := scanner.Text()
 		if !strings.HasPrefix(line, "data:") {
 			continue
 		}
@@ -235,6 +237,12 @@ func (c *Client) readLegacySSE(r *bufio.Reader) {
 		c.pendingMu.Unlock()
 		if ch != nil {
 			ch <- &response
+		}
+	}
+	if err := scanner.Err(); err != nil && !errors.Is(err, context.Canceled) {
+		select {
+		case c.streamErr <- err:
+		default:
 		}
 	}
 }
@@ -530,8 +538,7 @@ func (c *Client) legacyRoundTrip(ctx context.Context, body rpcRequest, expectRes
 // parseSSE reads an SSE stream and returns the first data frame that is a JSON-RPC
 // response matching wantID (server-to-client requests/notifications are skipped).
 func parseSSE(r io.Reader, wantID int) (*rpcResponse, error) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
+	sc := newSSEScanner(r)
 	var dataBuf strings.Builder
 	flush := func() (*rpcResponse, bool) {
 		if dataBuf.Len() == 0 {

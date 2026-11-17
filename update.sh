@@ -52,7 +52,7 @@ update_docker(){
 
 # ── ② 本地编译更新 ──────────────────────────────
 update_local(){
-  command -v go >/dev/null 2>&1 || die "未检测到 Go（>=1.26）：https://go.dev/dl/"
+  command -v go >/dev/null 2>&1 || die "未检测到 Go（>=1.26.10）：https://go.dev/dl/"
   [ -f config.json ] || warn "未找到 config.json——若首次部署请改用 ./install.sh"
   ok "Go: $(go version)"
 
