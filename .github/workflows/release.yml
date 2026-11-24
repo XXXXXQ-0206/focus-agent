@@ -7,8 +7,8 @@ permissions:
   contents: write # 创建 Release 需要
 
 jobs:
-  # ① Go 全量测试门：带真实 PostgreSQL 服务，db/agent/server 的 PG 测试不再
-  #    静默跳过（本地无 ARTEX_PG_DSN 时这些测试仍会 skip，见 db/testmain_test.go）。
+  # ① Go 全量测试门：CI 提供 PostgreSQL。本地未设置 ARTEX_PG_DSN 时，
+  #    依赖 PostgreSQL 的测试会跳过，见 backend/db/testmain_test.go。
   #    注意：带 DSN 后会真实执行全部 PG 测试，若个别用例在 CI 环境暴露出既有
   #    依赖问题，应修测试本身，而不是摘掉这个门。
   test:
@@ -34,8 +34,11 @@ jobs:
         with:
           go-version: "1.26.10"
           cache: true
+          cache-dependency-path: backend/go.sum
       - run: go vet ./...
+        working-directory: backend
       - run: go test ./...
+        working-directory: backend
 
   # ② 前端静态导出（一次），产物给交叉编译各平台复用；tsc 类型检查一并入门
   frontend:
@@ -46,26 +49,26 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontends/codex-client/package-lock.json
+          cache-dependency-path: project/frontends/codex-client/package-lock.json
       - run: npm ci
-        working-directory: frontends/codex-client
+        working-directory: project/frontends/codex-client
       - run: npm run typecheck
-        working-directory: frontends/codex-client
+        working-directory: project/frontends/codex-client
       - run: npm test
-        working-directory: frontends/codex-client
+        working-directory: project/frontends/codex-client
       - name: Test desktop host
         run: npm test
         working-directory: desktop
       - name: Biome lint
-        working-directory: frontends/codex-client
+        working-directory: project/frontends/codex-client
         run: npm run lint
       - name: Build Focus renderer
         run: npm run build
-        working-directory: frontends/codex-client
+        working-directory: project/frontends/codex-client
       - uses: actions/upload-artifact@v4
         with:
           name: focus-dist
-          path: frontends/codex-client/dist
+          path: project/frontends/codex-client/dist
 
   # ③ 五平台交叉编译（内嵌前端）+ 打 zip
   binaries:
@@ -85,10 +88,11 @@ jobs:
         with:
           go-version: "1.26.10"
           cache: true
+          cache-dependency-path: backend/go.sum
       - uses: actions/download-artifact@v4
         with:
           name: focus-dist
-          path: server/webui/dist/codex
+          path: backend/server/webui/dist/codex
       - name: Build and package with build.sh
         env:
           ARTEX_TARGET_OS: ${{ matrix.goos }}
@@ -102,7 +106,7 @@ jobs:
           ARTEX_PACKAGE: "1"
           ARTEX_PACKAGE_DIR: dist
         run: |
-          ./build.sh --target "${ARTEX_TARGET_OS}/${ARTEX_TARGET_ARCH}"
+          bash project/build.sh --target "${ARTEX_TARGET_OS}/${ARTEX_TARGET_ARCH}"
       - name: Smoke test Linux amd64 binary
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         run: dist/artex-linux-amd64/artex -h
@@ -132,7 +136,7 @@ jobs:
         run: sha256sum *.zip > SHA256SUMS
       # 用 minisign 给 SHA256SUMS 签名，客户端（selfupdate）内置公钥验签，
       # 缺签名或验不过一律拒装。MINISIGN_KEY 是 minisign 无口令私钥文件的完整
-      # 内容（两行），公钥硬编码在 selfupdate/minisign.go，两者必须成对更换。
+      # 内容（两行），对应公钥位于 backend/selfupdate/minisign.go。
       # minisign 工具本身钉 0.12 并校验 SHA256，不用包管理器的浮动版本。
       - name: Sign checksums with minisign
         working-directory: dist
@@ -161,7 +165,7 @@ jobs:
     needs: binaries
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # 取 Dockerfile 与 skills/
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: bin-linux-amd64
@@ -186,6 +190,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          file: project/deploy/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

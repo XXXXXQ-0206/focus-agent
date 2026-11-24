@@ -10,9 +10,9 @@ __pycache__/
 *.pyo
 
 # frontend
-frontends/codex-client/node_modules/
-frontends/codex-client/dist/
-frontends/codex-client/*.tsbuildinfo
+/project/frontends/codex-client/node_modules/
+/project/frontends/codex-client/dist/
+/project/frontends/codex-client/*.tsbuildinfo
 *.local
 
 # development tools
@@ -24,7 +24,7 @@ frontends/codex-client/*.tsbuildinfo
 *.swo
 
 # docs
-/docs/
+/project/docs/
 
 # os
 .DS_Store
@@ -41,7 +41,7 @@ Thumbs.db
 /artex.old
 /artex.failed
 /artex.upgrade.json
-/server/webui/dist/
+/backend/server/webui/dist/
 /dist/*
 !/dist/go.mod
 
@@ -56,8 +56,8 @@ Thumbs.db
 
 # bench 基准测试相关（本地产物，不提交）
 /bench/
-/Dockerfile.bench
-/Dockerfile.bench.v2
+/project/deploy/Dockerfile.bench
+/project/deploy/Dockerfile.bench.v2
 
 # ---- 本机部署产物（嵌入式运行时 / 桌面端 / 启动器）----
 # 编译好的单二进制（Windows 下带 .exe）
@@ -65,9 +65,9 @@ Thumbs.db
 # 便携版 PostgreSQL（~850 MB，装机时解压出来的）
 /pgsql/
 # 托盘启动器（源码保留，构建产物不提交）
-/launcher/bin/
-/launcher/obj/
-/launcher/dist/
+/project/launcher/bin/
+/project/launcher/obj/
+/project/launcher/dist/
 # Electron 桌面端（源码保留；node_modules 与打包产物不提交）
 /desktop/node_modules/
 /desktop/build/
@@ -76,8 +76,8 @@ Thumbs.db
 # 桌面端 / 前端的本机运行日志与 pid（开发机产物，不进公开仓库）
 /desktop/*.log
 /desktop/*.pid
-/frontends/codex-client/*.log
-/frontends/codex-client/*.pid
+/project/frontends/codex-client/*.log
+/project/frontends/codex-client/*.pid
 # 运行时杂项
 /ligolo-ng.yaml
 /.sock.lock

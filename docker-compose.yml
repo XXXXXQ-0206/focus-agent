@@ -19,7 +19,7 @@ services:
     # 这是 Focus Agent 的源码构建镜像，不是上游原版镜像。
     build:
       context: .
-      dockerfile: Dockerfile.source
+      dockerfile: project/deploy/Dockerfile.source
     image: focus-agent:local
     depends_on:
       postgres:
